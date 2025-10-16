@@ -8,9 +8,9 @@ It’s built for the **CIS4416 War Gaming** environment.
 ## Project Files
 
 ### `inventory.ini`
-Defines your Proxmox VE node(s) and global connection variables used by Ansible.
+Defines the Proxmox VE node(s) and global connection variables used by Ansible.
 
-### `inventory.ini`
+### `deploy_one_vm.yml`
 This playbook automates:
     Detecting .ovf template files stored in /mnt/pve/ovfstore on your Proxmox node.
     Selecting the first available OVF.
@@ -26,8 +26,8 @@ This playbook automates:
 
 ### On the control machine
 Install Ansible and required collections:
-    sudo apt install ansible -y
-    ansible-galaxy collection install community.general
+    `sudo apt install ansible -y`
+    `ansible-galaxy collection install community.general`
 
 ### On the Proxmox node
 Ensure:
@@ -37,13 +37,13 @@ Ensure:
 
 ## How to Run
 
-### 1. Test connection to your Proxmox node
-ansible -i inventory.ini pve -m ping
+### 1. Test connection to the Proxmox node
+`ansible -i inventory.ini pve -m ping`
     Should see pong if Ansible can connect successfully.
 
 ### 2. Run the playbook
-Run the playbook using your inventory file:
-    ansible-playbook -i inventory.ini provision_one.yml
+Run the playbook using the inventory file:
+    `ansible-playbook -i inventory.ini deploy_one_vm.yml`
 
 This will:
     Use the first .ovf template in /mnt/pve/ovfstore
