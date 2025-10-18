@@ -52,13 +52,19 @@ This will:
 - Name it automatically (e.g., CIS4416 Kali 01)
 
 ## Notes & Current Behavior
-Boot Mode: Uses SeaBIOS (legacy) for all VMs.
-VM Naming: Derived automatically from the OVF filename.
-- Example: TEMPLATE-kali-20241124-Experiment.ovf → CIS4416 Kali 01
-Bridge Assignment:
-- Group 1 → vmbr80
-- Group 2 → vmbr90
-VMID Scheme:
-- Group 1 → starts at 8001
-- Group 2 → starts at 9001
-Only the first OVF found in the directory is used (this will be changed later on by editing ovf_index in the playbook).
+
+**Boot Mode:** Uses SeaBIOS (legacy) for all VMs.  
+**VM Naming:** Derived automatically from the OVF filename.
+
+- **Example:** `TEMPLATE-kali-20241124-Experiment.ovf` → `CIS4416 Kali 01`
+
+**Bridge Assignment:**
+- Group 1 → `vmbr80`
+- Group 2 → `vmbr90`
+
+**VMID Scheme:**
+- Group 1 → starts at `8001`
+- Group 2 → starts at `9001`
+
+Only the first OVF found in the directory is used  
+(this will be changed later by editing `ovf_index` in the playbook).
