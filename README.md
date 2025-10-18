@@ -12,15 +12,15 @@ Defines the Proxmox VE node(s) and global connection variables used by Ansible.
 
 ### `deploy_one_vm.yml`
 This playbook automates:
-    - Detecting .ovf template files stored in /mnt/pve/ovfstore on your Proxmox node.
-    - Selecting the first available OVF.
-    - Importing it to storage (qm importovf).
-    - Setting up:
-        - SeaBIOS boot mode
-        - virtio-scsi controller
-        - e1000 network interface on the correct bridge (vmbr80 or vmbr90)
-        - Automatically derived VM name like CIS4416 Kali 01
-        - Starting the VM.
+- Detecting `.ovf` template files stored in `/mnt/pve/ovfstore` on your Proxmox node  
+- Selecting the first available OVF  
+- Importing it to storage (`qm importovf`)  
+- Setting up:
+  - SeaBIOS boot mode  
+  - virtio-scsi controller  
+  - e1000 network interface on the correct bridge (`vmbr80` or `vmbr90`)  
+  - Automatically derived VM name like `CIS4416 Kali 01`
+- Starting the VM
 
 ## Prerequisites
 
