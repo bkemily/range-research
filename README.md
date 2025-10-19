@@ -18,7 +18,7 @@ This playbook automates:
 - Setting up:
   - SeaBIOS boot mode  
   - virtio-scsi controller  
-  - e1000 network interface on the correct bridge (`vmbr80` or `vmbr90`)  
+  - e1000 network interface on the correct bridge (`vmbr80` or `vmbr70`)  
   - Automatically derived VM name like `CIS4416 Kali 01`
 - Starting the VM
 
