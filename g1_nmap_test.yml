@@ -1,0 +1,109 @@
+---
+- name: Deploy and run nmap script from control node Desktop on Kali VM, fetch results
+  hosts: kali
+  gather_facts: yes
+  vars:
+    # Path to script on the control node (Ubuntu Desktop)
+    local_script_path: "/home/ubuntu/Desktop/Automated Exploits/Automated Exploits/nmapScript.sh"
+
+    # Remote paths on Kali
+    remote_home: /home/kali
+    remote_script: "{{ remote_home }}/run_nmap.sh"
+    remote_csv: "{{ remote_home }}/nmap_scan.csv"
+    remote_xml: "{{ remote_home }}/nmapOut.xml"
+
+    # Where to save fetched files on the control node
+    local_fetch_dir: ./fetched-nmap-results
+
+  tasks:
+    - name: Fail early if local script doesn't exist (control node)
+      delegate_to: localhost
+      stat:
+        path: "{{ local_script_path }}"
+      register: local_script_stat
+
+    - name: Abort if script not found on Desktop
+      delegate_to: localhost
+      fail:
+        msg: "Local script not found at {{ local_script_path }} — place run_nmap.sh on your Ubuntu Desktop or change local_script_path."
+      when: not local_script_stat.stat.exists
+
+    - name: Ensure nmap is installed on Kali (Debian family)
+      become: yes
+      apt:
+        name: nmap
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Ensure remote home exists
+      become: yes
+      file:
+        path: "{{ remote_home }}"
+        state: directory
+        owner: kali
+        group: kali
+        mode: '0755'
+
+    - name: Copy nmap script from control node Desktop to Kali
+      become: yes
+      copy:
+        src: "{{ local_script_path }}"    # from control node
+        dest: "{{ remote_script }}"      # on Kali
+        owner: kali
+        group: kali
+        mode: '0755'
+
+    - name: Ensure CSV exists (create if missing) and owned by kali
+      become: yes
+      file:
+        path: "{{ remote_csv }}"
+        state: touch
+        owner: kali
+        group: kali
+        mode: '0644'
+
+    - name: Run the nmap script on Kali (cwd = /home/kali) as user kali
+      become: yes
+      become_user: kali
+      shell: "{{ remote_script }}"
+      args:
+        chdir: "{{ remote_home }}"
+      register: run_result
+      # treat rc==0 as success; script returns 0 on success
+      changed_when: run_result.rc == 0
+
+    - name: Show the last 200 chars of stdout for quick debugging
+      debug:
+        msg: "{{ run_result.stdout[-200:] | default('no stdout') }}"
+
+    - name: Ensure local fetch directory exists (control node)
+      delegate_to: localhost
+      file:
+        path: "{{ local_fetch_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Fetch nmap XML result if present
+      fetch:
+        src: "{{ remote_xml }}"
+        dest: "{{ local_fetch_dir }}/"
+        flat: yes
+      ignore_errors: yes
+
+    - name: Fetch CSV results if present
+      fetch:
+        src: "{{ remote_csv }}"
+        dest: "{{ local_fetch_dir }}/"
+        flat: yes
+      ignore_errors: yes
+
+    - name: List fetched files on control node
+      delegate_to: localhost
+      shell: "ls -la {{ local_fetch_dir }} || true"
+      register: ls_local
+      changed_when: false
+
+    - name: Print fetched files listing
+      debug:
+        var: ls_local.stdout_lines
