@@ -16,18 +16,19 @@
     local_fetch_dir: ./fetched-nmap-results
 
   tasks:
+  # Check for local script presence
     - name: Fail early if local script doesn't exist (control node)
       delegate_to: localhost
       stat:
         path: "{{ local_script_path }}"
       register: local_script_stat
-
+  # Abort if script not found
     - name: Abort if script not found on Desktop
       delegate_to: localhost
       fail:
         msg: "Local script not found at {{ local_script_path }} — place run_nmap.sh on your Ubuntu Desktop or change local_script_path."
       when: not local_script_stat.stat.exists
-
+  # Ensure nmap installed on Kali
     - name: Ensure nmap is installed on Kali (Debian family)
       become: yes
       apt:
@@ -35,7 +36,7 @@
         state: present
         update_cache: yes
       when: ansible_facts['os_family'] == 'Debian'
-
+  # Ensure remote home exists
     - name: Ensure remote home exists
       become: yes
       file:
@@ -44,7 +45,7 @@
         owner: kali
         group: kali
         mode: '0755'
-
+  # Copy script to Kali
     - name: Copy nmap script from control node Desktop to Kali
       become: yes
       copy:
@@ -53,7 +54,7 @@
         owner: kali
         group: kali
         mode: '0755'
-
+  # Ensure CSV exists or create new one
     - name: Ensure CSV exists (create if missing) and owned by kali
       become: yes
       file:
@@ -62,7 +63,7 @@
         owner: kali
         group: kali
         mode: '0644'
-
+  # Run the nmap script
     - name: Run the nmap script on Kali (cwd = /home/kali) as user kali
       become: yes
       become_user: kali
@@ -70,12 +71,12 @@
       args:
         chdir: "{{ remote_home }}"
       register: run_result
-      # treat rc==0 as success; script returns 0 on success
+      #rc==0 as success; script returns 0 on success
       changed_when: run_result.rc == 0
-
-    - name: Show the last 200 chars of stdout for quick debugging
-      debug:
-        msg: "{{ run_result.stdout[-200:] | default('no stdout') }}"
+  
+    #- name: Show the last 200 chars of stdout for quick debugging
+      #debug:
+        #msg: "{{ run_result.stdout[-200:] | default('no stdout') }}"
 
     - name: Ensure local fetch directory exists (control node)
       delegate_to: localhost
