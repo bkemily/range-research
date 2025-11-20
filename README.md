@@ -12,7 +12,7 @@ Defines the Proxmox VE node(s) and global connection variables used by Ansible.
 
 ### `deploy_one_vm.yml`
 This playbook automates:
-- Detecting `.ovf` template files stored in `/mnt/pve/ovfstore` on your Proxmox node  
+- Detecting `.ovf` template files stored in `/mnt/pve/ovfstore` on the Proxmox node  
 - Selecting the first available OVF  
 - Importing it to storage (`qm importovf`)  
 - Setting up:
