@@ -9,6 +9,7 @@ Stage 0 configures the Proxmox VE network infrastructure by creating all require
 - Create Linux bridge interfaces for network isolation
 - Configure bridges for instructor and student groups
 - Establish network topology for Cyber War Gaming class
+- Ensure safe rollback through automatic timestamped backups
 - Prepare Proxmox for Security Onion deployment
 
 ## Prerequisites
@@ -33,60 +34,82 @@ For each student group (1-N):
 - **vmbr10XXX**: Student LAN bridge (internal group network)
   - Example: vmbr10001 (Group 1), vmbr10002 (Group 2)
 
-### Bridge Naming Convention
-```
-vmbr[Class][Type][Group]
+## Bridge Naming Schema (Exact as Implemented)
 
-Class:
-  1 = Cyber War Gaming
-  2 = Ethical Hacking (future)
-  3 = Malware Analysis (future)
+### **Infrastructure Bridges**
+| Bridge | Purpose |
+|--------|---------|
+| `vmbr0` | Proxmox management bridge (VLAN-aware) |
+| `vmbr0.68` | Management VLAN (192.168.68.89/24) |
+| `vmbr50` | Internet (Spark WAN) |
+| `vmbr51` | Closed network (VLAN-aware) |
 
-Type:
-  0 = LAN
-  5 = WAN
+### **Instructor Bridges**
+| Bridge | Purpose |
+|--------|---------|
+| `vmbr255000` | Instructor LAN (143.88.255.0/24) |
 
-Group:
-  001-015 = Student groups
-  255 = Instructor
-```
+### **Student Group Bridges** (max_student_groups)
+The playbook dynamically generates these:
+
+| Purpose | Format | Example (Group 1) |
+|---------|--------|-------------------|
+| Group WAN | `vmbr255GGG` | `vmbr255001` |
+| Group LAN | `vmbrGGG000` | `vmbr001000` |
 
 ## Files
 
 ```
 stage0/
-├── stage0_configure_proxmox_network.yml    # Main playbook
-├── templates/
-│   └── interfaces.j2                       # Network interfaces template (optional)
-└── README.md                               # This file
+├── stage0_configure_proxmox_network.yml   # Main playbook
+└── README.md                              # This file
 ```
 
-## Configuration
+## What the Playbook Actually Does
 
-Edit `inventory/group_vars/all.yml` to set the number of student groups:
-
-```yaml
-# Number of student groups (1-15)
-max_student_groups: 2
-```
+1. Displays stage information and bridge plan  
+2. Tests SSH connectivity to Proxmox  
+3. Creates timestamped backup of `/etc/network/interfaces`  
+4. Generates a full replacement configuration including all bridges  
+5. Writes config to `/tmp/interfaces.new` locally  
+6. Transfers it to Proxmox with SCP  
+7. **Skips dry-run validation** (Proxmox doesn’t support `ifreload -i`)  
+8. Applies new configuration  
+9. Runs `ifreload -a` to apply changes  
+10. Waits 10 seconds for stabilization  
+11. Verifies Proxmox is reachable via SSH  
+12. Verifies each required bridge exists and is active  
+13. Removes temporary files locally and on Proxmox  
+14. Prints a completion summary and next steps  
 
 ## Usage
 
 ### Run Stage 0
 
 ```bash
-# From Ubuntu VM
 cd /opt/cyber-range-automation/stage0
-
-# Interactive mode (prompts for confirmation)
-sudo ansible-playbook -i ../inventory/hosts.yml stage0_configure_proxmox_network.yml
-
-# Automatic mode (no confirmation)
-sudo ansible-playbook -i ../inventory/hosts.yml stage0_configure_proxmox_network.yml -e auto_confirm=true
-
-# Custom number of groups
-sudo ansible-playbook -i ../inventory/hosts.yml stage0_configure_proxmox_network.yml -e max_student_groups=5
+ansible-playbook stage0_configure_proxmox_network.yml
 ```
+
+Specify a custom number of groups:
+
+```bash
+ansible-playbook stage0_configure_proxmox_network.yml -e max_student_groups=5
+```
+
+## Generated Configuration Summary
+
+The playbook creates:
+
+- `vmbr0` — management  
+- `vmbr0.68` — management VLAN  
+- `vmbr50` — internet  
+- `vmbr51` — closed network  
+- `vmbr255000` — instructor LAN  
+- `vmbr255GGG` — per-group WAN  
+- `vmbrGGG000` — per-group LAN  
+
+A preview of the generated file is displayed during execution.
 
 ### Verify Bridges
 
@@ -98,18 +121,27 @@ ip link show | grep vmbr
 ../scripts/verify_bridges.sh
 ```
 
-## What the Playbook Does
+## Verification Performed by the Playbook
 
-1. **Validates environment** - Checks Proxmox version and accessibility
-2. **Creates backup** - Saves `/etc/network/interfaces` with timestamp to `/etc/network/interfaces.backups/`
-3. **Checks existing bridges** - Shows currently configured bridges
-4. **Generates configuration** - Creates complete network interfaces file
-5. **Validates configuration** - Dry-run test before applying changes
-6. **Prompts for confirmation** - Review before making changes (unless auto_confirm=true)
-7. **Applies changes** - Replaces `/etc/network/interfaces`
-8. **Reloads network** - Activates bridges with `ifreload -a`
-9. **Verifies bridges** - Confirms all bridges are active
-10. **Health check** - Ensures Proxmox API is still responsive
+After applying configuration, the following are checked:
+
+- SSH connectivity still works  
+- All bridges are active  
+- Bridges match the expected list for the configured number of groups  
+
+Example bridges for 2 groups:
+
+```
+vmbr0
+vmbr0.68
+vmbr50
+vmbr51
+vmbr255000
+vmbr255001
+vmbr001000
+vmbr255002
+vmbr002000
+```
 
 ## Safety Features
 
@@ -121,66 +153,24 @@ ip link show | grep vmbr
 
 ## Rollback Procedure
 
-If something goes wrong:
+Backups are stored as:
+
+```
+/etc/network/interfaces.bak.<epoch>
+```
+
+To restore:
 
 ```bash
-# List available backups
-ls -lh /etc/network/interfaces.backups/
-
-# Restore from backup
-sudo cp /etc/network/interfaces.backups/interfaces.YYYYMMDD_HHMMSS /etc/network/interfaces
-
-# Reload network
-sudo ifreload -a
-
-# Verify
-ip link show | grep vmbr
+ssh root@192.168.68.89
+cp /etc/network/interfaces.bak.TIMESTAMP /etc/network/interfaces
+ifreload -a
 ```
 
-## Expected Output
+List backups:
 
-```
-TASK [Display stage information]
-ok: [localhost] => 
-  msg: |
-    ========================================
-    STAGE 0: Proxmox Network Configuration
-    ========================================
-    Bridges to configure:
-      - vmbr51 (Spark WAN)
-      - vmbr10255 (Instructor LAN)
-      - vmbr15001-vmbr15002 (Student WANs)
-      - vmbr10001-vmbr10002 (Student LANs)
-    ========================================
-
-TASK [Backup current interfaces file]
-changed: [localhost]
-
-TASK [Display backup location]
-ok: [localhost] =>
-  msg: "Backup created: /etc/network/interfaces.backups/interfaces.20250129_143022"
-
-TASK [Display completion summary]
-ok: [localhost] =>
-  msg: |
-    ========================================
-    Stage 0: Network Configuration Complete
-    ========================================
-    
-    Bridges configured: 6
-    
-    Active bridges:
-    vmbr0
-    vmbr51
-    vmbr10001
-    vmbr10002
-    vmbr10255
-    vmbr15001
-    vmbr15002
-    
-    Next step: Run Stage 1 bootstrap
-      ansible-playbook stage1_bootstrap_security_onion.yml
-    ========================================
+```bash
+ls -lh /etc/network/interfaces.bak.*
 ```
 
 ## Troubleshooting
