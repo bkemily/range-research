@@ -186,7 +186,6 @@
           Backup saved to: {{ interfaces_backup }}
           
           Press ENTER to continue or Ctrl+C to abort
-      when: not (auto_confirm | default(false) | bool)
     
     - name: Apply new interfaces configuration
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "cp /tmp/interfaces.new {{ interfaces_file }}"
