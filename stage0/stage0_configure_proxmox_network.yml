@@ -1,27 +1,77 @@
 ---
+# =============================================================================
+# Stage 0: Proxmox Network Configuration
+# =============================================================================
+# Purpose: Configure network bridges on Proxmox VE host for cyber range
+# 
+# What this does:
+#   1. Backs up current /etc/network/interfaces with timestamp
+#   2. Generates new network configuration with all required bridges
+#   3. Applies configuration and reloads network
+#   4. Verifies all bridges are created and active
+#
+# Run from: Ubuntu VM (one-time setup)
+# Target: Proxmox host at 192.168.68.89
+#
+# Usage:
+#   ansible-playbook stage0_configure_proxmox_network.yml
+#   ansible-playbook stage0_configure_proxmox_network.yml -e max_student_groups=5
+#
+# Bridge Naming Schema:
+#   vmbrXXXYYY where:
+#     XXX = Group ID (255 = instructor, 001-015 = students)
+#     YYY = Network type (000 = LAN, specific number for WAN)
+#
+#   Infrastructure:
+#     vmbr0      - Management bridge (VLAN-aware, existing)
+#     vmbr0.68   - Management VLAN (192.168.68.89/24)
+#     vmbr50     - Internet (Spark WAN)
+#     vmbr51     - Closed network (Spark LAN / Instructor WAN, VLAN-aware)
+#
+#   Instructor:
+#     vmbr255000 - Instructor LAN (143.88.255.0/24)
+#
+#   Student Groups (per group):
+#     vmbr255GGG - Instructor ↔ Group GGG WAN (point-to-point /30)
+#     vmbrGGG000 - Group GGG LAN (/24 subnet)
+#
+# Safety Features:
+#   - Timestamped backups prevent data loss
+#   - Network reload is non-disruptive (only changes what's different)
+#   - Idempotent (safe to run multiple times)
+#   - Verifies connectivity after changes
+# =============================================================================
+
 - name: Stage 0 - Configure Proxmox Network Bridges
   hosts: localhost
   connection: local
   gather_facts: yes
   
   vars:
+    # Proxmox host connection details
     proxmox_host: "192.168.68.89"
     proxmox_user: "root"
+    # File paths on Proxmox
     interfaces_file: "/etc/network/interfaces"
+    # Backup file with epoch timestamp (e.g., /etc/network/interfaces.bak.1764523303)
     interfaces_backup: "/etc/network/interfaces.bak.{{ ansible_date_time.epoch }}"
     
     # Physical interface
     physical_interface: "ens3f0np0"
     
-    # Management configuration
+    # Management configuration, Proxmox's management IP on VLAN 68
     management_ip: "192.168.68.89"
     management_netmask: "24"
     management_gateway: "192.168.68.1"
     
-    # Number of student groups
+    # Number of student groups, change this to add more groups (1-15 supported)
     max_student_groups: 2
   
   tasks:
+    # =========================================================================
+    # STAGE 0.1: Display Information and Test Connectivity
+    # =========================================================================
+    
     - name: Display stage information
       ansible.builtin.debug:
         msg: |
@@ -48,6 +98,7 @@
               - vmbr255002, vmbr002000 (Group 2 WAN/LAN)
           ========================================
     
+    #Test SSH connectivity to Proxmox before making changes, ensures we can connect and won't lose access
     - name: Test SSH connection to Proxmox
       ansible.builtin.command: ssh -o ConnectTimeout=5 {{ proxmox_user }}@{{ proxmox_host }} "echo 'Connection successful'"
       register: ssh_test
@@ -58,11 +109,18 @@
       ansible.builtin.debug:
         msg: "✓ SSH connection to Proxmox successful"
     
+    # =========================================================================
+    # STAGE 0.2: Backup Current Configuration
+    # =========================================================================
+    
+    # Create timestamped backup of current network config
+    # This allows rollback if something goes wrong
+    # Example: /etc/network/interfaces.bak.1764523303
     - name: Backup current interfaces file with timestamp
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "cp {{ interfaces_file }} {{ interfaces_backup }}"
       register: backup_result
       changed_when: true
-    
+    # Verify the backup file was actually created
     - name: Verify backup was created
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "test -f {{ interfaces_backup }}"
       changed_when: false
@@ -71,6 +129,20 @@
       ansible.builtin.debug:
         msg: "✓ Backup created: {{ interfaces_backup }}"
     
+    # =========================================================================
+    # STAGE 0.3: Generate New Network Configuration
+    # =========================================================================
+    
+    # Generate the complete /etc/network/interfaces file
+    # This includes:
+    #   - Loopback interface
+    #   - Physical interface (ens3f0np0)
+    #   - Management bridge (vmbr0) and VLAN (vmbr0.68)
+    #   - Infrastructure bridges (vmbr50, vmbr51)
+    #   - Instructor bridge (vmbr255000)
+    #   - Student group bridges (vmbr255GGG for WAN, vmbrGGG000 for LAN)
+    #
+    # The loop generates bridges for each student group dynamically, if max_student_groups is changed, the loop automatically adjusts
     - name: Generate new network interfaces configuration
       ansible.builtin.set_fact:
         new_interfaces_config: |
@@ -139,28 +211,38 @@
               bridge-stp off
               bridge-fd 0
           {% endfor %}
-    
+    # Display first 30 lines of generated config for verification (can take out but I like for testing)
     - name: Display generated configuration preview
       ansible.builtin.debug:
         msg: "{{ new_interfaces_config.split('\n')[:30] }}"
+
+    # =========================================================================
+    # STAGE 0.4: Transfer Configuration to Proxmox
+    # =========================================================================
     
+    # Write generated config to local temp file first
     - name: Write new configuration to temporary file
       ansible.builtin.copy:
         content: "{{ new_interfaces_config }}"
         dest: "/tmp/interfaces.new"
         mode: '0644'
       delegate_to: localhost
-    
+    # Copy the temp file to Proxmox, using SCP
     - name: Copy new configuration to Proxmox
       ansible.builtin.command: scp /tmp/interfaces.new {{ proxmox_user }}@{{ proxmox_host }}:/tmp/interfaces.new
       changed_when: true
     
+    # =========================================================================
+    # STAGE 0.5: Display Information Before Applying
+    # =========================================================================
+    
+    # Note: Dry-run validation skipped because ifreload -i flag not supported on this Proxmox version. Configuration is applied directly with backup.
     - name: Display validation notice
       ansible.builtin.debug:
         msg: |
           ⚠️  Skipping dry-run validation (ifreload -i not supported)
           The configuration will be applied directly with backup protection.
-    
+    # Show what bridges will be created
     - name: Show what will be added
       ansible.builtin.debug:
         msg: |
@@ -170,33 +252,50 @@
             - vmbr{{ '%03d' | format(group) }}000: Group {{ group }} LAN
           {% endfor %}
     
+    # =========================================================================
+    # STAGE 0.6: Apply Configuration and Reload Network
+    # =========================================================================
+    
+    # Apply the new configuration by overwriting /etc/network/interfaces
+    # The backup was already created, so this is safe
     - name: Apply new interfaces configuration
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "cp /tmp/interfaces.new {{ interfaces_file }}"
       register: interfaces_updated
       changed_when: true
-    
+    # Reload network configuration using ifreload
+    # This only changes interfaces that have different configurations
+    # Existing bridges with identical config are not touched
     - name: Reload network configuration
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "ifreload -a"
       when: interfaces_updated.changed
       register: reload_result
-    
+    # Wait for network to stabilize after reload
+    # 10 seconds should be plenty for bridges to come up
     - name: Wait for network to stabilize
       ansible.builtin.pause:
         seconds: 10
       when: interfaces_updated.changed
     
+    # =========================================================================
+    # STAGE 0.7: Verify Changes and Connectivity
+    # =========================================================================
+    
+    # Verify we can still SSH to Proxmox after network changes
+    # Retry up to 5 times with 3 second delays
+    # This ensures we didn't break management connectivity
     - name: Verify Proxmox is still accessible
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "echo 'Network reload successful'"
       register: connectivity_check
       retries: 5
       delay: 3
       until: connectivity_check.rc == 0
-    
+    # Get list of all active bridges for reporting
     - name: Get list of active bridges
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link show | grep -oE 'vmbr[0-9.]+' | sort -u"
       register: active_bridges
       changed_when: false
-    
+    # Verify each required bridge exists and is active
+    # This ensures all bridges were created successfully
     - name: Verify required bridges exist
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link show {{ item }}"
       loop:
@@ -213,15 +312,20 @@
       failed_when: bridge_verification.rc != 0
       changed_when: false
     
+    # =========================================================================
+    # STAGE 0.8: Cleanup and Summary
+    # =========================================================================
+    
+    # Remove temporary file from Proxmox
     - name: Clean up temporary file on Proxmox
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "rm -f /tmp/interfaces.new"
       changed_when: false
-    
+    # Remove temporary file from local system
     - name: Clean up temporary file locally
       ansible.builtin.file:
         path: "/tmp/interfaces.new"
         state: absent
-    
+    # Display completion summary with all active bridges and next steps
     - name: Display completion summary
       ansible.builtin.debug:
         msg: |
@@ -245,3 +349,18 @@
             cd ../stage1
             ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml
           ========================================
+# =============================================================================
+# Rollback Instructions (if needed):
+# =============================================================================
+# If something goes wrong, you can restore from backup:
+#
+#   ssh root@192.168.68.89
+#   cp /etc/network/interfaces.bak.TIMESTAMP /etc/network/interfaces
+#   ifreload -a
+#
+# To list all backups:
+#   ssh root@192.168.68.89 "ls -lh /etc/network/interfaces.bak.*"
+#
+# To remove old backups (keep only 3 most recent):
+#   ssh root@192.168.68.89 "ls -t /etc/network/interfaces.bak.* | tail -n +4 | xargs rm -f"
+# =============================================================================
