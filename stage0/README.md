@@ -249,8 +249,4 @@ Expected bridge count formula: `2 + (max_student_groups * 2)`
 Once Stage 0 completes successfully:
 
 1. Verify all bridges are active
-2. Proceed to Stage 1 (Security Onion Bootstrap):
-   ```bash
-   cd ../stage1
-   sudo ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml
-   ```
+2. Proceed to Stage 1 (Security Onion Bootstrap)
