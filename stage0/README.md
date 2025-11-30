@@ -84,6 +84,31 @@ stage0/
 
 ## Usage
 
+### (One-Time Setup) Create the project directory
+
+This step is only required the first time you set up the automation environment.
+
+```bash
+sudo mkdir -p /opt/cyber-range-automation
+sudo chown $USER:$USER /opt/cyber-range-automation
+```
+
+### (One-Time Setup) Clone the GitHub repository
+
+Only perform this once when initially installing the automation code.
+
+```bash
+cd /opt/cyber-range-automation
+git clone https://github.com/bkemily/range-research.git .
+```
+#### If the repository is already cloned
+
+Before running any playbook, always update to the latest version:
+
+```bash
+cd /opt/cyber-range-automation
+git pull
+```
 ### Run Stage 0
 
 ```bash
