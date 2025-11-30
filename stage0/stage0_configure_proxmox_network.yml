@@ -170,23 +170,6 @@
             - vmbr{{ '%03d' | format(group) }}000: Group {{ group }} LAN
           {% endfor %}
     
-    - name: Confirm before applying changes
-      ansible.builtin.pause:
-        prompt: |
-          
-          ========================================
-          Ready to apply network configuration
-          ========================================
-          
-          This will:
-          1. Overwrite {{ interfaces_file }}
-          2. Reload network configuration
-          3. Create all required bridges
-          
-          Backup saved to: {{ interfaces_backup }}
-          
-          Press ENTER to continue or Ctrl+C to abort
-    
     - name: Apply new interfaces configuration
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "cp /tmp/interfaces.new {{ interfaces_file }}"
       register: interfaces_updated
