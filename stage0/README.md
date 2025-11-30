@@ -254,9 +254,3 @@ Once Stage 0 completes successfully:
    cd ../stage1
    sudo ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml
    ```
-
-## References
-
-- [Proxmox Network Configuration](https://pve.proxmox.com/wiki/Network_Configuration)
-- [Linux Bridge Documentation](https://wiki.debian.org/BridgeNetworkConnections)
-- Main project documentation: `../docs/ARCHITECTURE.md`
