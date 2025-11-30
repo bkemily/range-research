@@ -19,21 +19,6 @@ Stage 0 configures the Proxmox VE network infrastructure by creating all require
 - Ansible 2.9+ installed on Ubuntu VM
 - Network connectivity to Proxmox management interface
 
-## Network Bridges Created
-
-### Infrastructure Bridges
-- **vmbr0**: Management bridge (VLAN-aware, existing)
-- **vmbr0.68**: Management VLAN interface (192.168.68.89/24) (existing)
-- **vmbr51**: Spark pfSense WAN (internet gateway)
-- **vmbr10255**: Instructor LAN (143.88.255.0/24)
-
-### Student Group Bridges (per group)
-For each student group (1-N):
-- **vmbr15XXX**: Student WAN bridge (connects to instructor pfSense)
-  - Example: vmbr15001 (Group 1), vmbr15002 (Group 2)
-- **vmbr10XXX**: Student LAN bridge (internal group network)
-  - Example: vmbr10001 (Group 1), vmbr10002 (Group 2)
-
 ## Bridge Naming Schema (Exact as Implemented)
 
 ### **Infrastructure Bridges**
