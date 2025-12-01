@@ -300,10 +300,16 @@
     # This ensures all bridges were created successfully
     - name: Verify required bridges exist
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link show {{ item }}"
-          {% for group in range(1, max_student_groups + 1) %}
-            - vmbr255{{ '%03d' | format(group) }}: Group {{ group }} WAN
-            - vmbr{{ '%03d' | format(group) }}000: Group {{ group }} LAN
-          {% endfor %}
+      loop:
+        - vmbr0
+        - vmbr0.68
+        - vmbr50
+        - vmbr51
+        - vmbr255000
+        - vmbr255001
+        - vmbr001000
+        - vmbr255002
+        - vmbr002000
       register: bridge_verification
       failed_when: bridge_verification.rc != 0
       changed_when: false
