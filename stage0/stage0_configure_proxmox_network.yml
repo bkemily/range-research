@@ -298,18 +298,23 @@
       changed_when: false
     # Verify each required bridge exists and is active
     # This ensures all bridges were created successfully
+    - name: Build list of required bridges
+      ansible.builtin.set_fact:
+        required_bridges:
+          - vmbr0
+          - vmbr0.68
+          - vmbr50
+          - vmbr51
+          - vmbr255000
+
+    - name: Add student group bridges to verification list
+      ansible.builtin.set_fact:
+        required_bridges: "{{ required_bridges + ['vmbr255' + '%03d' | format(item), 'vmbr' + '%03d' | format(item) + '000'] }}"
+      loop: "{{ range(1, max_student_groups + 1) | list }}"
+
     - name: Verify required bridges exist
       ansible.builtin.command: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link show {{ item }}"
-      loop:
-        - vmbr0
-        - vmbr0.68
-        - vmbr50
-        - vmbr51
-        - vmbr255000
-        - vmbr255001
-        - vmbr001000
-        - vmbr255002
-        - vmbr002000
+      loop: "{{ required_bridges }}"
       register: bridge_verification
       failed_when: bridge_verification.rc != 0
       changed_when: false
