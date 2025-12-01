@@ -1,0 +1,147 @@
+---
+# ============================================================================
+# Stage 1: Deploy Security Onion VM
+# ============================================================================
+# Purpose: Import and configure Security Onion VM from OVF template
+#
+# This playbook:
+#   1. Verifies required bridges exist (from Stage 0)
+#   2. Imports Security Onion OVF template
+#   3. Configures VM hardware (SCSI, BIOS, boot)
+#   4. Assigns network interfaces (dynamically based on student groups)
+#   5. Starts the VM
+#   6. Verifies SSH accessibility
+#
+# Prerequisites:
+#   - Stage 0 completed (all bridges created)
+#   - Security Onion OVF template available on NFS storage
+#   - SSH access to Proxmox host
+#
+# Usage:
+#   ansible-playbook stage1_deploy_security_onion.yml
+#   ansible-playbook stage1_deploy_security_onion.yml -e auto_confirm=true
+#   ansible-playbook stage1_deploy_security_onion.yml -e max_student_groups=5
+#
+# Author: Emily Miller
+# Last Updated: November 30, 2025
+# ============================================================================
+
+- name: Stage 1 - Deploy Security Onion VM
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  vars:
+    # Proxmox connection
+    proxmox_host: "192.168.68.89"
+    proxmox_user: "root"
+    proxmox_node: "pve"
+
+    # Security Onion VM configuration
+    security_onion_vmid: 109
+    security_onion_name: "security-onion"
+    security_onion_template: "/mnt/pve/ovfstore2/TEMPLATE-security-onion.ovf" #needs to change; probably taking manual so, converting to temp and them will use that
+    storage: "raid-lvm"
+
+    # Network configuration
+    management_bridge: "vmbr255000"
+    management_ip: "143.88.255.9"
+
+    # Number of student groups (determines number of monitoring interfaces)
+    # Can be overridden: -e max_student_groups=15
+    max_student_groups: 2
+
+  tasks:
+  # ========================================
+  # Stage 1.1: Display Information
+  # ========================================
+
+  - name: Display stage information
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        STAGE 1: Security Onion VM Deployment
+        ========================================
+
+        This playbook will:
+          1. Verify all required bridges exist
+          2. Import Security Onion OVF template
+          3. Configure VM hardware
+          4. Assign {{ 2 + (max_student_groups * 2) }} network interfaces
+          5. Start the VM
+          6. Verify SSH accessibility
+
+        VM Configuration:
+          - VM ID: {{ security_onion_vmid }}
+          - Name: {{ security_onion_name }}
+          - Template: {{ security_onion_template }}
+          - Storage: {{ storage }}
+          - Management IP: {{ management_ip }}
+
+        Network Interfaces:
+          - net0: {{ management_bridge }} (Management)
+          - net1: vmbr51 (Monitor Spark WAN)
+          - net2-{{ 1 + (max_student_groups * 2) }}: Student group monitoring
+
+        Student Groups: {{ max_student_groups }}
+
+        ========================================
+
+  # ========================================
+  # Stage 1.2: Pre-deployment Validation
+  # ========================================
+
+  - name: Test SSH connection to Proxmox
+    ansible.builtin.command:
+      cmd: ssh -o ConnectTimeout=5 {{ proxmox_user }}@{{ proxmox_host }} "echo 'Connection successful'"
+    register: ssh_test
+    changed_when: false
+    failed_when: ssh_test.rc != 0
+
+  - name: Display connection status
+    ansible.builtin.debug:
+      msg: "✓ SSH connection to Proxmox successful"
+    when: ssh_test.rc == 0
+
+  - name: Generate student group bridges list
+    ansible.builtin.set_fact:
+      student_bridges: "{{ student_bridges | default([]) + [bridge_wan, bridge_lan] }}"
+    vars:
+      bridge_wan: "vmbr255{{ '%03d' | format(item) }}"
+      bridge_lan: "vmbr{{ '%03d' | format(item) }}000"
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+
+  - name: Combine infrastructure and student bridges
+    ansible.builtin.set_fact:
+      required_bridges: "{{ ['vmbr51', 'vmbr255000'] + student_bridges }}"
+
+  - name: Display bridges to verify
+    ansible.builtin.debug:
+      msg: "Verifying {{ required_bridges | length }} bridges"
+
+  - name: Display infrastructure bridges
+    ansible.builtin.debug:
+      msg: |
+        Infrastructure:
+          - vmbr51 (Spark WAN)
+          - vmbr255000 (Instructor LAN)
+
+  - name: Display student group bridges
+    ansible.builtin.debug:
+      msg: |
+        Group {{ item }}:
+          - vmbr255{{ (item | string).zfill(3) }} (WAN)
+          - vmbr{{ (item | string).zfill(3) }}000 (LAN)
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+
+  - name: Verify required bridges exist
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link show {{ item }}"
+    loop: "{{ required_bridges }}"
+    register: bridge_check
+    changed_when: false
+    failed_when: bridge_check.rc != 0
+
+  - name: Display bridge verification
+    ansible.builtin.debug:
+      msg: "✓ All {{ required_bridges | length }} required bridges verified on Proxmox"

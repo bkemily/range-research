@@ -40,8 +40,10 @@
 #   - Network reload is non-disruptive (only changes what's different)
 #   - Idempotent (safe to run multiple times)
 #   - Verifies connectivity after changes
-# =============================================================================
 
+# Author: Emily Miller
+# Last Update: November 30, 2025
+# ============================================================================
 - name: Stage 0 - Configure Proxmox Network Bridges
   hosts: localhost
   connection: local
