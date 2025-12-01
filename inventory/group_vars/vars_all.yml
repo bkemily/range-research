@@ -1,6 +1,17 @@
 ---
+# ============================================================================
 # Global Variables for Cyber Range Automation
+# ============================================================================
 # These variables are available to all hosts and playbooks
+#
+# Usage:
+#   Variables automatically loaded when using:
+#   ansible-playbook -i inventory/hosts.yml playbook.yml
+#
+# Override from command line:
+#   -e max_student_groups=15
+#   -e class_code=2
+# ============================================================================
 
 # ==========================================
 # Campaign Configuration
@@ -10,28 +21,69 @@ class_name: "cyber-war-gaming"
 course_prefix: "CIS4416"
 max_student_groups: 2
 
-# Campaign execution settings
+# Campaign execution settings (Stage 2+)
 campaign_duration_hours: 24
 campaign_id: "{{ course_prefix }}_{{ ansible_date_time.epoch }}"
 
 # ==========================================
-# Proxmox Configuration
+# Proxmox Host Configuration
 # ==========================================
+proxmox_host: "192.168.68.89"
+proxmox_user: "root"
+proxmox_node: "hm-hcr-08"
+
+# Proxmox API (for later stages)
 proxmox_api_host: "192.168.68.89"
 proxmox_api_user: "root@pam"
 proxmox_api_token_id: "ansible-token"
 proxmox_api_token_secret: "fa4dacce-8bd6-4cc4-a6ae-04369af6600b"
 proxmox_verify_ssl: false
-proxmox_node: "hm-hcr-08"
 
-# Storage configuration
+# ==========================================
+# Proxmox Storage
+# ==========================================
 storage: "raid-lvm"
 ovf_storage: "ovfstore"
 iso_storage: "ISO_Library"
 
 # ==========================================
-# VM Templates (OVF Files)
+# Network Configuration (Stage 0)
 # ==========================================
+
+# Physical interface on Proxmox
+physical_interface: "ens3f0np0"
+
+# Management network configuration
+management_ip: "192.168.68.89"
+management_netmask: "24"
+management_gateway: "192.168.68.1"
+
+# Proxmox network interfaces file
+interfaces_file: "/etc/network/interfaces"
+interfaces_backup: "/etc/network/interfaces.bak.{{ ansible_date_time.epoch }}"
+
+# ==========================================
+# Bridge Configuration
+# ==========================================
+# Bridge naming convention: vmbrXXXYYY
+#   XXX = Group ID (255 = instructor, 001-015 = students)
+#   YYY = Network type (000 = LAN, specific number for WAN)
+#
+# Infrastructure bridges are created in Stage 0
+# Student bridges are dynamically generated based on max_student_groups
+
+bridges:
+  # Infrastructure bridges (always present)
+  management: "vmbr0.68"
+  spark_wan: "vmbr51"
+  instructor_lan: "vmbr255000"
+  # Student bridge naming patterns (for dynamic generation)
+  # WAN interconnect: vmbr255{group:03d}  (e.g., vmbr255001, vmbr255002)
+  # LAN segment:      vmbr{group:03d}000  (e.g., vmbr001000, vmbr002000)
+
+  # ==========================================
+  # VM Templates (OVF Files)
+  # ==========================================
 templates:
   pfsense_spark: "/mnt/pve/ovfstore/TEMPLATE-pfsense-spark.ovf"
   pfsense_instructor: "/mnt/pve/ovfstore/TEMPLATE-pfsense-instructor.ovf"
@@ -39,107 +91,60 @@ templates:
   kali: "/mnt/pve/ovfstore/TEMPLATE-kali-20241124-Experiment.ovf"
   ms3_ubuntu: "/mnt/pve/ovfstore/TEMPLATE-ms3-ubuntu.ovf"
   ms3_windows: "/mnt/pve/ovfstore/TEMPLATE-ms3-windows.ovf"
-  security_onion: "/mnt/pve/ovfstore/TEMPLATE-security-onion.ovf"
+  security_onion: "/mnt/pve/ovfstore2/TEMPLATE-security-onion.ovf"
 
-# ISO files
+# ISO files (for Stage 2+)
 isos:
   windows_server_2008: "ISO_Library:iso/WS2008R2SP1-KB4474419.iso,media=cdrom,size=54894K"
 
 # ==========================================
-# VM ID Allocation
+# VM ID Allocation Scheme
 # ==========================================
+# VMs are allocated in blocks of 10 per group for organization
+#
+# Infrastructure (IDs 50-199):
+#   50:  Spark pfSense (Internet gateway)
+#   100: Instructor pfSense
+#   101: Instructor Kali
+#   109: Security Onion
+#
+# Student Groups (IDs 200+):
+#   Group 1: 201-210
+#     201: pfSense
+#     202: Kali 1
+#     203: Kali 2
+#     204: Ubuntu
+#     205: Windows
+#
+#   Group 2: 211-220
+#     211: pfSense
+#     212: Kali 1
+#     213: Kali 2
+#     214: Ubuntu
+#     215: Windows
+#
+#   Group N: (200 + (N-1)*10 + 1) through (200 + N*10)
+#
+# VM ID Formulas:
+#   Student pfSense:  200 + ((group_id - 1) * 10) + 1
+#   Student Kali 1:   200 + ((group_id - 1) * 10) + 2
+#   Student Kali 2:   200 + ((group_id - 1) * 10) + 3
+#   Student Ubuntu:   200 + ((group_id - 1) * 10) + 4
+#   Student Windows:  200 + ((group_id - 1) * 10) + 5
+
 vm_ids:
-  # Infrastructure
+  # Infrastructure VMs (fixed IDs)
   spark_pfsense: 50
   instructor_pfsense: 100
-  instructor_kali: 103
+  instructor_kali: 101
   security_onion: 109
 
-  # Student VMs (formula-based)
-  student_pfsense_base: 200 # 201, 202, etc.
-  student_vm_base: 9000 # 9101-9104, 9201-9204, etc.
-
-# VM ID formulas (for reference)
-# Student pfSense:  200 + group_id
-# Student Kali 1:   9000 + (group_id * 100) + 1
-# Student Kali 2:   9000 + (group_id * 100) + 2
-# Student Ubuntu:   9000 + (group_id * 100) + 3
-# Student Windows:  9000 + (group_id * 100) + 4
+  # Student VM base ID (formulas calculated in Stage 2+)
+  student_base: 200
+  student_block_size: 10
 
 # ==========================================
-# Network Configuration
-# ==========================================
-
-# Bridge naming convention: vmbr[Class][Type][Group]
-# Class: 1=Cyber War Gaming, 2=Ethical Hacking, 3=Malware Analysis
-# Type: 0=LAN, 5=WAN
-# Group: 001-015=Students, 255=Instructor
-
-bridges:
-  # Infrastructure
-  management: "vmbr0.68"
-  spark_wan: "vmbr51"
-
-  # Instructor
-  instructor_lan: "vmbr10255"
-
-  # Student bridges (prefixes)
-  student_wan_prefix: "vmbr15" # vmbr15001, vmbr15002, etc.
-  student_lan_prefix: "vmbr10" # vmbr10001, vmbr10002, etc.
-
-# IP addressing scheme
-ip_ranges:
-  # Management network
-  management_network: "192.168.68.0/24"
-  management_gateway: "192.168.68.1"
-  proxmox_ip: "192.168.68.89"
-
-  # Instructor network
-  instructor_network: "143.88.255.0/24"
-  instructor_gateway: "143.88.255.1"
-  security_onion_ip: "143.88.255.9"
-  instructor_kali_ip: "143.88.255.10"
-
-  # WAN interconnects (point-to-point /30 subnets)
-  wan_network: "143.88.0.0/24"
-
-  # Student LANs
-  student_network_base: "143.88" # 143.88.1.0/24, 143.88.2.0/24, etc.
-
-# IP formulas (for reference)
-# Instructor OPT interface: 143.88.0.(4*group_id - 3)/30
-# Student WAN IP:          143.88.0.(4*group_id - 2)/30
-# Student LAN network:     143.88.{group_id}.0/24
-# Student LAN gateway:     143.88.{group_id}.1
-
-# ==========================================
-# Student Group Definitions
-# ==========================================
-student_groups:
-- id: 1
-  name: "group1"
-  wan_bridge: "vmbr15001"
-  lan_bridge: "vmbr10001"
-  wan_ip: "143.88.0.2/30"
-  wan_gateway: "143.88.0.1"
-  lan_network: "143.88.1.0/24"
-  lan_gateway: "143.88.1.1"
-  instructor_opt: "OPT1"
-  instructor_opt_ip: "143.88.0.1/30"
-
-- id: 2
-  name: "group2"
-  wan_bridge: "vmbr15002"
-  lan_bridge: "vmbr10002"
-  wan_ip: "143.88.0.6/30"
-  wan_gateway: "143.88.0.5"
-  lan_network: "143.88.2.0/24"
-  lan_gateway: "143.88.2.1"
-  instructor_opt: "OPT2"
-  instructor_opt_ip: "143.88.0.5/30"
-
-# ==========================================
-# Automation Configuration
+# Automation Configuration (Stage 2+)
 # ==========================================
 automation:
   # Auto-runner settings
@@ -163,7 +168,7 @@ automation:
 # SSH Configuration
 # ==========================================
 ssh:
-  # SSH keys
+  # SSH keys (for Security Onion access)
   analyst_key_path: "/home/analyst/.ssh/id_rsa"
   analyst_pubkey_path: "/home/analyst/.ssh/id_rsa.pub"
 
