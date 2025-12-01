@@ -67,7 +67,7 @@
     management_gateway: "192.168.68.1"
     
     # Number of student groups, change this to add more groups (1-15 supported)
-    max_student_groups: 2
+    max_student_groups: 5
   
   tasks:
     # =========================================================================
