@@ -91,7 +91,7 @@ templates:
   kali: "/mnt/pve/ovfstore/TEMPLATE-kali-20241124-Experiment.ovf"
   ms3_ubuntu: "/mnt/pve/ovfstore/TEMPLATE-ms3ub1404-20250621-Experiment.ovf"
   ms3_windows: "/mnt/pve/ovfstore/TEMPLATE-ms3-windows.ovf" #need to update this with the correct one
-  security_onion: "/mnt/pve/ovfstore/TEMPLATE-so-master-20250621-Experiment.ovf"
+  security_onion: "/mnt/pve/ovfstore/TEMPLATE-so-master-20250621-Experiment.ovf" #need to update this with the correct one
 
 # ISO files (for Stage 2+)
 isos:
