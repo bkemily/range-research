@@ -289,3 +289,79 @@
           - {{ interface.net_id }}: {{ interface.bridge }} ({{ interface.description }})
         {% endfor %}
         ========================================
+
+  # ========================================
+  # Stage 1.6: Start VM and Verify
+  # ========================================
+
+  - name: Start Security Onion VM
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ security_onion.vmid }}"
+    register: start_result
+    changed_when: true
+
+  - name: Display VM start status
+    ansible.builtin.debug:
+      msg: "✓ Security Onion VM started (VM ID: {{ security_onion.vmid }})"
+
+  - name: Wait for VM to boot
+    ansible.builtin.pause:
+      seconds: 30
+      prompt: "Waiting 30 seconds for Security Onion to boot..."
+
+  - name: Verify VM is running
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ security_onion.vmid }}"
+    register: vm_status
+    changed_when: false
+    failed_when: "'running' not in vm_status.stdout"
+
+  - name: Display VM status
+    ansible.builtin.debug:
+      msg: "✓ VM Status: {{ vm_status.stdout }}"
+
+  # ========================================
+  # Stage 1.7: Completion Summary
+  # ========================================
+
+  - name: Display completion summary
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Stage 1: Security Onion Deployment Complete
+        ========================================
+        
+        VM Details:
+          - VM ID: {{ security_onion.vmid }}
+          - Name: {{ security_onion.name }}
+          - Status: {{ vm_status.stdout }}
+          - Storage: {{ security_onion.storage }}
+        
+        Network Configuration:
+          - Total Interfaces: {{ 2 + (max_student_groups * 2) }}
+          - Management: {{ security_onion.management_bridge }}
+          - Monitoring: {{ 1 + (max_student_groups * 2) }} interfaces
+        
+        Next Steps:
+          1. Access Security Onion console in Proxmox
+          2. Complete Security Onion setup wizard
+          3. Configure management IP address
+          4. Run Stage 1b to install Ansible on Security Onion
+        
+        Access VM:
+          - Proxmox Console: https://{{ proxmox_host }}:8006
+          - VM ID: {{ security_onion.vmid }}
+        
+        ========================================
+
+# =============================================================================
+# Rollback Instructions (if needed):
+# =============================================================================
+# If you need to remove the Security Onion VM and start over:
+#
+#   ssh root@{{ proxmox_host }}
+#   qm stop {{ security_onion.vmid }}
+#   qm destroy {{ security_onion.vmid }}
+#
+# Then run Stage 1 again to redeploy
+# =============================================================================
