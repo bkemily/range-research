@@ -10,7 +10,7 @@
 #   3. Configures VM hardware (SCSI, BIOS, boot)
 #   4. Assigns network interfaces (dynamically based on student groups)
 #   5. Starts the VM
-#   6. Verifies SSH accessibility
+#   6. Verifies VM is running
 #
 # Prerequisites:
 #   - Stage 0 completed (all bridges created)
@@ -18,38 +18,24 @@
 #   - SSH access to Proxmox host
 #
 # Usage:
-#   ansible-playbook stage1_deploy_security_onion.yml
-#   ansible-playbook stage1_deploy_security_onion.yml -e auto_confirm=true
-#   ansible-playbook stage1_deploy_security_onion.yml -e max_student_groups=5
+#   ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml
+#   ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml -e auto_confirm=true
+#   ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml -e max_student_groups=5
+#
+# Variables from inventory/group_vars/all.yml:
+#   - proxmox_host, proxmox_user, proxmox_node
+#   - security_onion.* (vmid, name, template, storage, etc.)
+#   - bridges.* (spark_wan, instructor_lan)
+#   - max_student_groups
 #
 # Author: Emily Miller
-# Last Updated: November 30, 2025
+# Last Updated: December 1, 2025
 # ============================================================================
 
 - name: Stage 1 - Deploy Security Onion VM
   hosts: localhost
   connection: local
   gather_facts: yes
-
-  vars:
-    # Proxmox connection
-    proxmox_host: "192.168.68.89"
-    proxmox_user: "root"
-    proxmox_node: "pve"
-
-    # Security Onion VM configuration
-    security_onion_vmid: 109
-    security_onion_name: "security-onion"
-    security_onion_template: "/mnt/pve/ovfstore2/TEMPLATE-security-onion.ovf" #needs to change; probably taking manual so, converting to temp and them will use that
-    storage: "raid-lvm"
-
-    # Network configuration
-    management_bridge: "vmbr255000"
-    management_ip: "143.88.255.9"
-
-    # Number of student groups (determines number of monitoring interfaces)
-    # Can be overridden: -e max_student_groups=15
-    max_student_groups: 2
 
   tasks:
   # ========================================
@@ -69,21 +55,21 @@
           3. Configure VM hardware
           4. Assign {{ 2 + (max_student_groups * 2) }} network interfaces
           5. Start the VM
-          6. Verify SSH accessibility
+          6. Verify VM is running
 
         VM Configuration:
-          - VM ID: {{ security_onion_vmid }}
-          - Name: {{ security_onion_name }}
-          - Template: {{ security_onion_template }}
-          - Storage: {{ storage }}
-          - Management IP: {{ management_ip }}
+          - VM ID: {{ security_onion.vmid }}
+          - Name: {{ security_onion.name }}
+          - Template: {{ security_onion.template }}
+          - Storage: {{ security_onion.storage }}
+          - Management Bridge: {{ security_onion.management_bridge }}
 
         Network Interfaces:
-          - net0: {{ management_bridge }} (Management)
-          - net1: vmbr51 (Monitor Spark WAN)
-          - net2-{{ 1 + (max_student_groups * 2) }}: Student group monitoring
+          - net0: {{ security_onion.management_bridge }} (Management)
+          - net1: {{ bridges.spark_wan }} (Monitor Spark WAN)
+          - net2+: Student group monitoring ({{ max_student_groups }} groups)
 
-        Student Groups: {{ max_student_groups }}
+        Total Interfaces: {{ 2 + (max_student_groups * 2) }}
 
         ========================================
 
@@ -145,3 +131,32 @@
   - name: Display bridge verification
     ansible.builtin.debug:
       msg: "✓ All {{ required_bridges | length }} required bridges verified on Proxmox"
+
+  - name: Check if VM already exists
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ security_onion.vmid }}"
+    register: vm_exists
+    changed_when: false
+    failed_when: false
+
+  - name: Stop if VM already exists
+    ansible.builtin.fail:
+      msg: |
+        VM {{ security_onion.vmid }} already exists!
+        
+        Current status: {{ vm_exists.stdout }}
+        
+        If you want to recreate it, first destroy the existing VM:
+          ssh {{ proxmox_user }}@{{ proxmox_host }} "qm stop {{ security_onion.vmid }} && qm destroy {{ security_onion.vmid }}"
+    when: vm_exists.rc == 0
+
+  - name: Check if OVF template exists
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "test -f {{ security_onion.template }}"
+    register: template_check
+    changed_when: false
+    failed_when: template_check.rc != 0
+
+  - name: Display template verification
+    ansible.builtin.debug:
+      msg: "✓ Security Onion OVF template found: {{ security_onion.template }}"
