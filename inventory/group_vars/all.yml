@@ -156,7 +156,7 @@ security_onion:
   name: "so-master"
 
   # ISO-based installation (not OVF)
-  iso: "ISO_Library:iso/securityonion-2.4.180-20250916.iso,media=cdrom,size=14822M"
+  iso: "ISO_Library:iso/securityonion-2.4.180-20250916.iso"
 
   # Hardware configuration (matching Proxmox screenshots)
   memory: 32000 # 31.25 GiB (32000 MB)
