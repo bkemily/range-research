@@ -250,7 +250,7 @@
       cmd: >
         ssh {{ proxmox_user }}@{{ proxmox_host }}
         "qm set {{ security_onion.vmid }}
-        --scsi0 {{ security_onion.storage }}:{{ security_onion.disk_size }},iothread=1"
+        --scsi0 {{ security_onion.storage }}:{{ security_onion.disk_size }}"
     register: disk_result
     changed_when: true
 
