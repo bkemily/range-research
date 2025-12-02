@@ -41,6 +41,8 @@
   # ========================================
   # Stage 1.1: Display Information
   # ========================================
+  # Show comprehensive deployment summary before making any changes
+  # This gives operator final confirmation of what will be created
 
   - name: Display stage information
     ansible.builtin.debug:
@@ -76,7 +78,11 @@
   # ========================================
   # Stage 1.2: Pre-deployment Validation
   # ========================================
+  # Perform comprehensive checks before deploying VM
+  # This prevents partial deployments and catches configuration errors early
 
+  # Test SSH connectivity to ensure we can communicate with Proxmox
+  # Uses 5-second timeout to fail fast if Proxmox is unreachable
   - name: Test SSH connection to Proxmox
     ansible.builtin.command:
       cmd: ssh -o ConnectTimeout=5 {{ proxmox_user }}@{{ proxmox_host }} "echo 'Connection successful'"
@@ -89,14 +95,20 @@
       msg: "✓ SSH connection to Proxmox successful"
     when: ssh_test.rc == 0
 
+  # Generate dynamic list of student group bridges
+  # This loops through range(1, max_student_groups + 1) to create bridge names
+  # For max_student_groups=2, creates: vmbr255001, vmbr001000, vmbr255002, vmbr002000
+  # For max_student_groups=15, creates 30 bridge names (2 per group)
   - name: Generate student group bridges list
     ansible.builtin.set_fact:
       student_bridges: "{{ student_bridges | default([]) + [bridge_wan, bridge_lan] }}"
     vars:
-      bridge_wan: "vmbr255{{ '%03d' | format(item) }}"
-      bridge_lan: "vmbr{{ '%03d' | format(item) }}000"
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
+      bridge_wan: "vmbr255{{ '%03d' | format(item) }}"  # WAN interconnect (e.g., vmbr255001)
+      bridge_lan: "vmbr{{ '%03d' | format(item) }}000"   # LAN segment (e.g., vmbr001000)
+    loop: "{{ range(1, max_student_groups + 1) | list }}"  # Loop from 1 to max_student_groups (inclusive)
 
+  # Combine infrastructure bridges with dynamically generated student bridges
+  # Creates complete list of all bridges Security Onion needs to monitor
   - name: Combine infrastructure and student bridges
     ansible.builtin.set_fact:
       required_bridges: "{{ ['vmbr51', 'vmbr255000'] + student_bridges }}"
@@ -112,18 +124,23 @@
           - vmbr51 (Spark WAN)
           - vmbr255000 (Instructor LAN)
 
+  # Display student group bridges for operator confirmation
+  # Loops through each group to show WAN and LAN bridge names
   - name: Display student group bridges
     ansible.builtin.debug:
       msg: |
         Group {{ item }}:
           - vmbr255{{ (item | string).zfill(3) }} (WAN)
           - vmbr{{ (item | string).zfill(3) }}000 (LAN)
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
+    loop: "{{ range(1, max_student_groups + 1) | list }}"  # Loop through each student group
 
+  # Verify every required bridge exists on Proxmox
+  # This ensures Stage 0 completed successfully
+  # Fails immediately if any bridge is missing
   - name: Verify required bridges exist
     ansible.builtin.command:
       cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link show {{ item }}"
-    loop: "{{ required_bridges }}"
+    loop: "{{ required_bridges }}"  # Check each bridge in the combined list
     register: bridge_check
     changed_when: false
     failed_when: bridge_check.rc != 0
@@ -132,13 +149,18 @@
     ansible.builtin.debug:
       msg: "✓ All {{ required_bridges | length }} required bridges verified on Proxmox"
 
+  # Check if VM with this ID already exists
+  # Prevents accidental overwrite of existing VMs
+  # Uses failed_when: false to allow playbook to continue if VM doesn't exist
   - name: Check if VM already exists
     ansible.builtin.command:
       cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ security_onion.vmid }}"
     register: vm_exists
     changed_when: false
-    failed_when: false
+    failed_when: false  # Don't fail if VM doesn't exist (that's what we want)
 
+  # Abort deployment if VM already exists
+  # Provides instructions for destroying existing VM if redeploy is desired
   - name: Stop if VM already exists
     ansible.builtin.fail:
       msg: |
@@ -148,8 +170,10 @@
         
         If you want to recreate it, first destroy the existing VM:
           ssh {{ proxmox_user }}@{{ proxmox_host }} "qm stop {{ security_onion.vmid }} && qm destroy {{ security_onion.vmid }}"
-    when: vm_exists.rc == 0
+    when: vm_exists.rc == 0  # Only fail if VM exists (rc=0 means success)
 
+  # Verify OVF template file exists on Proxmox
+  # Fails early if template is missing rather than during import
   - name: Check if OVF template exists
     ansible.builtin.command:
       cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "test -f {{ security_onion.template }}"
@@ -162,61 +186,139 @@
       msg: "✓ Security Onion OVF template found: {{ security_onion.template }}"
 
   # ========================================
-  # Stage 1.3: Import OVF Template
+  # Stage 1.3: Create Security Onion VM
   # ========================================
+  # Create a new VM from scratch and attach Security Onion ISO
+  # This allows full control over VM configuration
 
-  - name: Import Security Onion OVF
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ proxmox_user }}@{{ proxmox_host }}
-        "qm importovf {{ security_onion.vmid }} {{ security_onion.template }} {{ security_onion.storage }}"
-    register: import_result
-    changed_when: true
-
-  - name: Display import status
+  - name: Display VM creation notice
     ansible.builtin.debug:
-      msg: "✓ Security Onion OVF imported (VM ID: {{ security_onion.vmid }})"
+      msg: |
+        ========================================
+        Creating Security Onion VM
+        ========================================
+        
+        Creating VM {{ security_onion.vmid }} with:
+          - Memory: {{ security_onion.memory }}
+          - CPUs: {{ security_onion.cores }} cores ({{ security_onion.sockets }} socket)
+          - Disk: {{ security_onion.disk_size }} on {{ security_onion.storage }}
+          - BIOS: {{ security_onion.bios }}
+          - Machine: {{ security_onion.machine }}
+        
+        ========================================
 
-  # ========================================
-  # Stage 1.4: Configure VM Hardware
-  # ========================================
-
-  - name: Configure SCSI controller and disk
+  # Create new VM with basic configuration
+  - name: Create Security Onion VM
     ansible.builtin.command:
       cmd: >
         ssh {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ security_onion.vmid }} 
-        --scsihw {{ security_onion.scsihw }} 
-        --scsi0 {{ security_onion.storage }}:vm-{{ security_onion.vmid }}-disk-0"
-    register: scsi_result
+        "qm create {{ security_onion.vmid }}
+        --name {{ security_onion.name }}
+        --memory {{ security_onion.memory }}
+        --cores {{ security_onion.cores }}
+        --sockets {{ security_onion.sockets }}
+        --cpu host
+        --ostype l26
+        --machine {{ security_onion.machine }}
+        --bios {{ security_onion.bios }}
+        --scsihw {{ security_onion.scsihw }}"
+    register: create_result
     changed_when: true
 
-  - name: Set BIOS and boot order
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ security_onion.vmid }} 
-        --bios {{ security_onion.bios }} 
-        --boot order={{ security_onion.boot_order }}"
-    register: bios_result
-    changed_when: true
-
-  - name: Set VM name
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ security_onion.vmid }} --name {{ security_onion.name }}"
-    register: name_result
-    changed_when: true
-
-  - name: Display hardware configuration status
+  - name: Display VM creation status
     ansible.builtin.debug:
-      msg: "✓ VM hardware configured (SCSI, BIOS, boot order, name)"
+      msg: "✓ VM {{ security_onion.vmid }} created"
+
+  # Create and attach primary disk (2000G)
+  - name: Create primary disk for Security Onion
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }}
+        --scsi0 {{ security_onion.storage }}:{{ security_onion.disk_size }},iothread=1"
+    register: disk_result
+    changed_when: true
+
+  - name: Display disk creation status
+    ansible.builtin.debug:
+      msg: "✓ Primary disk created: {{ security_onion.disk_size }} on {{ security_onion.storage }}"
+
+  # Attach Security Onion ISO
+  - name: Attach Security Onion ISO
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }}
+        --ide2 {{ security_onion.iso }},media=cdrom"
+    register: iso_result
+    changed_when: true
+
+  - name: Display ISO attachment status
+    ansible.builtin.debug:
+      msg: "✓ Security Onion ISO attached: {{ security_onion.iso }}"
+
+  # Create and attach EFI disk (required for OVMF UEFI)
+  - name: Create EFI disk
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }}
+        --efidisk0 {{ security_onion.storage }}:4,efitype=4m,pre-enrolled-keys=1"
+    register: efi_result
+    changed_when: true
+    when: security_onion.bios == "ovmf"
+
+  - name: Display EFI disk status
+    ansible.builtin.debug:
+      msg: "✓ EFI disk created (4M)"
+    when: security_onion.bios == "ovmf"
+
+  # ========================================
+  # Stage 1.4: Configure VM Options
+  # ========================================
+  # Configure additional VM settings for Security Onion
+
+  # Set boot order: IDE2 (ISO) first for installation, then SCSI0 (disk)
+  - name: Set boot order
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }}
+        --boot order=scsi0;ide2"
+    register: boot_result
+    changed_when: true
+
+  - name: Display boot order status
+    ansible.builtin.debug:
+      msg: "✓ Boot order configured: scsi0, ide2"
+
+  # Enable QEMU Guest Agent (if supported)
+  - name: Configure additional VM options
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }}
+        --agent enabled=0
+        --hotplug disk,network,usb
+        --tablet 1
+        --kvm 1"
+    register: options_result
+    changed_when: true
+
+  - name: Display VM options status
+    ansible.builtin.debug:
+      msg: "✓ VM options configured (hotplug, tablet, KVM)"
 
   # ========================================
   # Stage 1.5: Assign Network Interfaces
   # ========================================
+  # Configure all network interfaces for Security Onion
+  # net0 = Management (IP communication)
+  # net1+ = Monitoring (promiscuous mode, no IP)
 
+  # Assign management interface (net0)
+  # This is the only interface Security Onion uses for IP communication
+  # Connected to instructor LAN for management access
   - name: Assign management interface (net0)
     ansible.builtin.command:
       cmd: >
@@ -230,6 +332,9 @@
     ansible.builtin.debug:
       msg: "✓ net0 assigned: {{ security_onion.management_bridge }} (Management)"
 
+  # Assign Spark WAN monitoring interface (net1)
+  # Monitors traffic between internet gateway and instructor network
+  # This captures all external traffic entering the cyber range
   - name: Assign Spark WAN monitoring interface (net1)
     ansible.builtin.command:
       cmd: >
@@ -243,35 +348,59 @@
     ansible.builtin.debug:
       msg: "✓ net1 assigned: {{ bridges.spark_wan }} (Monitor Spark WAN)"
 
+  # Generate student group monitoring interface assignments
+  # This loops through ALL student groups (1 to max_student_groups)
+  # For each group, creates TWO interfaces: WAN monitoring and LAN monitoring
+  #
+  # Interface numbering formula:
+  #   WAN interface: net(2 + (group_id - 1) * 2)
+  #   LAN interface: net(2 + (group_id - 1) * 2 + 1)
+  #
+  # Example for max_student_groups=2:
+  #   Group 1: net2 (WAN), net3 (LAN)
+  #   Group 2: net4 (WAN), net5 (LAN)
+  #
+  # Example for max_student_groups=15:
+  #   Group 1: net2, net3
+  #   Group 2: net4, net5
+  #   ...
+  #   Group 15: net30, net31
   - name: Generate student group monitoring interface assignments
     ansible.builtin.set_fact:
       monitoring_interfaces: "{{ monitoring_interfaces | default([]) + [wan_interface, lan_interface] }}"
     vars:
       wan_interface:
-        net_id: "net{{ 2 + ((item - 1) * 2) }}"
-        bridge: "vmbr255{{ '%03d' | format(item) }}"
+        net_id: "net{{ 2 + ((item - 1) * 2) }}"            # Calculate WAN interface number
+        bridge: "vmbr255{{ '%03d' | format(item) }}"       # WAN interconnect bridge
         description: "Group {{ item }} WAN"
       lan_interface:
-        net_id: "net{{ 2 + ((item - 1) * 2) + 1 }}"
-        bridge: "vmbr{{ '%03d' | format(item) }}000"
+        net_id: "net{{ 2 + ((item - 1) * 2) + 1 }}"        # Calculate LAN interface number
+        bridge: "vmbr{{ '%03d' | format(item) }}000"       # LAN segment bridge
         description: "Group {{ item }} LAN"
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
+    loop: "{{ range(1, max_student_groups + 1) | list }}"  # Loop through EACH student group
 
+  # Assign all student group monitoring interfaces
+  # Loops through the monitoring_interfaces list created above
+  # Each iteration assigns one interface to Security Onion VM
   - name: Assign student group monitoring interfaces
     ansible.builtin.command:
       cmd: >
         ssh {{ proxmox_user }}@{{ proxmox_host }}
         "qm set {{ security_onion.vmid }} 
         --{{ item.net_id }} virtio,bridge={{ item.bridge }}"
-    loop: "{{ monitoring_interfaces }}"
+    loop: "{{ monitoring_interfaces }}"  # Loop through all generated monitoring interfaces
     register: monitoring_result
     changed_when: true
 
+  # Display each monitoring interface assignment for confirmation
+  # Shows operator which interfaces were assigned to which bridges
   - name: Display student monitoring interface assignments
     ansible.builtin.debug:
       msg: "✓ {{ item.net_id }} assigned: {{ item.bridge }} ({{ item.description }})"
-    loop: "{{ monitoring_interfaces }}"
+    loop: "{{ monitoring_interfaces }}"  # Loop through all monitoring interfaces
 
+  # Display comprehensive network configuration summary
+  # Shows total interface count and complete interface mapping
   - name: Display network configuration summary
     ansible.builtin.debug:
       msg: |
@@ -291,10 +420,33 @@
         ========================================
 
   # ========================================
-  # Stage 1.6: Start VM and Verify
+  # Stage 1.6: Start VM for Installation
   # ========================================
+  # Start the VM so Security Onion can be installed from ISO
+  # NOTE: This does NOT install Security Onion automatically
+  # Manual installation via console is required
 
-  - name: Start Security Onion VM
+  - name: Display installation notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        IMPORTANT: Manual Installation Required
+        ========================================
+        
+        The VM will now start, but Security Onion must be
+        installed manually through the Proxmox console.
+        
+        The VM will boot from the Security Onion ISO and
+        present the installation wizard.
+        
+        DO NOT START THE VM YET - Review the completion
+        summary below for installation instructions.
+        
+        ========================================
+
+  # Start Security Onion VM
+  # VM will boot from ISO and display installation wizard
+  - name: Start Security Onion VM (boots from ISO)
     ansible.builtin.command:
       cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ security_onion.vmid }}"
     register: start_result
@@ -304,11 +456,14 @@
     ansible.builtin.debug:
       msg: "✓ Security Onion VM started (VM ID: {{ security_onion.vmid }})"
 
-  - name: Wait for VM to boot
+  - name: Wait for VM to boot from ISO
     ansible.builtin.pause:
       seconds: 30
-      prompt: "Waiting 30 seconds for Security Onion to boot..."
+      prompt: "Waiting 30 seconds for VM to boot from ISO..."
 
+  # Verify VM is running
+  # Checks qm status output contains "running"
+  # Fails if VM crashed or failed to start
   - name: Verify VM is running
     ansible.builtin.command:
       cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ security_onion.vmid }}"
@@ -318,39 +473,71 @@
 
   - name: Display VM status
     ansible.builtin.debug:
-      msg: "✓ VM Status: {{ vm_status.stdout }}"
+      msg: "✓ VM Status: {{ vm_status.stdout }} (ready for installation)"
 
   # ========================================
   # Stage 1.7: Completion Summary
   # ========================================
+  # Display comprehensive deployment summary and installation instructions
 
   - name: Display completion summary
     ansible.builtin.debug:
       msg: |
         ========================================
-        Stage 1: Security Onion Deployment Complete
+        Stage 1: Security Onion VM Created
         ========================================
         
         VM Details:
           - VM ID: {{ security_onion.vmid }}
           - Name: {{ security_onion.name }}
           - Status: {{ vm_status.stdout }}
+          - Memory: {{ security_onion.memory }}
+          - CPUs: {{ security_onion.cores }} cores
+          - Disk: {{ security_onion.disk_size }}
           - Storage: {{ security_onion.storage }}
+          - BIOS: {{ security_onion.bios }}
         
         Network Configuration:
           - Total Interfaces: {{ 2 + (max_student_groups * 2) }}
           - Management: {{ security_onion.management_bridge }}
           - Monitoring: {{ 1 + (max_student_groups * 2) }} interfaces
         
-        Next Steps:
-          1. Access Security Onion console in Proxmox
-          2. Complete Security Onion setup wizard
-          3. Configure management IP address
-          4. Run Stage 1b to install Ansible on Security Onion
+        ========================================
+        NEXT STEPS: Manual Installation Required
+        ========================================
         
-        Access VM:
-          - Proxmox Console: https://{{ proxmox_host }}:8006
-          - VM ID: {{ security_onion.vmid }}
+        1. Access Proxmox Console:
+           https://{{ proxmox_host }}:8006
+           Navigate to: VM {{ security_onion.vmid }} ({{ security_onion.name }})
+           Click: Console
+        
+        2. Install Security Onion:
+           - VM is booted from ISO
+           - Follow Security Onion installation wizard
+           - Select "Standalone" installation type
+           - Configure disk partitioning
+        
+        3. Configure Management Network:
+           Interface: net0 ({{ security_onion.management_bridge }})
+           IP Address: 143.88.255.9/24
+           Gateway: 143.88.255.1
+           DNS: 8.8.8.8
+        
+        4. Complete Setup Wizard:
+           - Set analyst username/password
+           - Configure monitoring interfaces (all others)
+           - Wait for installation to complete (~30-60 minutes)
+        
+        5. After Installation:
+           - Reboot VM
+           - SSH to 143.88.255.9
+           - Run Stage 1b to install Ansible
+        
+        ========================================
+        
+        Installation will take 30-60 minutes depending on disk I/O.
+        All monitoring interfaces (net1+) will be configured
+        automatically by Security Onion during setup.
         
         ========================================
 
