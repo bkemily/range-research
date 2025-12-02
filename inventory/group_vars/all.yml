@@ -144,6 +144,28 @@ vm_ids:
   student_block_size: 10
 
 # ==========================================
+# Security Onion Configuration (Stage 1)
+# ==========================================
+# Security Onion is the only VM deployed in Stage 1
+# IP address will be configured manually or via DHCP initially
+
+security_onion:
+  vmid: 109
+  name: "security-onion"
+  template: "/mnt/pve/ovfstore/TEMPLATE-so-master-20250621-Experiment.ovf"
+  storage: "raid-lvm"
+
+  # Network configuration
+  management_bridge: "vmbr255000"
+  # Note: management_ip will be set during Security Onion setup wizard,
+  # not by Ansible. Reference value: 143.88.255.9
+
+  # BIOS/Boot configuration
+  bios: "seabios"
+  scsihw: "virtio-scsi-pci"
+  boot_order: "scsi0"
+
+# ==========================================
 # Automation Configuration (Stage 2+)
 # ==========================================
 automation:
