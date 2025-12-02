@@ -152,19 +152,30 @@ vm_ids:
 
 security_onion:
   vmid: 109
-  name: "security-onion"
-  template: "/mnt/pve/ovfstore/TEMPLATE-so-master-20250621-Experiment.ovf"
-  storage: "raid-lvm"
+  name: "so-master"
+
+  # ISO-based installation (not OVF)
+  iso: "ISO_Library:iso/securityonion-2.4.180-20250916.iso,media=cdrom,size=14822M"
+
+  # Hardware configuration (matching Proxmox screenshots)
+  memory: 32000 # 31.25 GiB (32000 MB)
+  cores: 8
+  sockets: 1
+  machine: "q35" # Modern chipset
+
+  # Storage configuration
+  storage: "local-lvm"
+  disk_size: "2000G" # 2TB primary disk
 
   # Network configuration
-  management_bridge: "vmbr255000"
-  # Note: management_ip will be set during Security Onion setup wizard,
-  # not by Ansible. Reference value: 143.88.255.9
+  management_bridge: "vmbr255000" # Instructor LAN
+  # Note: management_ip will be set during Security Onion installation,
+  # not by Ansible. Expected value: 143.88.255.9/24
 
   # BIOS/Boot configuration
-  bios: "seabios"
-  scsihw: "virtio-scsi-pci"
-  boot_order: "scsi0"
+  bios: "ovmf" # UEFI (OVMF) - matches screenshot
+  scsihw: "virtio-scsi-single" # VirtIO SCSI single - matches screenshot
+  boot_order: "scsi0;ide2" # Boot from disk first, then ISO
 
 # ==========================================
 # Automation Configuration (Stage 2+)
