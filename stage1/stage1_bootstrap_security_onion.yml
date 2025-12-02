@@ -299,7 +299,7 @@
       cmd: >
         ssh {{ proxmox_user }}@{{ proxmox_host }}
         "qm set {{ security_onion.vmid }}
-        --boot order=scsi0;ide2"
+        --boot 'order=scsi0;ide2'"
     register: boot_result
     changed_when: true
 
