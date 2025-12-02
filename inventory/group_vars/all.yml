@@ -146,8 +146,9 @@ vm_ids:
 # ==========================================
 # Security Onion Configuration (Stage 1)
 # ==========================================
-# Security Onion is the only VM deployed in Stage 1
-# IP address will be configured manually
+# Security Onion is created from ISO in Stage 1
+# Installation must be completed manually through Proxmox console
+# After installation, IP address will be: 143.88.255.9/24
 # Will need to change exact location and boot configs later
 
 security_onion:
@@ -165,7 +166,7 @@ security_onion:
 
   # Storage configuration
   storage: "local-lvm"
-  disk_size: "2000G" # 2TB primary disk
+  disk_size: "2000" # 2TB primary disk (size in GB)
 
   # Network configuration
   management_bridge: "vmbr255000" # Instructor LAN
