@@ -179,23 +179,26 @@
           ssh {{ proxmox_user }}@{{ proxmox_host }} "qm stop {{ security_onion.vmid }} && qm destroy {{ security_onion.vmid }}"
     when: vm_exists.rc == 0  # Only fail if VM exists (rc=0 means success)
 
-  # Verify Security Onion ISO exists in ISO library
-  # The ISO path format is: ISO_Library:iso/filename.iso,media=cdrom,size=...
-  # We need to extract just the ISO path for verification
-  - name: Extract ISO filename for verification
-    ansible.builtin.set_fact:
-      iso_filename: "{{ security_onion.iso.split(':')[1].split(',')[0] }}"
-
-  - name: Check if Security Onion ISO exists
+  # Verify Security Onion ISO exists in ISO library (optional check)
+  # If ISO is missing, the qm set --ide2 command will fail with a clear error
+  - name: Check if Security Onion ISO exists in ISO library
     ansible.builtin.command:
-      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "test -f /var/lib/vz/template/{{ iso_filename }}"
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "pvesm list ISO_Library | grep 'securityonion-2.4.180-20250916.iso'"
     register: iso_check
     changed_when: false
-    failed_when: iso_check.rc != 0
+    failed_when: false  # Don't fail here, let qm set fail with clear message
 
-  - name: Display ISO verification
+  - name: Display ISO verification result
     ansible.builtin.debug:
-      msg: "✓ Security Onion ISO found: {{ iso_filename }}"
+      msg: >
+        {% if iso_check.rc == 0 %}
+        ✓ Security Onion ISO found in ISO_Library
+        {% else %}
+        ⚠ Warning: Could not verify ISO exists. Will attempt to attach anyway.
+        If ISO is missing, VM creation will fail with clear error.
+        {% endif %}
 
   # ========================================
   # Stage 1.3: Create Security Onion VM
