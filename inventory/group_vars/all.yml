@@ -147,7 +147,8 @@ vm_ids:
 # Security Onion Configuration (Stage 1)
 # ==========================================
 # Security Onion is the only VM deployed in Stage 1
-# IP address will be configured manually or via DHCP initially
+# IP address will be configured manually
+# Will need to change exact location and boot configs later
 
 security_onion:
   vmid: 109

@@ -160,3 +160,132 @@
   - name: Display template verification
     ansible.builtin.debug:
       msg: "✓ Security Onion OVF template found: {{ security_onion.template }}"
+
+  # ========================================
+  # Stage 1.3: Import OVF Template
+  # ========================================
+
+  - name: Import Security Onion OVF
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm importovf {{ security_onion.vmid }} {{ security_onion.template }} {{ security_onion.storage }}"
+    register: import_result
+    changed_when: true
+
+  - name: Display import status
+    ansible.builtin.debug:
+      msg: "✓ Security Onion OVF imported (VM ID: {{ security_onion.vmid }})"
+
+  # ========================================
+  # Stage 1.4: Configure VM Hardware
+  # ========================================
+
+  - name: Configure SCSI controller and disk
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }} 
+        --scsihw {{ security_onion.scsihw }} 
+        --scsi0 {{ security_onion.storage }}:vm-{{ security_onion.vmid }}-disk-0"
+    register: scsi_result
+    changed_when: true
+
+  - name: Set BIOS and boot order
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }} 
+        --bios {{ security_onion.bios }} 
+        --boot order={{ security_onion.boot_order }}"
+    register: bios_result
+    changed_when: true
+
+  - name: Set VM name
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }} --name {{ security_onion.name }}"
+    register: name_result
+    changed_when: true
+
+  - name: Display hardware configuration status
+    ansible.builtin.debug:
+      msg: "✓ VM hardware configured (SCSI, BIOS, boot order, name)"
+
+  # ========================================
+  # Stage 1.5: Assign Network Interfaces
+  # ========================================
+
+  - name: Assign management interface (net0)
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }} 
+        --net0 virtio,bridge={{ security_onion.management_bridge }}"
+    register: net0_result
+    changed_when: true
+
+  - name: Display management interface assignment
+    ansible.builtin.debug:
+      msg: "✓ net0 assigned: {{ security_onion.management_bridge }} (Management)"
+
+  - name: Assign Spark WAN monitoring interface (net1)
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }} 
+        --net1 virtio,bridge={{ bridges.spark_wan }}"
+    register: net1_result
+    changed_when: true
+
+  - name: Display Spark WAN interface assignment
+    ansible.builtin.debug:
+      msg: "✓ net1 assigned: {{ bridges.spark_wan }} (Monitor Spark WAN)"
+
+  - name: Generate student group monitoring interface assignments
+    ansible.builtin.set_fact:
+      monitoring_interfaces: "{{ monitoring_interfaces | default([]) + [wan_interface, lan_interface] }}"
+    vars:
+      wan_interface:
+        net_id: "net{{ 2 + ((item - 1) * 2) }}"
+        bridge: "vmbr255{{ '%03d' | format(item) }}"
+        description: "Group {{ item }} WAN"
+      lan_interface:
+        net_id: "net{{ 2 + ((item - 1) * 2) + 1 }}"
+        bridge: "vmbr{{ '%03d' | format(item) }}000"
+        description: "Group {{ item }} LAN"
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+
+  - name: Assign student group monitoring interfaces
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ security_onion.vmid }} 
+        --{{ item.net_id }} virtio,bridge={{ item.bridge }}"
+    loop: "{{ monitoring_interfaces }}"
+    register: monitoring_result
+    changed_when: true
+
+  - name: Display student monitoring interface assignments
+    ansible.builtin.debug:
+      msg: "✓ {{ item.net_id }} assigned: {{ item.bridge }} ({{ item.description }})"
+    loop: "{{ monitoring_interfaces }}"
+
+  - name: Display network configuration summary
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Network Interfaces Configured
+        ========================================
+        Total: {{ 2 + (max_student_groups * 2) }} interfaces
+        
+        Infrastructure:
+          - net0: {{ security_onion.management_bridge }} (Management)
+          - net1: {{ bridges.spark_wan }} (Spark WAN)
+        
+        Student Group Monitoring:
+        {% for interface in monitoring_interfaces %}
+          - {{ interface.net_id }}: {{ interface.bridge }} ({{ interface.description }})
+        {% endfor %}
+        ========================================
