@@ -165,7 +165,7 @@ security_onion:
   machine: "q35" # Modern chipset
 
   # Storage configuration
-  storage: "local-lvm"
+  storage: "raid-lvm"
   disk_size: "2000" # 2TB primary disk (size in GB)
 
   # Network configuration
