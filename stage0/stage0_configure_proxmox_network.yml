@@ -259,7 +259,7 @@
       when: interfaces_updated.changed
 
     - name: Build list of student group bridges for promisc mode
-      ansible.built.set_fact:
+      ansible.builtin.set_fact:
         student_group_bridges: "{{ student_group_bridges | default([]) + ['vmbr255' + '%03d' | format(item), 'vmbr' + '%03d' | format(item) + '000'] }}"
       loop: "{{ range(1, max_student_groups + 1) | list }}"
 
