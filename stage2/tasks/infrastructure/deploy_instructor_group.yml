@@ -1,0 +1,61 @@
+---
+# ============================================================================
+# Task: Deploy Instructor Group
+# ============================================================================
+# Purpose: Deploy complete instructor infrastructure (pfSense and Kali)
+#
+# Called by: deploy_infrastructure.yml
+#
+# This task file:
+#   1. Deploys Instructor pfSense (VM 100)
+#   2. Deploys Instructor Kali (VM 101)
+#
+# Instructor Infrastructure:
+#   - pfSense (VM 100): Gateway/router for instructor network and all student groups
+#   - Kali (VM 101): Instructor workstation for demonstrations and monitoring
+#
+# Note: Security Onion (VM 109) already deployed in Stage 1
+#
+# Author: Emily Miller
+# Last Updated: December 15, 2025
+# ============================================================================
+
+- name: Display Instructor Group deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying Instructor Infrastructure
+      ========================================
+      - Instructor pfSense (VM {{ vm_ids.instructor_pfsense }})
+      - Instructor Kali (VM {{ vm_ids.instructor_kali }})
+      ========================================
+
+# ========================================
+# Deploy Instructor pfSense
+# ========================================
+
+- name: Deploy Instructor pfSense
+  ansible.builtin.include_tasks: deploy_instructor_pfsense.yml
+
+# ========================================
+# Deploy Instructor Kali
+# ========================================
+
+- name: Deploy Instructor Kali
+  ansible.builtin.include_tasks: deploy_instructor_kali.yml
+
+# ========================================
+# Display Completion
+# ========================================
+
+- name: Display Instructor Group deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ Instructor Infrastructure Deployed
+      ========================================
+      - pfSense: VM {{ vm_ids.instructor_pfsense }}
+      - Kali: VM {{ vm_ids.instructor_kali }}
+
+      Note: Security Onion (VM {{ vm_ids.security_onion }}) already running from Stage 1
+      ========================================
