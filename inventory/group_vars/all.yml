@@ -134,10 +134,10 @@ isos:
 
 vm_ids:
   # Infrastructure VMs (fixed IDs)
-  spark_pfsense: 50
-  instructor_pfsense: 100
-  instructor_kali: 101
-  security_onion: 109
+  spark_pfsense: 150
+  instructor_pfsense: 151
+  instructor_kali: 152
+  security_onion: 159
 
   # Student VM base ID (formulas calculated in Stage 2+)
   student_base: 200
