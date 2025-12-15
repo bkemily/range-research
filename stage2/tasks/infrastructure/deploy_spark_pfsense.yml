@@ -19,7 +19,7 @@
 #   - Storage: raid-lvm
 #   - Network:
 #     * net0: vmbr0.68 (External/management network)
-#     * net1: vmbr50 (LAN to instructor pfSense)
+#     * net1: vmbr50 (spark)
 #
 # Author: Emily Miller
 # Last Updated: December 14, 2025
@@ -133,7 +133,7 @@
 
 - name: Display LAN interface assignment
   ansible.builtin.debug:
-    msg: "✓ net1 assigned: {{ bridges.spark_wan }} (LAN to Instructor)"
+    msg: "✓ net1 assigned: {{ bridges.spark_wan }} (spark)"
 
 # ========================================
 # Start VM
