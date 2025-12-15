@@ -74,10 +74,6 @@
 # Configure VM Hardware
 # ========================================
 
-# ========================================
-# Configure VM Hardware
-# ========================================
-
 - name: Configure SCSI controller and disk
   ansible.builtin.command:
     cmd: >
@@ -121,10 +117,7 @@
 - name: Assign WAN/Management interface (net0)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --net0 virtio,bridge={{ bridges.management }}"
-  register: net0_result
-  changed_when: true
-  failed_when: net0_result.rc != 0
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --net0 virtio,bridge=vmbr0,tag=68"
 
 - name: Display WAN interface assignment
   ansible.builtin.debug:
