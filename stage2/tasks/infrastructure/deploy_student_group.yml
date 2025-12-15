@@ -1,0 +1,119 @@
+---
+# ============================================================================
+# Task: Deploy Student Group
+# ============================================================================
+# Purpose: Deploy complete student group infrastructure
+#
+# Called by: deploy_infrastructure.yml (looped for each group)
+#
+# This task file:
+#   1. Deploys Student pfSense (gateway/router)
+#   2. Deploys 2 Student Kali VMs (attack machines)
+#   3. Deploys MS3 Ubuntu VM (vulnerable target)
+#   4. Deploys MS3 Windows VM (vulnerable target)
+#
+# Input Variables:
+#   - group_id: Student group number (1-15)
+#
+# VM ID Allocation (per group):
+#   - pfSense:  200 + ((group_id - 1) * 10) + 1  (e.g., Group 1 = 201, Group 2 = 211)
+#   - Kali 1:   200 + ((group_id - 1) * 10) + 2  (e.g., Group 1 = 202, Group 2 = 212)
+#   - Kali 2:   200 + ((group_id - 1) * 10) + 3  (e.g., Group 1 = 203, Group 2 = 213)
+#   - Ubuntu:   200 + ((group_id - 1) * 10) + 4  (e.g., Group 1 = 204, Group 2 = 214)
+#   - Windows:  200 + ((group_id - 1) * 10) + 5  (e.g., Group 1 = 205, Group 2 = 215)
+#
+# Network Bridges (per group):
+#   - WAN: vmbr255XXX (e.g., Group 1 = vmbr255001, Group 2 = vmbr255002)
+#   - LAN: vmbr00X000 (e.g., Group 1 = vmbr001000, Group 2 = vmbr002000)
+#
+# Author: Emily Miller
+# Last Updated: December 15, 2025
+# ============================================================================
+
+- name: Display Student Group deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying Student Group {{ group_id }}
+      ========================================
+      VMs to deploy:
+        - pfSense:        VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 1 }}
+        - Kali 1:         VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 2 }}
+        - Kali 2:         VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 3 }}
+        - MS3 Ubuntu:     VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 4 }}
+        - MS3 Windows:    VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 5 }}
+
+      Network:
+        - WAN: vmbr255{{ '%03d' | format(group_id) }}
+        - LAN: vmbr{{ '%03d' | format(group_id) }}000
+      ========================================
+
+# ========================================
+# Calculate VM IDs and Bridges for this Group
+# ========================================
+
+- name: Calculate VM IDs for Group {{ group_id }}
+  ansible.builtin.set_fact:
+    group_base_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) }}"
+    group_pfsense_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 1 }}"
+    group_kali1_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 2 }}"
+    group_kali2_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 3 }}"
+    group_ubuntu_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 4 }}"
+    group_windows_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 5 }}"
+    group_wan_bridge: "vmbr255{{ '%03d' | format(group_id) }}"
+    group_lan_bridge: "vmbr{{ '%03d' | format(group_id) }}000"
+
+- name: Display Group {{ group_id }} VM IDs
+  ansible.builtin.debug:
+    msg: |
+      Group {{ group_id }} Configuration:
+        pfSense:  {{ group_pfsense_id }}
+        Kali 1:   {{ group_kali1_id }}
+        Kali 2:   {{ group_kali2_id }}
+        Ubuntu:   {{ group_ubuntu_id }}
+        Windows:  {{ group_windows_id }}
+        WAN:      {{ group_wan_bridge }}
+        LAN:      {{ group_lan_bridge }}
+
+# ========================================
+# Deploy Student pfSense
+# ========================================
+
+- name: Deploy Student pfSense for Group {{ group_id }}
+  ansible.builtin.include_tasks: deploy_student_pfsense.yml
+
+# ========================================
+# Deploy Student Kali VMs
+# ========================================
+
+- name: Deploy Student Kali VMs for Group {{ group_id }}
+  ansible.builtin.include_tasks: deploy_student_kali_vms.yml
+
+# ========================================
+# Deploy Student MS3 VMs
+# ========================================
+
+- name: Deploy Student MS3 VMs for Group {{ group_id }}
+  ansible.builtin.include_tasks: deploy_student_ms3_vms.yml
+
+# ========================================
+# Display Completion
+# ========================================
+
+- name: Display Group {{ group_id }} deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ Student Group {{ group_id }} Deployed
+      ========================================
+      VMs:
+        - pfSense:        VM {{ group_pfsense_id }}
+        - Kali 1:         VM {{ group_kali1_id }}
+        - Kali 2:         VM {{ group_kali2_id }}
+        - MS3 Ubuntu:     VM {{ group_ubuntu_id }}
+        - MS3 Windows:    VM {{ group_windows_id }}
+
+      Network:
+        - WAN: {{ group_wan_bridge }}
+        - LAN: {{ group_lan_bridge }}
+      ========================================
