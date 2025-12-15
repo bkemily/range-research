@@ -11,7 +11,8 @@
 #   2. Configures VM hardware (memory, CPU, SCSI, BIOS, boot order)
 #   3. Assigns network interfaces:
 #      - net0: WAN (vmbr51)
-#      - net1-net15: OPT interfaces to student group WANs (vmbr255001-vmbr255015)
+#      - net1: Instructor LAN (vmbr255000)
+#      - net2-net16: OPT interfaces to student group WANs (vmbr255001-vmbr255015)
 #   4. Starts the VM
 #   5. Waits for pfSense to boot
 #
@@ -22,15 +23,13 @@
 #   - Memory: 2048 MB
 #   - CPU: 2 cores (1 socket)
 #
-# Network Interfaces (total: 1 + max_student_groups):
+# Network Interfaces (total: 2 + max_student_groups):
 #   - net0: vmbr51 (WAN)
-#   - net1-net15: vmbr255001-vmbr255015 (OPT1-OPT15 to student groups)
-#
-# NOTE: Instructor LAN (vmbr255000) is managed internally by pfSense configuration,
-#       not assigned as a bridge to a VM network interface
+#   - net1: vmbr255000 (Instructor LAN)
+#   - net2-net16: vmbr255001-vmbr255015 (OPT1-OPT15 to student groups)
 #
 # Author: Emily Miller
-# Last Updated: December 14, 2025
+# Last Updated: December 15, 2025
 # ============================================================================
 
 - name: Display Instructor pfSense deployment notice
@@ -43,10 +42,9 @@
       Storage: {{ storage }}
       Networks:
         - net0: {{ bridges.instructor_wan }} (WAN)
-        - net1-net{{ max_student_groups }}: Student group WANs ({{ max_student_groups }} groups)
-      Total Interfaces: {{ 1 + max_student_groups }}
-
-      NOTE: Instructor LAN ({{ bridges.instructor_lan }}) managed internally by pfSense
+        - net1: {{ bridges.instructor_lan }} (Instructor LAN)
+        - net2-net{{ 1 + max_student_groups }}: Student group WANs ({{ max_student_groups }} groups)
+      Total Interfaces: {{ 2 + max_student_groups }}
       ========================================
 
 # ========================================
@@ -137,6 +135,18 @@
   ansible.builtin.debug:
     msg: "✓ net0 assigned: {{ bridges.instructor_wan }} (WAN)"
 
+- name: Assign Instructor LAN interface (net1)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --net1 virtio,bridge={{ bridges.instructor_lan }}"
+  register: net1_result
+  changed_when: true
+  failed_when: net1_result.rc != 0
+
+- name: Display Instructor LAN interface assignment
+  ansible.builtin.debug:
+    msg: "✓ net1 assigned: {{ bridges.instructor_lan }} (Instructor LAN)"
+
 # ========================================
 # Configure Student Group WAN Interfaces (OPT1-OPT15)
 # ========================================
@@ -144,16 +154,16 @@
 # These connect instructor pfSense to each student group's pfSense WAN
 #
 # Interface mapping:
-#   net1 = OPT1 = vmbr255001 (Group 1 WAN)
-#   net2 = OPT2 = vmbr255002 (Group 2 WAN)
+#   net2 = OPT1 = vmbr255001 (Group 1 WAN)
+#   net3 = OPT2 = vmbr255002 (Group 2 WAN)
 #   ...
-#   net15 = OPT15 = vmbr255015 (Group 15 WAN)
+#   net16 = OPT15 = vmbr255015 (Group 15 WAN)
 
 - name: Generate student group WAN interface assignments
   ansible.builtin.set_fact:
     student_wan_interfaces: "{{ student_wan_interfaces | default([]) + [interface_config] }}"
   vars:
-    net_id: "net{{ item }}" # net1, net2, ..., net15
+    net_id: "net{{ item + 1 }}" # net2, net3, ..., net16 (item is 1-15, +1 makes it 2-16)
     bridge: "vmbr255{{ '%03d' | format(item) }}" # vmbr255001, vmbr255002, ..., vmbr255015
     interface_config:
       net_id: "{{ net_id }}"
@@ -164,7 +174,7 @@
 
 - name: Display student WAN interfaces to assign
   ansible.builtin.debug:
-    msg: "Assigning {{ max_student_groups }} student group WAN interfaces (net1-net{{ max_student_groups }})"
+    msg: "Assigning {{ max_student_groups }} student group WAN interfaces (net2-net{{ 1 + max_student_groups }})"
 
 - name: Assign student group WAN interfaces
   ansible.builtin.command:
@@ -190,17 +200,16 @@
       ========================================
       Network Interfaces Configured
       ========================================
-      Total: {{ 1 + max_student_groups }} interfaces
+      Total: {{ 2 + max_student_groups }} interfaces
 
-      WAN:
+      Infrastructure:
         - net0: {{ bridges.instructor_wan }} (WAN)
+        - net1: {{ bridges.instructor_lan }} (Instructor LAN)
 
       Student Group WANs (OPT interfaces):
       {% for interface in student_wan_interfaces %}
         - {{ interface.net_id }}: {{ interface.bridge }} ({{ interface.description }})
       {% endfor %}
-
-      NOTE: Instructor LAN ({{ bridges.instructor_lan }}) managed internally by pfSense
       ========================================
 
 # ========================================
@@ -244,7 +253,8 @@
       ========================================
       VM ID: {{ vm_ids.instructor_pfsense }}
       Status: {{ vm_status.stdout }}
-      Total Interfaces: {{ 1 + max_student_groups }}
-      WAN: {{ bridges.instructor_wan }}
-      OPT Interfaces: net1-net{{ max_student_groups }}
+      Total Interfaces: {{ 2 + max_student_groups }}
+      WAN: {{ bridges.instructor_wan }} (net0)
+      LAN: {{ bridges.instructor_lan }} (net1)
+      OPT Interfaces: net2-net{{ 1 + max_student_groups }} (vmbr255001-vmbr255{{ '%03d' | format(max_student_groups) }})
       ========================================
