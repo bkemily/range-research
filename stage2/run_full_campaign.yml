@@ -75,8 +75,8 @@
         PHASE 2.1: Deploy Infrastructure
         ========================================
 
-  #- name: Call deploy_infrastructure playbook
-    #ansible.builtin.import_playbook: deploy_infrastructure.yml
+  - name: Call deploy_infrastructure playbook
+    ansible.builtin.import_playbook: deploy_infrastructure.yml
 
   # ========================================
   # PHASE 2.2: Configure Network
