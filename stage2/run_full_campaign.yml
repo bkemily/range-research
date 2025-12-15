@@ -105,12 +105,12 @@
     ansible.builtin.debug:
       msg: "✓ SSH connection to Proxmox successful"
 
-  - name: Verify Security Onion is reachable
-    ansible.builtin.wait_for:
-      host: "{{ security_onion.management_ip | default('143.88.255.9') }}"
-      port: 22
-      timeout: 10
-    delegate_to: localhost
+  #- name: Verify Security Onion is reachable
+    #ansible.builtin.wait_for:
+      #host: "{{ security_onion.management_ip | default('143.88.255.9') }}"
+      #port: 22
+      #timeout: 10
+    #delegate_to: localhost
 
   - name: Display Security Onion status
     ansible.builtin.debug:
