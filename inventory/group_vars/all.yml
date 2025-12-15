@@ -181,6 +181,28 @@ security_onion:
   boot_order: "scsi0;ide2" # Boot from disk first, then ISO
 
 # ==========================================
+# VM Resource Defaults
+# ==========================================
+
+# pfSense VM resource defaults
+pfsense_resources:
+  memory: 2048 # 2 GiB
+  cores: 2
+  sockets: 1
+
+# Kali VM resource defaults (if needed later)
+kali_resources:
+  memory: 8192 # 8 GiB
+  cores: 6
+  sockets: 1
+
+# MS3 VM resource defaults (if needed later)
+ms3_resources:
+  memory: 4096 # 4 GiB
+  cores: 2
+  sockets: 1
+
+# ==========================================
 # Automation Configuration (Stage 2+)
 # ==========================================
 automation:
