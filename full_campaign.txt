@@ -1,0 +1,196 @@
+# ========================================
+  # PHASE 2.2: Configure Network
+  # ========================================
+
+  - name: Display Phase 2.2 header
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        PHASE 2.2: Configure Network
+        ========================================
+        Configuring routing and firewall rules...
+        ========================================
+
+  - name: Configure Spark pfSense
+    ansible.builtin.include_tasks: tasks/configure_spark_pfsense.yml
+
+  - name: Configure Instructor pfSense
+    ansible.builtin.include_tasks: tasks/configure_instructor_pfsense.yml
+
+  - name: Configure Student pfSense instances
+    ansible.builtin.include_tasks: tasks/configure_student_pfsense.yml
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+    loop_control:
+      loop_var: group_id
+      label: "Group {{ group_id }}"
+
+  - name: Wait for network configuration propagation
+    ansible.builtin.pause:
+      seconds: 60
+      prompt: "Waiting for network configuration to propagate..."
+
+  - name: Verify network connectivity
+    ansible.builtin.include_tasks: tasks/verify_network_connectivity.yml
+
+  - name: Display Phase 2.2 completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ Phase 2.2 Complete
+        ========================================
+        Network configuration verified
+        All routing and firewall rules active
+        ========================================
+
+  # ========================================
+  # PHASE 2.3: Activate Attacks
+  # ========================================
+
+  - name: Display Phase 2.3 header
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        PHASE 2.3: Activate Attack Campaigns
+        ========================================
+        Initializing mission logs and triggering attacks...
+        ========================================
+
+  - name: Activate network attacks
+    ansible.builtin.include_tasks: tasks/activate_network_attacks.yml
+
+  - name: Activate host attacks
+    ansible.builtin.include_tasks: tasks/activate_host_attacks.yml
+
+  - name: Display Phase 2.3 completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ Phase 2.3 Complete
+        ========================================
+        Attack campaigns activated on all VMs
+        Mission logs initialized
+        ========================================
+
+  # ========================================
+  # PHASE 2.4: Monitor Campaign
+  # ========================================
+
+  - name: Display Phase 2.4 header
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        PHASE 2.4: Monitor Campaign
+        ========================================
+        Campaign Duration: {{ campaign_duration_hours }} hours
+        Start Time: {{ campaign_start_time }}
+        ========================================
+
+  - name: Monitor campaign execution
+    ansible.builtin.include_tasks: tasks/monitor_campaign.yml
+    vars:
+      monitoring_interval_minutes: 30
+      total_checks: "{{ (campaign_duration_hours * 60 / monitoring_interval_minutes) | int }}"
+
+  # ========================================
+  # PHASE 2.5: Collect Data
+  # ========================================
+
+  - name: Display Phase 2.5 header
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        PHASE 2.5: Collect Campaign Data
+        ========================================
+        Collecting logs, PCAPs, and mission data...
+        ========================================
+
+  - name: Collect Zeek logs
+    ansible.builtin.include_tasks: tasks/collect_zeek_logs.yml
+
+  - name: Collect PCAPs
+    ansible.builtin.include_tasks: tasks/collect_pcaps.yml
+
+  - name: Collect Kali mission logs
+    ansible.builtin.include_tasks: tasks/collect_kali_mission_logs.yml
+
+  - name: Collect MS3 host logs
+    ansible.builtin.include_tasks: tasks/collect_ms3_host_logs.yml
+
+  - name: Generate dataset manifest
+    ansible.builtin.include_tasks: tasks/generate_manifest.yml
+
+  - name: Record campaign end time
+    ansible.builtin.set_fact:
+      campaign_end_time: "{{ ansible_date_time.iso8601 }}"
+
+  - name: Display Phase 2.5 completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ Phase 2.5 Complete
+        ========================================
+        All data collected and archived
+        ========================================
+
+  # ========================================
+  # Stage 2 Completion Summary
+  # ========================================
+
+  - name: Display completion summary
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        STAGE 2: Campaign Complete
+        ========================================
+        
+        Campaign Details:
+          - Start Time: {{ campaign_start_time }}
+          - End Time: {{ campaign_end_time }}
+          - Duration: {{ campaign_duration_hours }} hours
+          - Student Groups: {{ max_student_groups }}
+          - Total VMs Deployed: {{ 3 + (max_student_groups * 5) }}
+        
+        Infrastructure Deployed:
+          ✓ Spark pfSense (VM 50)
+          ✓ Instructor pfSense (VM 100)
+          ✓ Instructor Kali (VM 103)
+          ✓ {{ max_student_groups }} Student Groups (VMs 201-{{ 200 + max_student_groups }})
+          ✓ {{ max_student_groups * 2 }} Student Kali VMs
+          ✓ {{ max_student_groups * 2 }} Student MS3 VMs
+        
+        Network Configuration:
+          ✓ Spark WAN routing configured
+          ✓ Instructor OPT1-OPT{{ max_student_groups }} configured
+          ✓ All student pfSense instances configured
+          ✓ Connectivity verified between all groups
+        
+        Attack Campaigns:
+          ✓ Network attacks activated
+          ✓ Host attacks activated
+          ✓ Mission logs initialized
+        
+        Data Collection:
+          ✓ Zeek logs collected
+          ✓ PCAPs archived
+          ✓ Mission logs retrieved
+          ✓ Dataset manifest generated
+        
+        Data Location:
+          {{ data_collection_path }}
+        
+        ========================================
+        NEXT STEPS
+        ========================================
+        
+        1. Review dataset manifest:
+           {{ data_collection_path }}/manifest.json
+        
+        2. Analyze collected data:
+           - Zeek logs: {{ data_collection_path }}/zeek/
+           - PCAPs: {{ data_collection_path }}/pcaps/
+           - Mission logs: {{ data_collection_path }}/mission_logs/
+        
+        3. Optional: Run Stage 3 to tear down infrastructure
+           ansible-playbook -i inventory/hosts.yml stage3/stage3_teardown.yml
+        
+        ========================================
