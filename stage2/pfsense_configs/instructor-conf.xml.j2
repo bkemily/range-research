@@ -1,44 +1,73 @@
 <?xml version="1.0"?>
 <pfsense>
   <version>24.03</version>
+  <lastchange/>
   
-  <!-- System Settings -->
+  <!-- ========================================
+       SYSTEM CONFIGURATION
+       ======================================== -->
   <system>
+    <optimization>normal</optimization>
     <hostname>pfsense-instructor</hostname>
     <domain>instructor.local</domain>
-    <timezone>America/New_York</timezone>
+    <dnsserver>8.8.8.8</dnsserver>
+    <dnsserver>8.8.4.4</dnsserver>
+    <dnsallowoverride>on</dnsallowoverride>
     
-    <!-- Admin User -->
+    <group>
+      <name>admins</name>
+      <description>System Administrators</description>
+      <scope>system</scope>
+      <gid>1999</gid>
+      <member>0</member>
+      <priv>page-all</priv>
+    </group>
+    
     <user>
       <name>admin</name>
       <descr>System Administrator</descr>
       <scope>system</scope>
-      <groupid>admins</groupid>
+      <groupname>admins</groupname>
       <password>$2y$10$YRVoF4SgskIsrXOvOQjGieB9XqHPRra9R7d80B3BZdbY/j21TQ3C6</password>
       <uid>0</uid>
+      <priv>user-shell-access</priv>
     </user>
     
-    <!-- Enable SSH -->
+    <nextuid>2000</nextuid>
+    <nextgid>2000</nextgid>
+    <timezone>America/New_York</timezone>
+    <timeservers>pool.ntp.org</timeservers>
+    
+    <webgui>
+      <protocol>https</protocol>
+    </webgui>
+    
+    <disablenatreflection>yes</disablenatreflection>
+    <disablechecksumoffloading>yes</disablechecksumoffloading>
+    <disablesegmentationoffloading>yes</disablesegmentationoffloading>
+    <disablelargereceiveoffloading>yes</disablelargereceiveoffloading>
+    
     <ssh>
       <enable>enabled</enable>
     </ssh>
     
-    <disablechecksumoffloading>true</disablechecksumoffloading>
-    <disablesegmentationoffloading>true</disablesegmentationoffloading>
+    <maximumstates>50000</maximumstates>
+    <maximumtableentries>400000</maximumtableentries>
   </system>
   
-  <!-- Interfaces -->
+  <!-- ========================================
+       INTERFACES
+       ======================================== -->
   <interfaces>
-    <!-- WAN Interface (vtnet0) - No IP, just bridge connection -->
+    <!-- WAN: No IP assignment -->
     <wan>
       <enable/>
       <if>vtnet0</if>
-      <descr>WAN Bridge to Spark</descr>
+      <descr>WAN Bridge</descr>
       <spoofmac/>
-      <!-- No IP configuration - just physical connection -->
     </wan>
     
-    <!-- LAN Interface (vtnet1) - Instructor Network -->
+    <!-- LAN: Instructor Network -->
     <lan>
       <enable/>
       <if>vtnet1</if>
@@ -47,7 +76,7 @@
       <subnet>24</subnet>
     </lan>
     
-    <!-- OPT Interfaces (vtnet2-vtnet16) for Student Groups -->
+    <!-- OPT Interfaces for Student Groups -->
 {% for group in range(1, max_student_groups + 1) %}
     <opt{{ group }}>
       <enable/>
@@ -59,18 +88,39 @@
 {% endfor %}
   </interfaces>
   
-  <!-- Static Routes to Student LANs -->
+  <!-- ========================================
+       GATEWAYS FOR EACH OPT INTERFACE
+       ======================================== -->
+  <gateways>
+{% for group in range(1, max_student_groups + 1) %}
+    <gateway_item>
+      <interface>opt{{ group }}</interface>
+      <gateway>143.88.0.{{ group * 4 - 2 }}</gateway>
+      <name>GW_OPT{{ group }}</name>
+      <weight>1</weight>
+      <ipprotocol>inet</ipprotocol>
+      <descr>Gateway to Group {{ '%02d' | format(group) }}</descr>
+      <monitor_disable>1</monitor_disable>
+    </gateway_item>
+{% endfor %}
+  </gateways>
+  
+  <!-- ========================================
+       STATIC ROUTES TO STUDENT LANS
+       ======================================== -->
   <staticroutes>
 {% for group in range(1, max_student_groups + 1) %}
     <route>
       <network>143.88.{{ group }}.0/24</network>
-      <gateway>143.88.0.{{ group * 4 - 2 }}</gateway>
+      <gateway>GW_OPT{{ group }}</gateway>
       <descr>Route to Group {{ '%02d' | format(group) }} LAN</descr>
     </route>
 {% endfor %}
   </staticroutes>
   
-  <!-- DHCP Server for Instructor LAN Only -->
+  <!-- ========================================
+       DHCP SERVER (Instructor LAN Only)
+       ======================================== -->
   <dhcpd>
     <lan>
       <enable/>
@@ -85,48 +135,62 @@
       <dnsserver>8.8.8.8</dnsserver>
       <dnsserver>8.8.4.4</dnsserver>
       
-      <!-- Static Leases for Instructor Network -->
+      <!-- Static Mappings -->
       <staticmap>
-        <mac>{{ instructor_mac_addresses.kali }}</mac>
+        <mac>52:54:00:FF:00:01</mac>
         <ipaddr>143.88.255.10</ipaddr>
         <hostname>kali-instructor</hostname>
         <descr>Instructor Kali</descr>
       </staticmap>
-      
-      <staticmap>
-        <mac>{{ instructor_mac_addresses.security_onion }}</mac>
-        <ipaddr>143.88.255.9</ipaddr>
-        <hostname>security-onion</hostname>
-        <descr>Security Onion</descr>
-      </staticmap>
     </lan>
-    
-    <!-- No DHCP on OPT interfaces - students handle their own -->
 {% for group in range(1, max_student_groups + 1) %}
     <opt{{ group }}>
-      <enable>false</enable>
+      <!-- DHCP disabled on OPT interfaces -->
     </opt{{ group }}>
 {% endfor %}
   </dhcpd>
   
-  <!-- NAT: Disabled (transparent routing) -->
+  <dhcpdv6/>
+  <snmpd>
+    <syslocation/>
+    <syscontact/>
+    <rocommunity>public</rocommunity>
+  </snmpd>
+  
+  <!-- ========================================
+       NAT - DISABLED
+       ======================================== -->
   <nat>
     <outbound>
       <mode>disabled</mode>
     </outbound>
   </nat>
   
-  <!-- Firewall Rules: Allow All Traffic -->
+  <!-- ========================================
+       FIREWALL FILTER RULES
+       ======================================== -->
   <filter>
-    <!-- WAN: No rules needed (no IP) -->
-    
-    <!-- LAN: Allow all -->
+    <!-- Anti-Lockout -->
     <rule>
       <type>pass</type>
-      <interface>lan</interface>
       <ipprotocol>inet</ipprotocol>
-      <statetype>keep state</statetype>
-      <descr>Allow all Instructor LAN traffic</descr>
+      <descr>Anti-Lockout Rule</descr>
+      <interface>lan</interface>
+      <source>
+        <any/>
+      </source>
+      <destination>
+        <network>(self)</network>
+        <port>443</port>
+      </destination>
+    </rule>
+    
+    <!-- LAN: Allow All -->
+    <rule>
+      <type>pass</type>
+      <ipprotocol>inet</ipprotocol>
+      <descr>Allow all LAN</descr>
+      <interface>lan</interface>
       <source>
         <any/>
       </source>
@@ -135,14 +199,13 @@
       </destination>
     </rule>
     
-    <!-- OPT Interfaces: Allow all for each student group -->
+    <!-- OPT Interfaces: Allow All -->
 {% for group in range(1, max_student_groups + 1) %}
     <rule>
       <type>pass</type>
-      <interface>opt{{ group }}</interface>
       <ipprotocol>inet</ipprotocol>
-      <statetype>keep state</statetype>
-      <descr>Allow all Group {{ '%02d' | format(group) }} traffic</descr>
+      <descr>Allow all Group {{ '%02d' | format(group) }}</descr>
+      <interface>opt{{ group }}</interface>
       <source>
         <any/>
       </source>
@@ -153,8 +216,25 @@
 {% endfor %}
   </filter>
   
-  <!-- Disable packet filtering on bridge -->
-  <system>
-    <disablefilter>enabled</disablefilter>
-  </system>
+  <syslog>
+    <filterdescriptions>1</filterdescriptions>
+  </syslog>
+  
+  <load_balancer>
+    <monitor_type>
+      <name>ICMP</name>
+      <type>icmp</type>
+      <descr>ICMP</descr>
+    </monitor_type>
+  </load_balancer>
+  
+  <widgets>
+    <sequence>system_information:col1:show,interfaces:col2:show</sequence>
+  </widgets>
+  
+  <revision>
+    <time>{{ ansible_date_time.epoch }}</time>
+    <description>Ansible Generated - Instructor pfSense</description>
+    <username>admin</username>
+  </revision>
 </pfsense>

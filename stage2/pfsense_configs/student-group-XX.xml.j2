@@ -1,37 +1,79 @@
 <?xml version="1.0"?>
 <pfsense>
   <version>24.03</version>
+  <lastchange/>
   
-  <!-- System Settings -->
+  <!-- ========================================
+       SYSTEM CONFIGURATION
+       ======================================== -->
   <system>
+    <optimization>normal</optimization>
     <hostname>pfsense-group{{ '%02d' | format(group_id) }}</hostname>
     <domain>group{{ '%02d' | format(group_id) }}.local</domain>
-    <timezone>America/New_York</timezone>
-    <timeservers>pool.ntp.org</timeservers>
+    <dnsserver>8.8.8.8</dnsserver>
+    <dnsserver>8.8.4.4</dnsserver>
+    <dnsallowoverride>on</dnsallowoverride>
+    
+    <!-- User Groups -->
+    <group>
+      <name>admins</name>
+      <description>System Administrators</description>
+      <scope>system</scope>
+      <gid>1999</gid>
+      <member>0</member>
+      <priv>page-all</priv>
+    </group>
     
     <!-- Admin User -->
     <user>
       <name>admin</name>
       <descr>System Administrator</descr>
       <scope>system</scope>
-      <groupid>admins</groupid>
+      <groupname>admins</groupname>
       <password>$2y$10$YRVoF4SgskIsrXOvOQjGieB9XqHPRra9R7d80B3BZdbY/j21TQ3C6</password>
       <uid>0</uid>
+      <priv>user-shell-access</priv>
     </user>
+    
+    <nextuid>2000</nextuid>
+    <nextgid>2000</nextgid>
+    <timezone>America/New_York</timezone>
+    <timeservers>pool.ntp.org</timeservers>
+    
+    <webgui>
+      <protocol>https</protocol>
+      <loginautocomplete/>
+    </webgui>
+    
+    <disablenatreflection>yes</disablenatreflection>
+    <disablechecksumoffloading>yes</disablechecksumoffloading>
+    <disablesegmentationoffloading>yes</disablesegmentationoffloading>
+    <disablelargereceiveoffloading>yes</disablelargereceiveoffloading>
+    
+    <ipv6allow/>
+    <powerd_ac_mode>hadp</powerd_ac_mode>
+    <powerd_battery_mode>hadp</powerd_battery_mode>
+    
+    <bogons>
+      <interval>monthly</interval>
+    </bogons>
+    
+    <kill_states/>
     
     <!-- Enable SSH -->
     <ssh>
       <enable>enabled</enable>
     </ssh>
     
-    <!-- Disable wizard -->
-    <disablechecksumoffloading>true</disablechecksumoffloading>
-    <disablesegmentationoffloading>true</disablesegmentationoffloading>
+    <maximumstates>10000</maximumstates>
+    <maximumtableentries>200000</maximumtableentries>
   </system>
   
-  <!-- Interfaces -->
+  <!-- ========================================
+       INTERFACES
+       ======================================== -->
   <interfaces>
-    <!-- WAN Interface (vtnet0) -->
+    <!-- WAN Interface -->
     <wan>
       <enable/>
       <if>vtnet0</if>
@@ -40,9 +82,10 @@
       <subnet>30</subnet>
       <gateway>WANGW</gateway>
       <blockbogons/>
+      <spoofmac/>
     </wan>
     
-    <!-- LAN Interface (vtnet1) -->
+    <!-- LAN Interface -->
     <lan>
       <enable/>
       <if>vtnet1</if>
@@ -52,7 +95,9 @@
     </lan>
   </interfaces>
   
-  <!-- Gateways -->
+  <!-- ========================================
+       GATEWAYS
+       ======================================== -->
   <gateways>
     <gateway_item>
       <interface>wan</interface>
@@ -60,11 +105,15 @@
       <name>WANGW</name>
       <weight>1</weight>
       <ipprotocol>inet</ipprotocol>
+      <interval/>
       <descr>WAN Gateway to Instructor</descr>
+      <monitor_disable>1</monitor_disable>
     </gateway_item>
   </gateways>
   
-  <!-- DHCP Server for LAN -->
+  <!-- ========================================
+       DHCP SERVER
+       ======================================== -->
   <dhcpd>
     <lan>
       <enable/>
@@ -72,60 +121,110 @@
         <from>143.88.{{ group_id }}.100</from>
         <to>143.88.{{ group_id }}.200</to>
       </range>
+      <failover_peerip/>
       <defaultleasetime>7200</defaultleasetime>
       <maxleasetime>86400</maxleasetime>
+      <netmask/>
       <gateway>143.88.{{ group_id }}.1</gateway>
       <domain>group{{ '%02d' | format(group_id) }}.local</domain>
+      <domainsearchlist/>
+      <ddnsdomain/>
+      <ddnsdomainprimary/>
+      <ddnsdomainkeyname/>
+      <ddnsdomainkey/>
+      <mac_allow/>
+      <mac_deny/>
+      <ddnsclientupdates>allow</ddnsclientupdates>
+      <tftp/>
+      <ldap/>
+      <nextserver/>
+      <filename/>
+      <rootpath/>
+      <numberoptions/>
       <dnsserver>8.8.8.8</dnsserver>
       <dnsserver>8.8.4.4</dnsserver>
+      <winsserver/>
+      <ntpserver/>
       
-      <!-- Static DHCP Leases -->
+      <!-- Static DHCP Mappings -->
       <staticmap>
-        <mac>{{ student_mac_addresses[group_id].kali1 }}</mac>
+        <mac>52:54:00:{{ '%02d' | format(group_id) }}:01:01</mac>
         <ipaddr>143.88.{{ group_id }}.10</ipaddr>
-        <hostname>kali1-group{{ '%02d' | format(group_id) }}</hostname>
+        <hostname>kali1</hostname>
         <descr>Kali Linux 1</descr>
       </staticmap>
-      
       <staticmap>
-        <mac>{{ student_mac_addresses[group_id].kali2 }}</mac>
+        <mac>52:54:00:{{ '%02d' | format(group_id) }}:01:02</mac>
         <ipaddr>143.88.{{ group_id }}.11</ipaddr>
-        <hostname>kali2-group{{ '%02d' | format(group_id) }}</hostname>
+        <hostname>kali2</hostname>
         <descr>Kali Linux 2</descr>
       </staticmap>
-      
       <staticmap>
-        <mac>{{ student_mac_addresses[group_id].ubuntu }}</mac>
+        <mac>52:54:00:{{ '%02d' | format(group_id) }}:02:01</mac>
         <ipaddr>143.88.{{ group_id }}.13</ipaddr>
-        <hostname>ubuntu-group{{ '%02d' | format(group_id) }}</hostname>
-        <descr>MS3 Ubuntu 14.04</descr>
+        <hostname>ubuntu</hostname>
+        <descr>MS3 Ubuntu</descr>
       </staticmap>
-      
       <staticmap>
-        <mac>{{ student_mac_addresses[group_id].windows }}</mac>
+        <mac>52:54:00:{{ '%02d' | format(group_id) }}:02:02</mac>
         <ipaddr>143.88.{{ group_id }}.14</ipaddr>
-        <hostname>windows-group{{ '%02d' | format(group_id) }}</hostname>
-        <descr>MS3 Windows 2008</descr>
+        <hostname>windows</hostname>
+        <descr>MS3 Windows</descr>
       </staticmap>
     </lan>
   </dhcpd>
   
-  <!-- NAT Configuration: Disabled for transparent routing -->
+  <!-- ========================================
+       DHCPV6 (Disabled)
+       ======================================== -->
+  <dhcpdv6/>
+  
+  <!-- ========================================
+       SNMPD (Disabled)
+       ======================================== -->
+  <snmpd>
+    <syslocation/>
+    <syscontact/>
+    <rocommunity>public</rocommunity>
+  </snmpd>
+  
+  <!-- ========================================
+       NAT - DISABLED FOR TRANSPARENT ROUTING
+       ======================================== -->
   <nat>
     <outbound>
       <mode>disabled</mode>
     </outbound>
+    <rule/>
   </nat>
   
-  <!-- Firewall Rules: Allow All Traffic -->
+  <!-- ========================================
+       FIREWALL FILTER RULES
+       ======================================== -->
   <filter>
-    <!-- WAN Rules -->
+    <!-- Anti-Lockout Rule -->
     <rule>
       <type>pass</type>
-      <interface>wan</interface>
       <ipprotocol>inet</ipprotocol>
-      <statetype>keep state</statetype>
-      <descr>Allow all WAN traffic</descr>
+      <descr>Anti-Lockout Rule</descr>
+      <interface>lan</interface>
+      <tracker>0100000101</tracker>
+      <source>
+        <any/>
+      </source>
+      <destination>
+        <network>(self)</network>
+        <port>443</port>
+      </destination>
+    </rule>
+    
+    <!-- WAN Rules: Allow All Inbound -->
+    <rule>
+      <type>pass</type>
+      <ipprotocol>inet</ipprotocol>
+      <descr>Allow all WAN inbound</descr>
+      <interface>wan</interface>
+      <tracker>0100000102</tracker>
       <source>
         <any/>
       </source>
@@ -134,15 +233,15 @@
       </destination>
     </rule>
     
-    <!-- LAN Rules -->
+    <!-- LAN Rules: Allow All Outbound -->
     <rule>
       <type>pass</type>
-      <interface>lan</interface>
       <ipprotocol>inet</ipprotocol>
-      <statetype>keep state</statetype>
-      <descr>Allow all LAN traffic</descr>
+      <descr>Allow all LAN to any</descr>
+      <interface>lan</interface>
+      <tracker>0100000103</tracker>
       <source>
-        <any/>
+        <network>lan</network>
       </source>
       <destination>
         <any/>
@@ -150,10 +249,78 @@
     </rule>
   </filter>
   
-  <!-- System Advanced Settings -->
-  <system>
-    <optimization>normal</optimization>
-    <maximumstates>10000</maximumstates>
-    <maximumtableentries>200000</maximumtableentries>
-  </system>
+  <!-- ========================================
+       SYSLOG
+       ======================================== -->
+  <syslog>
+    <filterdescriptions>1</filterdescriptions>
+  </syslog>
+  
+  <!-- ========================================
+       STATIC ROUTES (None needed for students)
+       ======================================== -->
+  <staticroutes/>
+  
+  <!-- ========================================
+       LOAD BALANCER (Disabled)
+       ======================================== -->
+  <load_balancer>
+    <monitor_type>
+      <name>ICMP</name>
+      <type>icmp</type>
+      <descr>ICMP</descr>
+      <options/>
+    </monitor_type>
+    <monitor_type>
+      <name>TCP</name>
+      <type>tcp</type>
+      <descr>Generic TCP</descr>
+      <options/>
+    </monitor_type>
+    <monitor_type>
+      <name>HTTP</name>
+      <type>http</type>
+      <descr>Generic HTTP</descr>
+      <options>
+        <path>/</path>
+        <host/>
+        <code>200</code>
+      </options>
+    </monitor_type>
+    <monitor_type>
+      <name>HTTPS</name>
+      <type>https</type>
+      <descr>Generic HTTPS</descr>
+      <options>
+        <path>/</path>
+        <host/>
+        <code>200</code>
+      </options>
+    </monitor_type>
+    <monitor_type>
+      <name>SMTP</name>
+      <type>send</type>
+      <descr>Generic SMTP</descr>
+      <options>
+        <send/>
+        <expect>220 *</expect>
+      </options>
+    </monitor_type>
+  </load_balancer>
+  
+  <!-- ========================================
+       WIDGETS (Dashboard)
+       ======================================== -->
+  <widgets>
+    <sequence>system_information:col1:show,interfaces:col2:show</sequence>
+  </widgets>
+  
+  <!-- ========================================
+       REVISION (Config tracking)
+       ======================================== -->
+  <revision>
+    <time>{{ ansible_date_time.epoch }}</time>
+    <description>Ansible Generated - Group {{ group_id }}</description>
+    <username>admin</username>
+  </revision>
 </pfsense>
