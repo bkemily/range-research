@@ -1,0 +1,124 @@
+---
+# ============================================================================
+# Phase 2.2: Configure Network
+# ============================================================================
+# Purpose: Configure pfSense routing and firewall rules
+#
+# Called by: run_full_campaign.yml
+#
+# This playbook:
+#   1. Configures Spark pfSense
+#   2. Configures Instructor pfSense
+#   3. Configures Student pfSense instances (loops for each group)
+#   4. Verifies network connectivity
+#
+# Author: Emily Miller
+# Last Updated: December 15, 2025
+# ============================================================================
+
+- name: Phase 2.2 - Configure Network
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  vars:
+    # pfSense default credentials (change these!)
+    pfsense_default_user: "admin"
+    pfsense_default_password: "pfsense"
+
+  tasks:
+  # ========================================
+  # Configure Spark pfSense
+  # ========================================
+
+  - name: Display Spark pfSense configuration notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Configuring Spark pfSense
+        ========================================
+
+  - name: Configure Spark pfSense
+    ansible.builtin.include_tasks: tasks/network/configure_pfsense.yml
+    vars:
+      vm_name: "Spark pfSense"
+      pfsense_ip: "192.168.68.50" # Temporary IP on management network
+      pfsense_user: "{{ pfsense_default_user }}"
+      pfsense_password: "{{ pfsense_default_password }}"
+      config_file: "{{ playbook_dir }}/pfsense_configs/spark-config.xml"
+
+  # ========================================
+  # Configure Instructor pfSense
+  # ========================================
+
+  - name: Display Instructor pfSense configuration notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Configuring Instructor pfSense
+        ========================================
+
+  - name: Configure Instructor pfSense
+    ansible.builtin.include_tasks: tasks/network/configure_pfsense.yml
+    vars:
+      vm_name: "Instructor pfSense"
+      pfsense_ip: "143.88.255.1" # IP after Spark config is applied
+      pfsense_user: "{{ pfsense_default_user }}"
+      pfsense_password: "{{ pfsense_default_password }}"
+      config_file: "{{ playbook_dir }}/pfsense_configs/instructor-config.xml"
+
+  # ========================================
+  # Configure Student pfSense Instances
+  # ========================================
+
+  - name: Display Student pfSense configuration notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Configuring {{ max_student_groups }} Student pfSense Instances
+        ========================================
+
+  - name: Generate Student pfSense configuration from template
+    ansible.builtin.template:
+      src: "{{ playbook_dir }}/pfsense_configs/student-group.xml.j2"
+      dest: "{{ playbook_dir }}/pfsense_configs/generated/student-group-{{ '%02d' | format(item) }}.xml"
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+    vars:
+      group_id: "{{ item }}"
+
+  - name: Configure Student pfSense instances
+    ansible.builtin.include_tasks: tasks/network/configure_pfsense.yml
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+    loop_control:
+      loop_var: group_id
+      label: "Group {{ group_id }}"
+    vars:
+      vm_name: "Student Group {{ group_id }} pfSense"
+      # Student pfSense WAN IP: 143.88.X.2 (where X = group_id)
+      pfsense_ip: "143.88.{{ group_id }}.2"
+      pfsense_user: "{{ pfsense_default_user }}"
+      pfsense_password: "{{ pfsense_default_password }}"
+      config_file: "{{ playbook_dir }}/pfsense_configs/generated/student-group-{{ '%02d' | format(group_id) }}.xml"
+
+  # ========================================
+  # Verify Network Connectivity
+  # ========================================
+
+  - name: Display network verification notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Verifying Network Connectivity
+        ========================================
+
+  - name: Verify connectivity
+    ansible.builtin.include_tasks: tasks/network/verify_network_connectivity.yml
+
+  - name: Display Phase 2.2 completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ Phase 2.2 Complete
+        ========================================
+        Network configuration applied to all pfSense instances
+        ========================================

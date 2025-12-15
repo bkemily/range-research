@@ -1,0 +1,160 @@
+<?xml version="1.0"?>
+<pfsense>
+  <version>24.03</version>
+  
+  <!-- System Settings -->
+  <system>
+    <hostname>pfsense-instructor</hostname>
+    <domain>instructor.local</domain>
+    <timezone>America/New_York</timezone>
+    
+    <!-- Admin User -->
+    <user>
+      <name>admin</name>
+      <descr>System Administrator</descr>
+      <scope>system</scope>
+      <groupid>admins</groupid>
+      <password>$2y$10$YRVoF4SgskIsrXOvOQjGieB9XqHPRra9R7d80B3BZdbY/j21TQ3C6</password>
+      <uid>0</uid>
+    </user>
+    
+    <!-- Enable SSH -->
+    <ssh>
+      <enable>enabled</enable>
+    </ssh>
+    
+    <disablechecksumoffloading>true</disablechecksumoffloading>
+    <disablesegmentationoffloading>true</disablesegmentationoffloading>
+  </system>
+  
+  <!-- Interfaces -->
+  <interfaces>
+    <!-- WAN Interface (vtnet0) - No IP, just bridge connection -->
+    <wan>
+      <enable/>
+      <if>vtnet0</if>
+      <descr>WAN Bridge to Spark</descr>
+      <spoofmac/>
+      <!-- No IP configuration - just physical connection -->
+    </wan>
+    
+    <!-- LAN Interface (vtnet1) - Instructor Network -->
+    <lan>
+      <enable/>
+      <if>vtnet1</if>
+      <descr>Instructor LAN</descr>
+      <ipaddr>143.88.255.1</ipaddr>
+      <subnet>24</subnet>
+    </lan>
+    
+    <!-- OPT Interfaces (vtnet2-vtnet16) for Student Groups -->
+{% for group in range(1, max_student_groups + 1) %}
+    <opt{{ group }}>
+      <enable/>
+      <if>vtnet{{ group + 1 }}</if>
+      <descr>Group {{ '%02d' | format(group) }} WAN</descr>
+      <ipaddr>143.88.0.{{ group * 4 - 3 }}</ipaddr>
+      <subnet>30</subnet>
+    </opt{{ group }}>
+{% endfor %}
+  </interfaces>
+  
+  <!-- Static Routes to Student LANs -->
+  <staticroutes>
+{% for group in range(1, max_student_groups + 1) %}
+    <route>
+      <network>143.88.{{ group }}.0/24</network>
+      <gateway>143.88.0.{{ group * 4 - 2 }}</gateway>
+      <descr>Route to Group {{ '%02d' | format(group) }} LAN</descr>
+    </route>
+{% endfor %}
+  </staticroutes>
+  
+  <!-- DHCP Server for Instructor LAN Only -->
+  <dhcpd>
+    <lan>
+      <enable/>
+      <range>
+        <from>143.88.255.100</from>
+        <to>143.88.255.200</to>
+      </range>
+      <defaultleasetime>7200</defaultleasetime>
+      <maxleasetime>86400</maxleasetime>
+      <gateway>143.88.255.1</gateway>
+      <domain>instructor.local</domain>
+      <dnsserver>8.8.8.8</dnsserver>
+      <dnsserver>8.8.4.4</dnsserver>
+      
+      <!-- Static Leases for Instructor Network -->
+      <staticmap>
+        <mac>{{ instructor_mac_addresses.kali }}</mac>
+        <ipaddr>143.88.255.10</ipaddr>
+        <hostname>kali-instructor</hostname>
+        <descr>Instructor Kali</descr>
+      </staticmap>
+      
+      <staticmap>
+        <mac>{{ instructor_mac_addresses.security_onion }}</mac>
+        <ipaddr>143.88.255.9</ipaddr>
+        <hostname>security-onion</hostname>
+        <descr>Security Onion</descr>
+      </staticmap>
+    </lan>
+    
+    <!-- No DHCP on OPT interfaces - students handle their own -->
+{% for group in range(1, max_student_groups + 1) %}
+    <opt{{ group }}>
+      <enable>false</enable>
+    </opt{{ group }}>
+{% endfor %}
+  </dhcpd>
+  
+  <!-- NAT: Disabled (transparent routing) -->
+  <nat>
+    <outbound>
+      <mode>disabled</mode>
+    </outbound>
+  </nat>
+  
+  <!-- Firewall Rules: Allow All Traffic -->
+  <filter>
+    <!-- WAN: No rules needed (no IP) -->
+    
+    <!-- LAN: Allow all -->
+    <rule>
+      <type>pass</type>
+      <interface>lan</interface>
+      <ipprotocol>inet</ipprotocol>
+      <statetype>keep state</statetype>
+      <descr>Allow all Instructor LAN traffic</descr>
+      <source>
+        <any/>
+      </source>
+      <destination>
+        <any/>
+      </destination>
+    </rule>
+    
+    <!-- OPT Interfaces: Allow all for each student group -->
+{% for group in range(1, max_student_groups + 1) %}
+    <rule>
+      <type>pass</type>
+      <interface>opt{{ group }}</interface>
+      <ipprotocol>inet</ipprotocol>
+      <statetype>keep state</statetype>
+      <descr>Allow all Group {{ '%02d' | format(group) }} traffic</descr>
+      <source>
+        <any/>
+      </source>
+      <destination>
+        <any/>
+      </destination>
+    </rule>
+{% endfor %}
+  </filter>
+  
+  <!-- Disable packet filtering on bridge -->
+  <system>
+    <disablefilter>enabled</disablefilter>
+  </system>
+</pfsense>
