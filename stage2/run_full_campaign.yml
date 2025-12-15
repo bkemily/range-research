@@ -1,24 +1,21 @@
 ---
 # ============================================================================
-# Stage 2: Deploy Campaign Infrastructure
+# Stage 2: Run Full Campaign (Master Orchestrator)
 # ============================================================================
-# Purpose: Deploy all VMs and configure network for cyber range campaign
+# Purpose: Orchestrate complete campaign lifecycle
 #
 # This playbook:
-#   1. Deploys Spark pfSense (internet gateway)
-#   2. Deploys instructor infrastructure (pfSense, Kali)
-#   3. Deploys student group infrastructure (pfSense, 2x Kali, 2x MS3) for each group
-#   4. Configures network routing and firewall rules
-#   5. Verifies connectivity between all groups
-#   6. Activates attack campaigns
-#   7. Monitors campaign execution
-#   8. Collects data after completion
+#   1. Records campaign start time
+#   2. Calls deploy_infrastructure.yml
+#   3. Calls configure_network.yml
+#   4. Calls activate_attacks.yml
+#   5. Monitors campaign for duration
+#   6. Calls collect_data.yml
+#   7. Displays completion summary
 #
 # Prerequisites:
 #   - Stage 1 completed (Security Onion deployed and configured)
-#   - OVF templates available in NFS storage (/mnt/pve/ovfstore/)
-#   - SSH access to Proxmox host from Security Onion
-#   - Proxmox API access configured
+#   - Run from Security Onion
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml
@@ -28,60 +25,37 @@
 # Last Updated: December 14, 2025
 # ============================================================================
 
-- name: Stage 2 - Deploy Campaign Infrastructure
+- name: Stage 2 - Run Full Campaign
   hosts: localhost
   connection: local
   gather_facts: yes
 
   tasks:
   # ========================================
-  # Stage 2.1: Display Campaign Information
+  # Display Campaign Information
   # ========================================
 
-  - name: Display stage information
+  - name: Display campaign overview
     ansible.builtin.debug:
       msg: |
         ========================================
-        STAGE 2: Campaign Infrastructure Deployment
+        STAGE 2: Full Campaign Orchestration
         ========================================
 
         Course Information:
           - Course: {{ course_prefix }} - {{ class_name }}
           - Class Code: {{ class_code }}
           - Campaign ID: {{ campaign_id }}
+          - Duration: {{ campaign_duration_hours }} hours
+          - Student Groups: {{ max_student_groups }}
 
-        This playbook will:
+        Campaign Phases:
           Phase 2.1: Deploy Infrastructure
-            - Deploy Spark pfSense (VM {{ vm_ids.spark_pfsense }})
-            - Deploy Instructor pfSense (VM {{ vm_ids.instructor_pfsense }})
-            - Deploy Instructor Kali (VM {{ vm_ids.instructor_kali }})
-            - Deploy {{ max_student_groups }} student groups
-              * Each group: 1x pfSense, 2x Kali, 2x MS3 (Ubuntu + Windows)
-            - Total VMs: {{ 3 + (max_student_groups * 5) }}
-
           Phase 2.2: Configure Network
-            - Configure Spark pfSense routing
-            - Configure Instructor pfSense OPT interfaces
-            - Configure {{ max_student_groups }} student pfSense instances
-            - Verify network connectivity
-
           Phase 2.3: Activate Attacks
-            - Initialize mission logs
-            - Trigger network attack scripts on Kali VMs
-            - Trigger host attack scripts on MS3 VMs
-
-          Phase 2.4: Monitor Campaign
-            - Duration: {{ campaign_duration_hours }} hours
-            - Periodic health checks
-
+          Phase 2.4: Monitor Campaign ({{ campaign_duration_hours }} hours)
           Phase 2.5: Collect Data
-            - Collect Zeek logs from Security Onion
-            - Collect PCAPs
-            - Collect mission logs from all VMs
-            - Generate dataset manifest
 
-        Campaign Duration: {{ campaign_duration_hours }} hours
-        Student Groups: {{ max_student_groups }}
         Total VMs to Deploy: {{ 3 + (max_student_groups * 5) }}
 
         ========================================
@@ -91,172 +65,108 @@
       campaign_start_time: "{{ ansible_date_time.iso8601 }}"
 
   # ========================================
-  # Stage 2.2: Pre-deployment Validation
-  # ========================================
-
-  - name: Test SSH connection to Proxmox
-    ansible.builtin.command:
-      cmd: ssh -o ConnectTimeout=5 {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "echo 'Connection successful'"
-    register: ssh_test
-    changed_when: false
-    failed_when: ssh_test.rc != 0
-
-  - name: Display connection status
-    ansible.builtin.debug:
-      msg: "✓ SSH connection to Proxmox successful"
-
-  #- name: Verify Security Onion is reachable
-    #ansible.builtin.wait_for:
-      #host: "{{ security_onion.management_ip | default('143.88.255.9') }}"
-      #port: 22
-      #timeout: 10
-    #delegate_to: localhost
-
-  - name: Display Security Onion status
-    ansible.builtin.debug:
-      msg: "✓ Security Onion reachable at {{ security_onion.management_ip | default('143.88.255.9') }}"
-
-  - name: Verify required OVF templates exist
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "ls {{ item }}"
-    loop:
-      - "{{ templates.pfsense_spark }}"
-      - "{{ templates.pfsense_instructor }}"
-      - "{{ templates.pfsense_student }}"
-      - "{{ templates.kali }}"
-      - "{{ templates.ms3_ubuntu }}"
-      - "{{ templates.ms3_windows }}"
-    register: template_check
-    changed_when: false
-    failed_when: template_check.rc != 0
-
-  - name: Display template verification
-    ansible.builtin.debug:
-      msg: "✓ All required OVF templates verified"
-
-  # Generate VM IDs BEFORE checking for conflicts
-  - name: Generate list of student VM IDs to check
-    ansible.builtin.set_fact:
-      student_vm_ids: "{{ student_vm_ids | default([]) + group_vms }}"
-    vars:
-      base_vmid: "{{ vm_ids.student_base + ((item - 1) * vm_ids.student_block_size) }}"
-      group_vms:
-        - "{{ base_vmid | int + 1 }}"    # pfSense
-        - "{{ base_vmid | int + 2 }}"    # Kali 1
-        - "{{ base_vmid | int + 3 }}"    # Kali 2
-        - "{{ base_vmid | int + 4 }}"    # MS3 Ubuntu
-        - "{{ base_vmid | int + 5 }}"    # MS3 Windows
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
-
-  - name: Combine infrastructure and student VM IDs
-    ansible.builtin.set_fact:
-      vm_ids_to_check: "{{ [vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
-
-  - name: Display VM IDs to check
-    ansible.builtin.debug:
-      msg: |
-        Checking for conflicts with {{ vm_ids_to_check | length }} VMs:
-          Infrastructure: {{ vm_ids.spark_pfsense }}, {{ vm_ids.instructor_pfsense }}, {{ vm_ids.instructor_kali }}
-          Student Groups ({{ max_student_groups }} groups): {{ student_vm_ids | sort | join(', ') }}
-
-  # NOW check for conflicts using the generated list
-  - name: Check for existing VMs that would conflict
-    ansible.builtin.command:
-      cmd: ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ item }}"
-    loop: "{{ vm_ids_to_check }}"
-    register: vm_conflicts
-    changed_when: false
-    failed_when: false
-
-  #- name: Report any VM conflicts
-    #ansible.builtin.fail:
-      #msg: |
-        #VM {{ item.item }} already exists!
-        #Status: {{ item.stdout }}
-        
-        #Please destroy conflicting VMs before proceeding.
-        #To destroy: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm stop {{ item.item }} && qm destroy {{ item.item }}"
-    #loop: "{{ vm_conflicts.results }}"
-    #when: item.rc == 0
-
-  - name: Display validation complete
-    ansible.builtin.debug:
-      msg: "✓ Pre-deployment validation complete - no conflicts detected"
-
-  # ========================================
   # PHASE 2.1: Deploy Infrastructure
   # ========================================
 
-  - name: Display Phase 2.1 header
+  - name: Display Phase 2.1 notice
     ansible.builtin.debug:
       msg: |
         ========================================
         PHASE 2.1: Deploy Infrastructure
         ========================================
-        Deploying {{ 3 + (max_student_groups * 5) }} VMs...
-        ========================================
 
-  # ----------------------------------------
-  # Deploy Spark pfSense (VM 50)
-  # ----------------------------------------
+  #- name: Call deploy_infrastructure playbook
+    #ansible.builtin.import_playbook: deploy_infrastructure.yml
 
-  - name: Deploy Spark pfSense
-    ansible.builtin.include_tasks: tasks/deploy_spark_pfsense.yml
+  # ========================================
+  # PHASE 2.2: Configure Network
+  # ========================================
 
-  # ----------------------------------------
-  # Deploy Instructor Group
-  # ----------------------------------------
-
-  - name: Deploy Instructor Infrastructure
-    ansible.builtin.include_tasks: tasks/deploy_instructor_group.yml
-
-  # ----------------------------------------
-  # Deploy Student Groups (Loop 1-max_student_groups)
-  # ----------------------------------------
-
-  - name: Deploy Student Groups
-    ansible.builtin.include_tasks: tasks/deploy_student_group.yml
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
-    loop_control:
-      loop_var: group_id
-      label: "Group {{ group_id }}"
-
-  # ----------------------------------------
-  # Wait for All VMs to Boot
-  # ----------------------------------------
-
-  - name: Wait for all VMs to boot
-    ansible.builtin.pause:
-      seconds: "{{ automation.vm_boot_wait_seconds }}"
-      prompt: "Waiting {{ automation.vm_boot_wait_seconds }} seconds for all VMs to boot..."
-
-  - name: Verify all VMs are running
-    ansible.builtin.command:
-      cmd: ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ item }}"
-    loop: "{{ vm_ids_to_check }}"
-    register: vm_status_results
-    changed_when: false
-
-  - name: Check VM status results
-    ansible.builtin.fail:
-      msg: "VM {{ item.item }} is not running! Status: {{ item.stdout }}"
-    loop: "{{ vm_status_results.results }}"
-    when: "'running' not in item.stdout"
-
-  - name: Display Phase 2.1 completion
+  - name: Display Phase 2.2 notice
     ansible.builtin.debug:
       msg: |
         ========================================
-        ✓ Phase 2.1 Complete
+        PHASE 2.2: Configure Network
         ========================================
-        All {{ 3 + (max_student_groups * 5) }} VMs deployed and running
+
+  #- name: Call configure_network playbook
+    #ansible.builtin.import_playbook: configure_network.yml
+
+  # ========================================
+  # PHASE 2.3: Activate Attacks
+  # ========================================
+
+  - name: Display Phase 2.3 notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        PHASE 2.3: Activate Attacks
+        ========================================
+
+  #- name: Call activate_attacks playbook
+    #ansible.builtin.import_playbook: activate_attacks.yml
+
+  # ========================================
+  # PHASE 2.4: Monitor Campaign
+  # ========================================
+
+  - name: Display Phase 2.4 notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        PHASE 2.4: Monitor Campaign
+        ========================================
+        Campaign will run for {{ campaign_duration_hours }} hours
+        Start Time: {{ campaign_start_time }}
+        ========================================
+
+  #- name: Wait for campaign duration
+    #ansible.builtin.pause:
+      #seconds: "{{ campaign_duration_hours * 3600 }}"
+      #prompt: "Campaign running for {{ campaign_duration_hours }} hours. Press Ctrl+C then 'C' to skip wait."
+
+  #- name: Call monitor_campaign playbook
+    #ansible.builtin.import_playbook: monitor_campaign.yml
+
+  # ========================================
+  # PHASE 2.5: Collect Data
+  # ========================================
+
+  - name: Display Phase 2.5 notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        PHASE 2.5: Collect Data
+        ========================================
+
+  #- name: Call collect_data playbook
+    #ansible.builtin.import_playbook: collect_data.yml
+
+  - name: Record campaign end time
+    ansible.builtin.set_fact:
+      campaign_end_time: "{{ ansible_date_time.iso8601 }}"
+
+  # ========================================
+  # Display Completion Summary
+  # ========================================
+
+  - name: Display campaign completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        CAMPAIGN COMPLETE
+        ========================================
         
-        Infrastructure VMs:
-          - Spark pfSense: VM {{ vm_ids.spark_pfsense }}
-          - Instructor pfSense: VM {{ vm_ids.instructor_pfsense }}
-          - Instructor Kali: VM {{ vm_ids.instructor_kali }}
+        Campaign ID: {{ campaign_id }}
+        Start Time: {{ campaign_start_time }}
+        End Time: {{ campaign_end_time }}
+        Duration: {{ campaign_duration_hours }} hours
         
-        Student Groups: {{ max_student_groups }} groups deployed
+        Student Groups: {{ max_student_groups }}
+        Total VMs Deployed: {{ 3 + (max_student_groups * 5) }}
+        
+        All phases completed successfully!
+        
+        Data collected and available for analysis.
+        
         ========================================

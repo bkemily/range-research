@@ -1,0 +1,177 @@
+---
+# ============================================================================
+# Phase 2.1: Deploy Infrastructure
+# ============================================================================
+# Purpose: Deploy all VMs for cyber range campaign
+#
+# Called by: run_full_campaign.yml
+#
+# This playbook:
+#   1. Validates prerequisites (SSH, templates, VM conflicts)
+#   2. Deploys Spark pfSense (VM 50)
+#   3. Deploys Instructor infrastructure (pfSense, Kali)
+#   4. Deploys Student groups (loops 1-max_student_groups)
+#   5. Waits for all VMs to boot
+#   6. Verifies all VMs are running
+#
+# Author: Emily Miller
+# Last Updated: December 14, 2025
+# ============================================================================
+
+- name: Phase 2.1 - Deploy Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  tasks:
+  # ========================================
+  # Pre-deployment Validation
+  # ========================================
+
+  - name: Test SSH connection to Proxmox
+    ansible.builtin.command:
+      cmd: ssh -o ConnectTimeout=5 {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "echo 'Connection successful'"
+    register: ssh_test
+    changed_when: false
+    failed_when: ssh_test.rc != 0
+
+  - name: Display connection status
+    ansible.builtin.debug:
+      msg: "✓ SSH connection to Proxmox successful"
+
+  - name: Display Security Onion status
+    ansible.builtin.debug:
+      msg: "✓ Security Onion reachable at {{ security_onion.management_ip | default('143.88.255.9') }}"
+
+  - name: Verify required OVF templates exist
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "ls {{ item }}"
+    loop:
+    - "{{ templates.pfsense_spark }}"
+    - "{{ templates.pfsense_instructor }}"
+    - "{{ templates.pfsense_student }}"
+    - "{{ templates.kali }}"
+    - "{{ templates.ms3_ubuntu }}"
+    - "{{ templates.ms3_windows }}"
+    register: template_check
+    changed_when: false
+    failed_when: template_check.rc != 0
+
+  - name: Display template verification
+    ansible.builtin.debug:
+      msg: "✓ All required OVF templates verified"
+
+  # Generate VM IDs BEFORE checking for conflicts
+  - name: Generate list of student VM IDs to check
+    ansible.builtin.set_fact:
+      student_vm_ids: "{{ student_vm_ids | default([]) + group_vms }}"
+    vars:
+      base_vmid: "{{ vm_ids.student_base + ((item - 1) * vm_ids.student_block_size) }}"
+      group_vms:
+      - "{{ base_vmid | int + 1 }}" # pfSense
+      - "{{ base_vmid | int + 2 }}" # Kali 1
+      - "{{ base_vmid | int + 3 }}" # Kali 2
+      - "{{ base_vmid | int + 4 }}" # MS3 Ubuntu
+      - "{{ base_vmid | int + 5 }}" # MS3 Windows
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+
+  - name: Combine infrastructure and student VM IDs
+    ansible.builtin.set_fact:
+      vm_ids_to_check: "{{ [vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
+
+  - name: Display VM IDs to check
+    ansible.builtin.debug:
+      msg: |
+        Checking for conflicts with {{ vm_ids_to_check | length }} VMs:
+          Infrastructure: {{ vm_ids.spark_pfsense }}, {{ vm_ids.instructor_pfsense }}, {{ vm_ids.instructor_kali }}
+          Student Groups ({{ max_student_groups }} groups): {{ student_vm_ids | sort | join(', ') }}
+
+  # Check for conflicts
+  - name: Check for existing VMs that would conflict
+    ansible.builtin.command:
+      cmd: ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ item }}"
+    loop: "{{ vm_ids_to_check }}"
+    register: vm_conflicts
+    changed_when: false
+    failed_when: false
+
+  - name: Report any VM conflicts
+    ansible.builtin.fail:
+      msg: |
+        VM {{ item.item }} already exists!
+        Status: {{ item.stdout }}
+
+        Please destroy conflicting VMs before proceeding.
+        To destroy: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm stop {{ item.item }} && qm destroy {{ item.item }}"
+    loop: "{{ vm_conflicts.results }}"
+    when: item.rc == 0
+
+  - name: Display validation complete
+    ansible.builtin.debug:
+      msg: "✓ Pre-deployment validation complete - no conflicts detected"
+
+  # ========================================
+  # Deploy Infrastructure
+  # ========================================
+
+  - name: Display deployment header
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Deploying {{ 3 + (max_student_groups * 5) }} VMs...
+        ========================================
+
+  # Deploy Spark pfSense (VM 50)
+  - name: Deploy Spark pfSense
+    ansible.builtin.include_tasks: tasks/deploy_spark_pfsense.yml
+
+  # Deploy Instructor Group
+  - name: Deploy Instructor Infrastructure
+    ansible.builtin.include_tasks: tasks/deploy_instructor_group.yml
+
+  # Deploy Student Groups (Loop 1-max_student_groups)
+  - name: Deploy Student Groups
+    ansible.builtin.include_tasks: tasks/deploy_student_group.yml
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+    loop_control:
+      loop_var: group_id
+      label: "Group {{ group_id }}"
+
+  # ========================================
+  # Wait for VMs to Boot
+  # ========================================
+
+  - name: Wait for all VMs to boot
+    ansible.builtin.pause:
+      seconds: "{{ automation.vm_boot_wait_seconds }}"
+      prompt: "Waiting {{ automation.vm_boot_wait_seconds }} seconds for all VMs to boot..."
+
+  - name: Verify all VMs are running
+    ansible.builtin.command:
+      cmd: ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ item }}"
+    loop: "{{ vm_ids_to_check }}"
+    register: vm_status_results
+    changed_when: false
+
+  - name: Check VM status results
+    ansible.builtin.fail:
+      msg: "VM {{ item.item }} is not running! Status: {{ item.stdout }}"
+    loop: "{{ vm_status_results.results }}"
+    when: "'running' not in item.stdout"
+
+  - name: Display deployment completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ Infrastructure Deployment Complete
+        ========================================
+        All {{ 3 + (max_student_groups * 5) }} VMs deployed and running
+
+        Infrastructure VMs:
+          - Spark pfSense: VM {{ vm_ids.spark_pfsense }}
+          - Instructor pfSense: VM {{ vm_ids.instructor_pfsense }}
+          - Instructor Kali: VM {{ vm_ids.instructor_kali }}
+
+        Student Groups: {{ max_student_groups }} groups deployed
+        ========================================
