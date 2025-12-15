@@ -1,0 +1,186 @@
+---
+# ============================================================================
+# Task: Deploy Student pfSense
+# ============================================================================
+# Purpose: Deploy student pfSense gateway for a specific group
+#
+# Called by: deploy_student_group.yml
+#
+# This task file:
+#   1. Imports Student pfSense OVF from NFS storage
+#   2. Configures VM hardware (memory, CPU, SCSI, BIOS, boot order)
+#   3. Assigns network interfaces:
+#      - net0: WAN to Instructor pfSense (vmbr255XXX)
+#      - net1: Student LAN (vmbr00X000)
+#   4. Starts the VM
+#   5. Waits for pfSense to boot
+#
+# Required Variables from deploy_student_group.yml:
+#   - group_id: Group number (1-15)
+#   - group_pfsense_id: VM ID for this pfSense
+#   - group_wan_bridge: WAN bridge name (vmbr255XXX)
+#   - group_lan_bridge: LAN bridge name (vmbr00X000)
+#
+# Author: Emily Miller
+# Last Updated: December 15, 2025
+# ============================================================================
+
+- name: Display Student pfSense deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying Student pfSense for Group {{ group_id }}
+      ========================================
+      VM ID: {{ group_pfsense_id }}
+      Template: {{ templates.pfsense_student }}
+      Storage: {{ storage }}
+      Networks:
+        - net0: {{ group_wan_bridge }} (WAN to Instructor)
+        - net1: {{ group_lan_bridge }} (Student LAN)
+      ========================================
+
+# ========================================
+# Import OVF Template
+# ========================================
+
+- name: Import Student pfSense OVF for Group {{ group_id }}
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_pfsense_id }} {{ templates.pfsense_student }} {{ storage }}"
+  register: import_result
+  changed_when: true
+  failed_when: import_result.rc != 0
+
+- name: Display import status
+  ansible.builtin.debug:
+    msg: "✓ Student pfSense OVF imported (VM {{ group_pfsense_id }})"
+
+# ========================================
+# Configure VM Resources (Memory & CPU)
+# ========================================
+
+- name: Configure memory and CPU
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --memory {{ pfsense_resources.memory }} --cores {{ pfsense_resources.cores }} --sockets {{ pfsense_resources.sockets }}"
+  register: resources_result
+  changed_when: true
+  failed_when: resources_result.rc != 0
+
+- name: Display resource configuration status
+  ansible.builtin.debug:
+    msg: "✓ Memory: {{ pfsense_resources.memory }} MB, CPU: {{ pfsense_resources.cores }} cores"
+
+# ========================================
+# Configure VM Hardware
+# ========================================
+
+- name: Configure SCSI controller and disk
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ group_pfsense_id }}-disk-0"
+  register: scsi_result
+  changed_when: true
+  failed_when: scsi_result.rc != 0
+
+- name: Display SCSI configuration status
+  ansible.builtin.debug:
+    msg: "✓ SCSI controller configured"
+
+- name: Configure BIOS
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --bios seabios"
+  register: bios_result
+  changed_when: true
+  failed_when: bios_result.rc != 0
+
+- name: Display BIOS configuration status
+  ansible.builtin.debug:
+    msg: "✓ BIOS set to SeaBIOS"
+
+- name: Configure boot order
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --boot order=scsi0"
+  register: boot_result
+  changed_when: true
+  failed_when: boot_result.rc != 0
+
+- name: Display boot order status
+  ansible.builtin.debug:
+    msg: "✓ Boot order configured (scsi0)"
+
+# ========================================
+# Configure Network Interfaces
+# ========================================
+
+- name: Assign WAN interface to Instructor (net0)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --net0 virtio,bridge={{ group_wan_bridge }},firewall=1"
+  register: net0_result
+  changed_when: true
+  failed_when: net0_result.rc != 0
+
+- name: Display WAN interface assignment
+  ansible.builtin.debug:
+    msg: "✓ net0 assigned: {{ group_wan_bridge }} (WAN to Instructor)"
+
+- name: Assign Student LAN interface (net1)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --net1 virtio,bridge={{ group_lan_bridge }},firewall=1"
+  register: net1_result
+  changed_when: true
+  failed_when: net1_result.rc != 0
+
+- name: Display LAN interface assignment
+  ansible.builtin.debug:
+    msg: "✓ net1 assigned: {{ group_lan_bridge }} (Student LAN)"
+
+# ========================================
+# Start VM
+# ========================================
+
+- name: Start Student pfSense VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_pfsense_id }}"
+  register: start_result
+  changed_when: true
+  failed_when: start_result.rc != 0
+
+- name: Display VM start status
+  ansible.builtin.debug:
+    msg: "✓ Student pfSense VM started (VM {{ group_pfsense_id }})"
+
+# ========================================
+# Wait for pfSense to Boot
+# ========================================
+
+- name: Wait for Student pfSense to boot
+  ansible.builtin.pause:
+    seconds: "{{ automation.pfsense_boot_wait_seconds }}"
+    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Student pfSense to boot..."
+
+- name: Verify VM is running
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ group_pfsense_id }}"
+  register: vm_status
+  changed_when: false
+  failed_when: "'running' not in vm_status.stdout"
+
+- name: Display deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ Student pfSense Deployment Complete
+      ========================================
+      Group: {{ group_id }}
+      VM ID: {{ group_pfsense_id }}
+      Status: {{ vm_status.stdout }}
+      WAN: {{ group_wan_bridge }} (net0)
+      LAN: {{ group_lan_bridge }} (net1)
+      ========================================

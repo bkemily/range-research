@@ -1,0 +1,187 @@
+---
+# ============================================================================
+# Task: Deploy Student MS3 VMs
+# ============================================================================
+# Purpose: Deploy MS3 Ubuntu and Windows VMs for a specific student group
+#
+# Called by: deploy_student_group.yml
+#
+# This task file:
+#   1. Deploys MS3 Ubuntu (vulnerable target)
+#   2. Deploys MS3 Windows (vulnerable target with ISO)
+#
+# Required Variables from deploy_student_group.yml:
+#   - group_id: Group number (1-15)
+#   - group_ubuntu_id: VM ID for MS3 Ubuntu
+#   - group_windows_id: VM ID for MS3 Windows
+#   - group_lan_bridge: LAN bridge name (vmbr00X000)
+#
+# Author: Emily Miller
+# Last Updated: December 15, 2025
+# ============================================================================
+
+- name: Display MS3 VMs deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying MS3 VMs for Group {{ group_id }}
+      ========================================
+      MS3 Ubuntu:  VM {{ group_ubuntu_id }}
+      MS3 Windows: VM {{ group_windows_id }}
+      Network: {{ group_lan_bridge }}
+      ========================================
+
+# ========================================
+# Deploy MS3 Ubuntu
+# ========================================
+
+- name: Import MS3 Ubuntu OVF for Group {{ group_id }}
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_ubuntu_id }} {{ templates.ms3_ubuntu }} {{ storage }}"
+  register: ubuntu_import
+  changed_when: true
+  failed_when: ubuntu_import.rc != 0
+
+- name: Display MS3 Ubuntu import status
+  ansible.builtin.debug:
+    msg: "✓ MS3 Ubuntu OVF imported (VM {{ group_ubuntu_id }})"
+
+- name: Configure MS3 Ubuntu SCSI controller and disk
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_ubuntu_id }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ group_ubuntu_id }}-disk-0"
+  register: ubuntu_scsi
+  changed_when: true
+  failed_when: ubuntu_scsi.rc != 0
+
+- name: Configure MS3 Ubuntu BIOS
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_ubuntu_id }} --bios seabios"
+  register: ubuntu_bios
+  changed_when: true
+  failed_when: ubuntu_bios.rc != 0
+
+- name: Configure MS3 Ubuntu boot order
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_ubuntu_id }} --boot order=scsi0"
+  register: ubuntu_boot
+  changed_when: true
+  failed_when: ubuntu_boot.rc != 0
+
+- name: Assign MS3 Ubuntu network interface
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_ubuntu_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
+  register: ubuntu_net
+  changed_when: true
+  failed_when: ubuntu_net.rc != 0
+
+- name: Display MS3 Ubuntu configuration status
+  ansible.builtin.debug:
+    msg: "✓ MS3 Ubuntu configured (VM {{ group_ubuntu_id }})"
+
+- name: Start MS3 Ubuntu VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_ubuntu_id }}"
+  register: ubuntu_start
+  changed_when: true
+  failed_when: ubuntu_start.rc != 0
+
+- name: Display MS3 Ubuntu start status
+  ansible.builtin.debug:
+    msg: "✓ MS3 Ubuntu started (VM {{ group_ubuntu_id }})"
+
+# ========================================
+# Deploy MS3 Windows
+# ========================================
+
+- name: Import MS3 Windows OVF for Group {{ group_id }}
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_windows_id }} {{ templates.ms3_windows }} {{ storage }}"
+  register: windows_import
+  changed_when: true
+  failed_when: windows_import.rc != 0
+
+- name: Display MS3 Windows import status
+  ansible.builtin.debug:
+    msg: "✓ MS3 Windows OVF imported (VM {{ group_windows_id }})"
+
+- name: Configure MS3 Windows SCSI controller and disk
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_windows_id }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ group_windows_id }}-disk-0"
+  register: windows_scsi
+  changed_when: true
+  failed_when: windows_scsi.rc != 0
+
+- name: Configure MS3 Windows BIOS
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_windows_id }} --bios seabios"
+  register: windows_bios
+  changed_when: true
+  failed_when: windows_bios.rc != 0
+
+- name: Configure MS3 Windows boot order
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_windows_id }} --boot order=scsi0"
+  register: windows_boot
+  changed_when: true
+  failed_when: windows_boot.rc != 0
+
+- name: Attach Windows Server 2008 ISO
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_windows_id }} --ide2 {{ isos.windows_server_2008 }}"
+  register: windows_iso
+  changed_when: true
+  failed_when: windows_iso.rc != 0
+
+- name: Display Windows ISO attachment status
+  ansible.builtin.debug:
+    msg: "✓ Windows Server 2008 ISO attached"
+
+- name: Assign MS3 Windows network interface
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_windows_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
+  register: windows_net
+  changed_when: true
+  failed_when: windows_net.rc != 0
+
+- name: Display MS3 Windows configuration status
+  ansible.builtin.debug:
+    msg: "✓ MS3 Windows configured (VM {{ group_windows_id }})"
+
+- name: Start MS3 Windows VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_windows_id }}"
+  register: windows_start
+  changed_when: true
+  failed_when: windows_start.rc != 0
+
+- name: Display MS3 Windows start status
+  ansible.builtin.debug:
+    msg: "✓ MS3 Windows started (VM {{ group_windows_id }})"
+
+# ========================================
+# Display Completion
+# ========================================
+
+- name: Display MS3 VMs deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ MS3 VMs Deployed for Group {{ group_id }}
+      ========================================
+      MS3 Ubuntu:  VM {{ group_ubuntu_id }}
+      MS3 Windows: VM {{ group_windows_id }}
+      Network: {{ group_lan_bridge }}
+      ========================================
