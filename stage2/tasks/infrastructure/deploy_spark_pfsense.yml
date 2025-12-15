@@ -55,6 +55,26 @@
     msg: "✓ Spark pfSense OVF imported (VM {{ vm_ids.spark_pfsense }})"
 
 # ========================================
+# Configure VM Resources (Memory & CPU)
+# ========================================
+
+- name: Configure memory and CPU
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --memory 2048 --cores 2 --sockets 1"
+  register: resources_result
+  changed_when: true
+  failed_when: resources_result.rc != 0
+
+- name: Display resource configuration status
+  ansible.builtin.debug:
+    msg: "✓ Memory: 2048 MB, CPU: 2 cores (1 socket)"
+
+# ========================================
+# Configure VM Hardware
+# ========================================
+
+# ========================================
 # Configure VM Hardware
 # ========================================
 
