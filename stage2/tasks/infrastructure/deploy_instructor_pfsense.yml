@@ -126,7 +126,7 @@
 - name: Assign WAN interface (net0)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --net0 virtio,bridge={{ bridges.instructor_wan }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --net0 virtio,bridge={{ bridges.instructor_wan }},firewall=1"
   register: net0_result
   changed_when: true
   failed_when: net0_result.rc != 0
@@ -138,7 +138,7 @@
 - name: Assign Instructor LAN interface (net1)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --net1 virtio,bridge={{ bridges.instructor_lan }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --net1 virtio,bridge={{ bridges.instructor_lan }},firewall=1"
   register: net1_result
   changed_when: true
   failed_when: net1_result.rc != 0
@@ -179,7 +179,7 @@
 - name: Assign student group WAN interfaces
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --{{ item.net_id }} virtio,bridge={{ item.bridge }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --{{ item.net_id }} virtio,bridge={{ item.bridge }},firewall=1"
   loop: "{{ student_wan_interfaces }}"
   register: student_wan_result
   changed_when: true

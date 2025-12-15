@@ -117,7 +117,7 @@
 - name: Assign WAN/Management interface (net0)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --net0 virtio,bridge=vmbr0,tag=68"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --net0 virtio,bridge=vmbr0,tag=68,firewall=1"
 
 - name: Display WAN interface assignment
   ansible.builtin.debug:
@@ -126,7 +126,7 @@
 - name: Assign LAN interface to Instructor (net1)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --net1 virtio,bridge={{ bridges.spark_wan }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --net1 virtio,bridge={{ bridges.spark_wan }},firewall=1"
   register: net1_result
   changed_when: true
   failed_when: net1_result.rc != 0
