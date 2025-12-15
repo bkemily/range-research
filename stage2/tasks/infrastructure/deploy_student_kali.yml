@@ -1,0 +1,151 @@
+---
+# ============================================================================
+# Task: Deploy Student Kali
+# ============================================================================
+# Purpose: Deploy student Kali Linux workstation
+#
+# Called by: deploy_student_group.yml
+#
+# This task file:
+#   1. Imports Student Kali OVF from NFS storage
+#   2. Configures VM hardware (memory, CPU, SCSI, BIOS, boot order)
+#   3. Assigns network interface to Student LAN
+#   4. Starts the VM
+#   5. Waits for Kali to boot
+#
+# VM Configuration:
+#   - VM ID: (vm_ids.student_kali)
+#   - Template: TEMPLATE-kali-20241124-Experiment.ovf
+#   - Storage: raid-lvm
+#   - Network: vmbr000GGG (Student LANs)
+#
+# Author: Emily Miller
+# Last Updated: December 15, 2025
+# ============================================================================
+
+- name: Display Student Kali deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying Student Kali (VM {{ vm_ids.student_kali }})
+      ========================================
+      Template: {{ templates.kali }}
+      Storage: {{ storage }}
+      Network: {{ bridges.student_lan }} (Student LAN)
+      ========================================
+
+# ========================================
+# Import OVF Template
+# ========================================
+
+- name: Import Student Kali OVF
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ vm_ids.student_kali }} {{ templates.kali }} {{ storage }}"
+  register: import_result
+  changed_when: true
+  failed_when: import_result.rc != 0
+
+- name: Display import status
+  ansible.builtin.debug:
+    msg: "✓ Student Kali OVF imported (VM {{ vm_ids.student_kali }})"
+
+# ========================================
+# Configure VM Hardware
+# ========================================
+
+- name: Configure SCSI controller and disk
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.student_kali }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ vm_ids.student_kali }}-disk-0"
+  register: scsi_result
+  changed_when: true
+  failed_when: scsi_result.rc != 0
+
+- name: Display SCSI configuration status
+  ansible.builtin.debug:
+    msg: "✓ SCSI controller configured"
+
+- name: Configure BIOS
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.student_kali }} --bios seabios"
+  register: bios_result
+  changed_when: true
+  failed_when: bios_result.rc != 0
+
+- name: Display BIOS configuration status
+  ansible.builtin.debug:
+    msg: "✓ BIOS set to SeaBIOS"
+
+- name: Configure boot order
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.student_kali }} --boot order=scsi0"
+  register: boot_result
+  changed_when: true
+  failed_when: boot_result.rc != 0
+
+- name: Display boot order status
+  ansible.builtin.debug:
+    msg: "✓ Boot order configured (scsi0)"
+
+# ========================================
+# Configure Network Interface
+# ========================================
+
+- name: Assign Instructor LAN interface (net0)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.student_kali }} --net0 virtio,bridge={{ bridges.student_lan }},firewall=1"
+  register: net0_result
+  changed_when: true
+  failed_when: net0_result.rc != 0
+
+- name: Display network interface assignment
+  ansible.builtin.debug:
+    msg: "✓ net0 assigned: {{ bridges.student_lan }} (Student LAN)"
+
+# ========================================
+# Start VM
+# ========================================
+
+- name: Start Student Kali VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ vm_ids.student_kali }}"
+  register: start_result
+  changed_when: true
+  failed_when: start_result.rc != 0
+
+- name: Display VM start status
+  ansible.builtin.debug:
+    msg: "✓ Student Kali VM started (VM {{ vm_ids.student_kali }})"
+
+# ========================================
+# Wait for Kali to Boot
+# ========================================
+
+- name: Wait for Student Kali to boot
+  ansible.builtin.pause:
+    seconds: "{{ automation.vm_boot_wait_seconds }}"
+    prompt: "Waiting {{ automation.vm_boot_wait_seconds }} seconds for Student Kali to boot..."
+
+- name: Verify VM is running
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ vm_ids.student_kali }}"
+  register: vm_status
+  changed_when: false
+  failed_when: "'running' not in vm_status.stdout"
+
+- name: Display deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ Student Kali Deployment Complete
+      ========================================
+      VM ID: {{ vm_ids.student_kali }}
+      Status: {{ vm_status.stdout }}
+      Network: {{ bridges.student_lan }}
+      ========================================
