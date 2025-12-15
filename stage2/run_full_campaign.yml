@@ -170,16 +170,16 @@
     changed_when: false
     failed_when: false
 
-  - name: Report any VM conflicts
-    ansible.builtin.fail:
-      msg: |
-        VM {{ item.item }} already exists!
-        Status: {{ item.stdout }}
+  #- name: Report any VM conflicts
+    #ansible.builtin.fail:
+      #msg: |
+        #VM {{ item.item }} already exists!
+        #Status: {{ item.stdout }}
         
-        Please destroy conflicting VMs before proceeding.
-        To destroy: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm stop {{ item.item }} && qm destroy {{ item.item }}"
-    loop: "{{ vm_conflicts.results }}"
-    when: item.rc == 0
+        #Please destroy conflicting VMs before proceeding.
+        #To destroy: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm stop {{ item.item }} && qm destroy {{ item.item }}"
+    #loop: "{{ vm_conflicts.results }}"
+    #when: item.rc == 0
 
   - name: Display validation complete
     ansible.builtin.debug:
