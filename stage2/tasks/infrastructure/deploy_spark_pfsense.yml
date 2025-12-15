@@ -1,0 +1,168 @@
+---
+# ============================================================================
+# Task: Deploy Spark pfSense
+# ============================================================================
+# Purpose: Deploy Spark pfSense gateway (internet edge/WAN gateway)
+#
+# Called by: deploy_infrastructure.yml
+#
+# This task file:
+#   1. Imports Spark pfSense OVF from NFS storage
+#   2. Configures VM hardware (SCSI, BIOS, boot order)
+#   3. Assigns network interfaces (management and Spark WAN)
+#   4. Starts the VM
+#   5. Waits for pfSense to boot
+#
+# VM Configuration:
+#   - VM ID: 150 (vm_ids.spark_pfsense)
+#   - Template: TEMPLATE-pfsense-spark.ovf
+#   - Storage: raid-lvm
+#   - Network:
+#     * net0: vmbr0.68 (External/management network)
+#     * net1: vmbr50 (LAN to instructor pfSense)
+#
+# Author: Emily Miller
+# Last Updated: December 14, 2025
+# ============================================================================
+
+- name: Display Spark pfSense deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying Spark pfSense (VM {{ vm_ids.spark_pfsense }})
+      ========================================
+      Template: {{ templates.pfsense_spark }}
+      Storage: {{ storage }}
+      Networks:
+        - net0: {{ bridges.management }} (WAN/Management)
+        - net1: {{ bridges.spark_wan }} (LAN to Instructor)
+      ========================================
+
+# ========================================
+# Import OVF Template
+# ========================================
+
+- name: Import Spark pfSense OVF
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ vm_ids.spark_pfsense }} {{ templates.pfsense_spark }} {{ storage }}"
+  register: import_result
+  changed_when: true
+  failed_when: import_result.rc != 0
+
+- name: Display import status
+  ansible.builtin.debug:
+    msg: "✓ Spark pfSense OVF imported (VM {{ vm_ids.spark_pfsense }})"
+
+# ========================================
+# Configure VM Hardware
+# ========================================
+
+- name: Configure SCSI controller and disk
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ vm_ids.spark_pfsense }}-disk-0"
+  register: scsi_result
+  changed_when: true
+  failed_when: scsi_result.rc != 0
+
+- name: Display SCSI configuration status
+  ansible.builtin.debug:
+    msg: "✓ SCSI controller configured"
+
+- name: Configure BIOS
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --bios seabios"
+  register: bios_result
+  changed_when: true
+  failed_when: bios_result.rc != 0
+
+- name: Display BIOS configuration status
+  ansible.builtin.debug:
+    msg: "✓ BIOS set to SeaBIOS"
+
+- name: Configure boot order
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --boot order=scsi0"
+  register: boot_result
+  changed_when: true
+  failed_when: boot_result.rc != 0
+
+- name: Display boot order status
+  ansible.builtin.debug:
+    msg: "✓ Boot order configured (scsi0)"
+
+# ========================================
+# Configure Network Interfaces
+# ========================================
+
+- name: Assign WAN/Management interface (net0)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --net0 virtio,bridge={{ bridges.management }}"
+  register: net0_result
+  changed_when: true
+  failed_when: net0_result.rc != 0
+
+- name: Display WAN interface assignment
+  ansible.builtin.debug:
+    msg: "✓ net0 assigned: {{ bridges.management }} (WAN/Management)"
+
+- name: Assign LAN interface to Instructor (net1)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.spark_pfsense }} --net1 virtio,bridge={{ bridges.spark_wan }}"
+  register: net1_result
+  changed_when: true
+  failed_when: net1_result.rc != 0
+
+- name: Display LAN interface assignment
+  ansible.builtin.debug:
+    msg: "✓ net1 assigned: {{ bridges.spark_wan }} (LAN to Instructor)"
+
+# ========================================
+# Start VM
+# ========================================
+
+- name: Start Spark pfSense VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ vm_ids.spark_pfsense }}"
+  register: start_result
+  changed_when: true
+  failed_when: start_result.rc != 0
+
+- name: Display VM start status
+  ansible.builtin.debug:
+    msg: "✓ Spark pfSense VM started (VM {{ vm_ids.spark_pfsense }})"
+
+# ========================================
+# Wait for pfSense to Boot
+# ========================================
+
+- name: Wait for Spark pfSense to boot
+  ansible.builtin.pause:
+    seconds: "{{ automation.pfsense_boot_wait_seconds }}"
+    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Spark pfSense to boot..."
+
+- name: Verify VM is running
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ vm_ids.spark_pfsense }}"
+  register: vm_status
+  changed_when: false
+  failed_when: "'running' not in vm_status.stdout"
+
+- name: Display deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ Spark pfSense Deployment Complete
+      ========================================
+      VM ID: {{ vm_ids.spark_pfsense }}
+      Status: {{ vm_status.stdout }}
+      WAN: {{ bridges.management }}
+      LAN: {{ bridges.spark_wan }}
+      ========================================

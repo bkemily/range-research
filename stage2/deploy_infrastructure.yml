@@ -133,15 +133,15 @@
 
   # Deploy Spark pfSense (VM 50)
   - name: Deploy Spark pfSense
-    ansible.builtin.include_tasks: tasks/deploy_spark_pfsense.yml
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_spark_pfsense.yml
 
   # Deploy Instructor Group
   - name: Deploy Instructor Infrastructure
-    ansible.builtin.include_tasks: tasks/deploy_instructor_group.yml
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_instructor_group.yml
 
   # Deploy Student Groups (Loop 1-max_student_groups)
   - name: Deploy Student Groups
-    ansible.builtin.include_tasks: tasks/deploy_student_group.yml
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_student_group.yml
     loop: "{{ range(1, max_student_groups + 1) | list }}"
     loop_control:
       loop_var: group_id
