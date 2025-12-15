@@ -77,6 +77,7 @@ bridges:
   management: "vmbr0"
   management_vlan: 68 # Added VLAN tag
   spark_wan: "vmbr50"
+  instructor_wan: "vmbr51"
   instructor_lan: "vmbr255000"
   # Student bridge naming patterns (for dynamic generation)
   # WAN interconnect: vmbr255{group:03d}  (e.g., vmbr255001, vmbr255002)
