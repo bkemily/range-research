@@ -132,12 +132,12 @@
         ========================================
 
   # Deploy Spark pfSense (VM 50)
-  #- name: Deploy Spark pfSense
-    #ansible.builtin.include_tasks: tasks/infrastructure/deploy_spark_pfsense.yml
+  - name: Deploy Spark pfSense
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_spark_pfsense.yml
 
   # Deploy Instructor Group
-  #- name: Deploy Instructor Infrastructure
-    #ansible.builtin.include_tasks: tasks/infrastructure/deploy_instructor_group.yml
+  - name: Deploy Instructor Infrastructure
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_instructor_group.yml
 
   # Deploy Student Groups (Loop 1-max_student_groups)
   - name: Deploy Student Groups
