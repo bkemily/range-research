@@ -38,6 +38,15 @@
   - name: Display connection status
     ansible.builtin.debug:
       msg: "✓ SSH connection to Proxmox successful"
+  
+  #- name: Test SSH connection to Security Onion
+    #ansible.builtin.wait_for:
+      #host: "{{ security_onion.management_ip | default('143.88.255.9') }}"
+      #port: 22
+      #timeout: 10
+      #state: started
+    #delegate_to: localhost
+    #register: so_ssh_test
 
   - name: Display Security Onion status
     ansible.builtin.debug:
