@@ -154,15 +154,6 @@
     ansible.builtin.set_fact:
       vm_ids_to_check: "{{ [vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
 
-  - name: DEBUG - Display vm_ids_to_check
-    ansible.builtin.debug:
-      var: vm_ids_to_check
-  
-  - name: DEBUG - Display vm_ids_to_check types
-    ansible.builtin.debug:
-      msg: "{{ item }} (type: {{ item | type_debug }})"
-    loop: "{{ vm_ids_to_check }}"
-
   - name: Display VM IDs to check
     ansible.builtin.debug:
       msg: |
