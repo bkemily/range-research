@@ -1,0 +1,60 @@
+---
+# ============================================================================
+# Task: Initialize pfSense via Console
+# ============================================================================
+# Purpose: Automate initial pfSense setup via console before SSH is available
+#
+# This task:
+#   1. Answers "no" to VLAN setup
+#   2. Assigns vtnet0 to WAN
+#   3. Assigns vtnet1 to LAN
+#   4. Waits for interfaces to be configured
+#
+# Variables Required:
+#   - pfsense_vm_id: VM ID of the pfSense
+#   - vm_name: Descriptive name for logging
+#
+# Author: Emily Miller
+# Last Updated: December 16, 2025
+# ============================================================================
+
+- name: Display pfSense console initialization notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Initializing {{ vm_name }} via Console
+      ========================================
+      VM ID: {{ pfsense_vm_id }}
+      Assigning interfaces: vtnet0 (WAN), vtnet1 (LAN)
+      ========================================
+
+# Send commands via console to complete initial setup
+- name: Send VLAN configuration response (no)
+  ansible.builtin.shell:
+    cmd: |
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} << 'EOF'
+      (
+        sleep 2
+        echo "n"
+        sleep 2
+        echo "vtnet0"
+        sleep 2
+        echo "vtnet1"
+        sleep 2
+        echo ""
+        sleep 2
+        echo "y"
+      ) | qm terminal {{ pfsense_vm_id }}
+      EOF
+  register: console_output
+  changed_when: true
+  failed_when: false
+
+- name: Wait for pfSense to complete interface assignment
+  ansible.builtin.pause:
+    seconds: 30
+    prompt: "Waiting 30 seconds for {{ vm_name }} to complete interface assignment..."
+
+- name: Display initialization completion
+  ansible.builtin.debug:
+    msg: "✓ {{ vm_name }} console initialization complete"
