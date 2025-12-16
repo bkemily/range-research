@@ -12,15 +12,16 @@
     <wan>
       <enable/>
       <if>vtnet0</if>
-      <ipaddr>dhcp</ipaddr>  <!-- or static IP on management network -->
+      <ipaddr>dhcp</ipaddr>
     </wan>
     <lan>
       <enable/>
       <if>vtnet1</if>
-      <ipaddr>192.168.100.1</ipaddr>  <!-- or whatever Spark LAN should be -->
+      <ipaddr>192.168.1.1</ipaddr>
       <subnet>24</subnet>
     </lan>
   </interfaces>
   
   <!-- ... rest of config ... -->
 </pfsense>
+
