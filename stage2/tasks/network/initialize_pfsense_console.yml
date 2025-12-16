@@ -1,14 +1,14 @@
 ---
 # ============================================================================
-# Task: Initialize pfSense via Console
+# Task: Initialize pfSense via Console (Template Method)
 # ============================================================================
-# Purpose: Automate initial pfSense setup via console before SSH is available
+# Purpose: Automate initial pfSense interface assignment via console
 #
 # This task:
-#   1. Answers "no" to VLAN setup
-#   2. Assigns vtnet0 to WAN
-#   3. Assigns vtnet1 to LAN
-#   4. Waits for interfaces to be configured
+#   1. Creates a bash script from template with VM ID substituted
+#   2. Copies script to Proxmox host
+#   3. Executes script to send keystrokes via qm monitor
+#   4. Cleans up script files
 #
 # Variables Required:
 #   - pfsense_vm_id: VM ID of the pfSense
@@ -25,40 +25,72 @@
       Initializing {{ vm_name }} via Console
       ========================================
       VM ID: {{ pfsense_vm_id }}
+      Sending automated keystrokes for interface assignment
       ========================================
 
-- name: Wait for pfSense VLAN prompt
+- name: Wait for pfSense to reach VLAN prompt
   ansible.builtin.pause:
     seconds: 15
-    prompt: "Waiting for {{ vm_name }} to reach VLAN setup prompt..."
+    prompt: "Waiting for {{ vm_name }} to reach interface assignment prompt..."
 
-- name: Create initialization script
+- name: Generate initialization script from template
   ansible.builtin.template:
-    src: initialize_pfsense.sh.j2
-    dest: /tmp/init_pfsense_{{ pfsense_vm_id }}.sh
+    src: "{{ playbook_dir }}/templates/initialize_pfsense.sh.j2"
+    dest: "/tmp/init_pfsense_{{ pfsense_vm_id }}.sh"
     mode: '0755'
   delegate_to: localhost
 
-- name: Copy script to Proxmox
+- name: Copy initialization script to Proxmox host
   ansible.builtin.command:
     cmd: >
       scp {{ ssh.common_args }}
       /tmp/init_pfsense_{{ pfsense_vm_id }}.sh
       {{ proxmox_user }}@{{ proxmox_host }}:/tmp/
+  register: copy_result
   changed_when: true
+  failed_when: copy_result.rc != 0
 
 - name: Execute initialization script on Proxmox
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
       "bash /tmp/init_pfsense_{{ pfsense_vm_id }}.sh"
-  register: console_init
+  register: script_result
   changed_when: true
+  failed_when: script_result.rc != 0
+
+- name: Display script output
+  ansible.builtin.debug:
+    msg: "{{ script_result.stdout_lines }}"
+  when: script_result.stdout_lines is defined
 
 - name: Wait for interface assignment to complete
   ansible.builtin.pause:
     seconds: 30
+    prompt: "Waiting for {{ vm_name }} to complete interface assignment..."
+
+- name: Clean up local script
+  ansible.builtin.file:
+    path: "/tmp/init_pfsense_{{ pfsense_vm_id }}.sh"
+    state: absent
+  delegate_to: localhost
+
+- name: Clean up remote script
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "rm -f /tmp/init_pfsense_{{ pfsense_vm_id }}.sh"
+  changed_when: true
+  failed_when: false
 
 - name: Display initialization completion
   ansible.builtin.debug:
-    msg: "✓ {{ vm_name }} initialized"
+    msg: |
+      ========================================
+      ✓ {{ vm_name }} Initialized
+      ========================================
+      Interfaces assigned:
+        - WAN: vtnet0
+        - LAN: vtnet1
+      Default LAN IP: 192.168.1.1
+      ========================================
