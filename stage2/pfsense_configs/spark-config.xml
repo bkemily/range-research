@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<pfsense>
+  <version>24.03</version>
+  
+  <system>
+    <hostname>pfsense-spark</hostname>
+    <domain>spark.local</domain>
+    <!-- ... (similar structure to others) -->
+  </system>
+  
+  <interfaces>
+    <wan>
+      <enable/>
+      <if>vtnet0</if>
+      <ipaddr>dhcp</ipaddr>  <!-- or static IP on management network -->
+    </wan>
+    <lan>
+      <enable/>
+      <if>vtnet1</if>
+      <ipaddr>192.168.100.1</ipaddr>  <!-- or whatever Spark LAN should be -->
+      <subnet>24</subnet>
+    </lan>
+  </interfaces>
+  
+  <!-- ... rest of config ... -->
+</pfsense>
