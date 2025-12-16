@@ -39,7 +39,7 @@
   - name: Generate Student Group configs
     ansible.builtin.template:
       src: "{{ playbook_dir }}/pfsense_configs/student-group-XX.xml.j2"
-      dest: "{{ playbook_dir }}/pfsense_configs/generated/group{{ '%02d' | format(item) }}.xml"
+      dest: "{{ playbook_dir }}/pfsense_configs/generated/Group{{ item }}.xml"  # Changed format
     loop: "{{ range(1, 16) | list }}"
     vars:
       group_id: "{{ item }}"
