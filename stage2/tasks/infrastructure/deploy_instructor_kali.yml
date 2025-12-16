@@ -105,26 +105,25 @@
 - name: Display network interface assignment
   ansible.builtin.debug:
     msg: "✓ net0 assigned: {{ bridges.instructor_lan }} (Instructor LAN)"
+    # ========================================
+    # Start VM
+    # ========================================
 
-# ========================================
-# Start VM
-# ========================================
+    #- name: Start Instructor Kali VM
+    #ansible.builtin.command:
+    #cmd: >
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ vm_ids.instructor_kali }}"
+    #register: start_result
+    #changed_when: true
+    #failed_when: start_result.rc != 0
 
-- name: Start Instructor Kali VM
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ vm_ids.instructor_kali }}"
-  register: start_result
-  changed_when: true
-  failed_when: start_result.rc != 0
+    #- name: Display VM start status
+    #ansible.builtin.debug:
+    #msg: "✓ Instructor Kali VM started (VM {{ vm_ids.instructor_kali }})"
 
-- name: Display VM start status
-  ansible.builtin.debug:
-    msg: "✓ Instructor Kali VM started (VM {{ vm_ids.instructor_kali }})"
-
-# ========================================
-# Wait for Kali to Boot
-# ========================================
+    # ========================================
+    # Wait for Kali to Boot
+    # ========================================
 
 - name: Wait for Instructor Kali to boot
   ansible.builtin.pause:

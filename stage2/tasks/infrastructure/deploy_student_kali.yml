@@ -82,22 +82,21 @@
 - name: Display Kali 1 configuration status
   ansible.builtin.debug:
     msg: "✓ Kali 1 configured (VM {{ group_kali1_id }})"
+    #- name: Start Kali 1 VM
+    #ansible.builtin.command:
+    #cmd: >
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_kali1_id }}"
+    #register: kali1_start
+    #changed_when: true
+    #failed_when: kali1_start.rc != 0
 
-- name: Start Kali 1 VM
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_kali1_id }}"
-  register: kali1_start
-  changed_when: true
-  failed_when: kali1_start.rc != 0
+    #- name: Display Kali 1 start status
+    #ansible.builtin.debug:
+    #msg: "✓ Kali 1 started (VM {{ group_kali1_id }})"
 
-- name: Display Kali 1 start status
-  ansible.builtin.debug:
-    msg: "✓ Kali 1 started (VM {{ group_kali1_id }})"
-
-# ========================================
-# Deploy Kali 2
-# ========================================
+    # ========================================
+    # Deploy Kali 2
+    # ========================================
 
 - name: Import Kali 2 OVF for Group {{ group_id }}
   ansible.builtin.command:
@@ -146,22 +145,21 @@
 - name: Display Kali 2 configuration status
   ansible.builtin.debug:
     msg: "✓ Kali 2 configured (VM {{ group_kali2_id }})"
+    #- name: Start Kali 2 VM
+    #ansible.builtin.command:
+    #cmd: >
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_kali2_id }}"
+    #register: kali2_start
+    #changed_when: true
+    #failed_when: kali2_start.rc != 0
 
-- name: Start Kali 2 VM
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_kali2_id }}"
-  register: kali2_start
-  changed_when: true
-  failed_when: kali2_start.rc != 0
+    #- name: Display Kali 2 start status
+    #ansible.builtin.debug:
+    #msg: "✓ Kali 2 started (VM {{ group_kali2_id }})"
 
-- name: Display Kali 2 start status
-  ansible.builtin.debug:
-    msg: "✓ Kali 2 started (VM {{ group_kali2_id }})"
-
-# ========================================
-# Display Completion
-# ========================================
+    # ========================================
+    # Display Completion
+    # ========================================
 
 - name: Display Kali VMs deployment completion
   ansible.builtin.debug:

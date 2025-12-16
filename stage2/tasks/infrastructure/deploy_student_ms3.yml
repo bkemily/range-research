@@ -158,22 +158,21 @@
 - name: Display MS3 Windows configuration status
   ansible.builtin.debug:
     msg: "✓ MS3 Windows configured (VM {{ group_windows_id }})"
+    #- name: Start MS3 Windows VM
+    #ansible.builtin.command:
+    #cmd: >
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_windows_id }}"
+    #register: windows_start
+    #changed_when: true
+    #failed_when: windows_start.rc != 0
 
-- name: Start MS3 Windows VM
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_windows_id }}"
-  register: windows_start
-  changed_when: true
-  failed_when: windows_start.rc != 0
+    #- name: Display MS3 Windows start status
+    #ansible.builtin.debug:
+    #msg: "✓ MS3 Windows started (VM {{ group_windows_id }})"
 
-- name: Display MS3 Windows start status
-  ansible.builtin.debug:
-    msg: "✓ MS3 Windows started (VM {{ group_windows_id }})"
-
-# ========================================
-# Display Completion
-# ========================================
+    # ========================================
+    # Display Completion
+    # ========================================
 
 - name: Display MS3 VMs deployment completion
   ansible.builtin.debug:
