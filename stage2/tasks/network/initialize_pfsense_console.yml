@@ -18,6 +18,7 @@
 # Last Updated: December 16, 2025
 # ============================================================================
 
+---
 - name: Display pfSense console initialization notice
   ansible.builtin.debug:
     msg: |
@@ -25,36 +26,72 @@
       Initializing {{ vm_name }} via Console
       ========================================
       VM ID: {{ pfsense_vm_id }}
-      Assigning interfaces: vtnet0 (WAN), vtnet1 (LAN)
       ========================================
 
-# Send commands via console to complete initial setup
-- name: Send VLAN configuration response (no)
+- name: Wait for pfSense VLAN prompt
+  ansible.builtin.pause:
+    seconds: 15
+    prompt: "Waiting for {{ vm_name }} to reach VLAN setup prompt..."
+
+- name: Send interface assignment keystrokes
   ansible.builtin.shell:
     cmd: |
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} << 'EOF'
-      (
-        sleep 2
-        echo "n"
-        sleep 2
-        echo "vtnet0"
-        sleep 2
-        echo "vtnet1"
-        sleep 2
-        echo ""
-        sleep 2
-        echo "y"
-      ) | qm terminal {{ pfsense_vm_id }}
-      EOF
-  register: console_output
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} << 'ENDSCRIPT'
+      # No VLANs
+      qm monitor {{ pfsense_vm_id }} sendkey n
+      sleep 0.5
+      qm monitor {{ pfsense_vm_id }} sendkey ret
+      sleep 2
+      
+      # WAN interface: vtnet0
+      qm monitor {{ pfsense_vm_id }} sendkey v
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey t
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey n
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey e
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey t
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey 0
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey ret
+      sleep 2
+      
+      # LAN interface: vtnet1
+      qm monitor {{ pfsense_vm_id }} sendkey v
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey t
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey n
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey e
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey t
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey 1
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey ret
+      sleep 2
+      
+      # No optional interfaces
+      qm monitor {{ pfsense_vm_id }} sendkey ret
+      sleep 2
+      
+      # Proceed: y
+      qm monitor {{ pfsense_vm_id }} sendkey y
+      sleep 0.1
+      qm monitor {{ pfsense_vm_id }} sendkey ret
+      ENDSCRIPT
+  register: console_init
   changed_when: true
-  failed_when: false
 
-- name: Wait for pfSense to complete interface assignment
+- name: Wait for interface assignment to complete
   ansible.builtin.pause:
     seconds: 30
-    prompt: "Waiting 30 seconds for {{ vm_name }} to complete interface assignment..."
+    prompt: "Waiting for {{ vm_name }} to complete interface assignment..."
 
 - name: Display initialization completion
   ansible.builtin.debug:
-    msg: "✓ {{ vm_name }} console initialization complete"
+    msg: "✓ {{ vm_name }} initialized - default LAN IP should be 192.168.1.1"
