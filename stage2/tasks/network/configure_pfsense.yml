@@ -1,24 +1,15 @@
 ---
 # ============================================================================
-# Task: Configure pfSense via XML
+# Task: Configure pfSense via Pre-loaded Config Script
 # ============================================================================
-# Purpose: Deploy pre-configured XML to pfSense and apply settings
-#
-# This approach:
-#   1. Copies XML config to pfSense via SCP
-#   2. Backs up existing config
-#   3. Applies new config
-#   4. Reboots pfSense
+# Purpose: Run existing config.sh script with group number
 #
 # Variables Required:
-#   - pfsense_ip: Management IP of pfSense
-#   - pfsense_user: SSH username (default: admin)
-#   - pfsense_password: SSH password
-#   - config_file: Path to XML config file
+#   - group_number: Group number (1-15) or "instructor"
 #   - vm_name: Descriptive name for logging
 #
 # Author: Emily Miller
-# Last Updated: December 15, 2025
+# Last Updated: December 16, 2025
 # ============================================================================
 
 - name: Display pfSense configuration notice
@@ -27,66 +18,35 @@
       ========================================
       Configuring {{ vm_name }}
       ========================================
-      IP: {{ pfsense_ip }}
-      Config: {{ config_file }}
+      Group: {{ group_number }}
       ========================================
 
 - name: Wait for pfSense SSH to be available
   ansible.builtin.wait_for:
-    host: "{{ pfsense_ip }}"
+    host: "143.88.1.1"
     port: 22
     timeout: 300
     state: started
   delegate_to: localhost
 
-- name: Backup existing pfSense configuration
-  ansible.builtin.command:
-    cmd: >
-      sshpass -p '{{ pfsense_password }}' ssh {{ ssh.common_args }} {{ pfsense_user }}@{{ pfsense_ip }} "cp /cf/conf/config.xml /cf/conf/config.xml.bak.$(date +%Y%m%d_%H%M%S)"
-  register: backup_result
-  changed_when: true
-  failed_when: backup_result.rc != 0
-
-- name: Copy pfSense configuration XML
-  ansible.builtin.command:
-    cmd: >
-      sshpass -p '{{ pfsense_password }}' scp {{ ssh.common_args }} {{ config_file }} {{ pfsense_user }}@{{ pfsense_ip }}:/cf/conf/config.xml
-  register: copy_result
-  changed_when: true
-  failed_when: copy_result.rc != 0
-
-- name: Display configuration copy status
-  ansible.builtin.debug:
-    msg: "✓ Configuration copied to {{ vm_name }}"
-
-- name: Reboot pfSense to apply configuration
-  ansible.builtin.command:
-    cmd: >
-      sshpass -p '{{ pfsense_password }}' ssh {{ ssh.common_args }} {{ pfsense_user }}@{{ pfsense_ip }} "/sbin/reboot"
-  register: reboot_result
+- name: Run config.sh script
+  ansible.builtin.shell:
+    cmd: |
+      sshpass -p '{{ pfsense_default_password }}' ssh {{ ssh.common_args }} {{ pfsense_default_user }}@143.88.1.1 << 'EOF'
+      echo "{{ group_number }}" | /root/config.sh
+      EOF
+  register: config_result
   changed_when: true
   failed_when: false
-  async: 0
-  poll: 0
+
+- name: Display configuration status
+  ansible.builtin.debug:
+    msg: "✓ Configuration script executed, {{ vm_name }} rebooting..."
 
 - name: Wait for pfSense to reboot
   ansible.builtin.pause:
     seconds: "{{ automation.pfsense_boot_wait_seconds }}"
-    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for {{ vm_name }} to reboot..."
 
-- name: Verify pfSense is back online
-  ansible.builtin.wait_for:
-    host: "{{ pfsense_ip }}"
-    port: 22
-    timeout: 300
-    state: started
-  delegate_to: localhost
-
-- name: Display configuration completion
+- name: Display completion
   ansible.builtin.debug:
-    msg: |
-      ========================================
-      ✓ {{ vm_name }} Configuration Complete
-      ========================================
-      New configuration applied and system rebooted
-      ========================================
+    msg: "✓ {{ vm_name }} configured"
