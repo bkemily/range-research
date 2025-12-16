@@ -48,20 +48,22 @@
       ========================================
 
 # ========================================
-# Import OVF Template
+# Clone OVF Template
 # ========================================
 
-- name: Import Instructor pfSense OVF
+- name: Clone Instructor pfSense from template
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ vm_ids.instructor_pfsense }} {{ templates.pfsense_instructor }} {{ storage }}"
-  register: import_result
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm clone {{ templates.pfsense_template_id }} {{ vm_ids.instructor_pfsense }}
+      --name instructor-pfsense --full"
+  register: clone_result
   changed_when: true
-  failed_when: import_result.rc != 0
+  failed_when: clone_result.rc != 0
 
-- name: Display import status
+- name: Display clone status
   ansible.builtin.debug:
-    msg: "✓ Instructor pfSense OVF imported (VM {{ vm_ids.instructor_pfsense }})"
+    msg: "✓ Instructor pfSense cloned from template (VM {{ vm_ids.instructor_pfsense }})"
 
 # ========================================
 # Configure VM Resources (Memory & CPU)
