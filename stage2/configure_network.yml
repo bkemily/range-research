@@ -16,7 +16,6 @@
 # Last Updated: December 15, 2025
 # ============================================================================
 
----
 - name: Phase 2.2 - Configure Network
   hosts: localhost
   connection: local
