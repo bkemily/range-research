@@ -38,7 +38,7 @@
 - name: Import Kali 1 OVF for Group {{ group_id }}
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_kali1_id }} {{ templates.kali }} {{ storage }} --name student-group{{ '%02d' | format(group_id) }}-kali --full"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_kali1_id }} {{ templates.kali }} {{ storage }}
   register: kali1_import
   changed_when: true
   failed_when: kali1_import.rc != 0
@@ -46,6 +46,14 @@
 - name: Display Kali 1 import status
   ansible.builtin.debug:
     msg: "✓ Kali 1 OVF imported (VM {{ group_kali1_id }})"
+
+- name: Set name
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali1_id }} --name student-group{{ '%02d' | format(group_id) }}-kali1"
+  register: name_result
+  changed_when: true
+  failed_when: name_result.rc != 0
 
 - name: Configure Kali 1 SCSI controller and disk
   ansible.builtin.command:
@@ -109,6 +117,14 @@
 - name: Display Kali 2 import status
   ansible.builtin.debug:
     msg: "✓ Kali 2 OVF imported (VM {{ group_kali2_id }})"
+
+- name: Set name
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --name student-group{{ '%02d' | format(group_id) }}-kali2"
+  register: name2_result
+  changed_when: true
+  failed_when: name2_result.rc != 0
 
 - name: Configure Kali 2 SCSI controller and disk
   ansible.builtin.command:

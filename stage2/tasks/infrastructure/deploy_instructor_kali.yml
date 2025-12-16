@@ -41,7 +41,7 @@
 - name: Import Instructor Kali OVF
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ vm_ids.instructor_kali }} {{ templates.kali }} {{ storage }} --name instructor-pfsense --full"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ vm_ids.instructor_kali }} {{ templates.kali }} {{ storage }}"
   register: import_result
   changed_when: true
   failed_when: import_result.rc != 0
@@ -53,6 +53,14 @@
 # ========================================
 # Configure VM Hardware
 # ========================================
+
+- name: Set name
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_kali }} --name instructor-kali"
+  register: name_result
+  changed_when: true
+  failed_when: name_result.rc != 0
 
 - name: Configure SCSI controller and disk
   ansible.builtin.command:
