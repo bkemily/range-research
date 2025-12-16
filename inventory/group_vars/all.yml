@@ -90,6 +90,7 @@ templates:
   pfsense_spark: "/mnt/pve/ovfstore/TEMPLATE-pfsense-student-20250621-Experiment.ovf"
   pfsense_instructor: "/mnt/pve/ovfstore/TEMPLATE-pfsense-student-20250621-Experiment.ovf"
   pfsense_student: "/mnt/pve/ovfstore/TEMPLATE-pfsense-student-20250621-Experiment.ovf"
+  pfsense_template_id: 151
   kali: "/mnt/pve/ovfstore/TEMPLATE-kali-20241124-Experiment.ovf"
   ms3_ubuntu: "/mnt/pve/ovfstore/TEMPLATE-ms3ub1404-20250621-Experiment.ovf"
   ms3_windows: "/mnt/pve/ovfstore/imports/virtualbox/box.ovf"
