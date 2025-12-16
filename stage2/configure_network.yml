@@ -28,29 +28,25 @@
 
   tasks:
   # ========================================
-  # Initialize pfSense VMs via Console (First Boot Setup)
+  # Initialize pfSense Consoles (First Boot)
   # ========================================
 
-  - name: Display initialization notice
+  - name: Display console initialization notice
     ansible.builtin.debug:
       msg: |
         ========================================
-        Initializing pfSense VMs via Console
+        Initializing pfSense Consoles
         ========================================
-        Completing first-boot interface assignment for:
-          - Instructor pfSense (VM {{ vm_ids.instructor_pfsense }})
-          - Student pfSense instances ({{ max_student_groups }} groups)
+        Automating interface assignment for all pfSense VMs
         ========================================
 
-  # Initialize Instructor pfSense
-  - name: Initialize Instructor pfSense console
+  - name: Initialize Instructor pfSense
     ansible.builtin.include_tasks: tasks/network/initialize_pfsense_console.yml
     vars:
       vm_name: "Instructor pfSense"
       pfsense_vm_id: "{{ vm_ids.instructor_pfsense }}"
 
-  # Initialize Student pfSense instances
-  - name: Initialize Student pfSense consoles
+  - name: Initialize Student pfSense VMs
     ansible.builtin.include_tasks: tasks/network/initialize_pfsense_console.yml
     loop: "{{ range(1, max_student_groups + 1) | list }}"
     loop_control:
@@ -62,13 +58,11 @@
 
   - name: Display initialization completion
     ansible.builtin.debug:
-      msg: |
-        ========================================
-        ✓ All pfSense VMs Initialized
-        ========================================
-        pfSense instances now have interfaces assigned and default IPs
-        Ready for XML configuration
-        ========================================
+      msg: "✓ All pfSense VMs initialized with default interfaces"
+
+  # ========================================
+  # NOW Configure with XML
+  # ========================================
         
   # ========================================
   # Configure Spark pfSense
