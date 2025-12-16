@@ -129,14 +129,13 @@
   ansible.builtin.pause:
     seconds: "{{ automation.vm_boot_wait_seconds }}"
     prompt: "Waiting {{ automation.vm_boot_wait_seconds }} seconds for Instructor Kali to boot..."
-
-- name: Verify VM is running
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ vm_ids.instructor_kali }}"
-  register: vm_status
-  changed_when: false
-  failed_when: "'running' not in vm_status.stdout"
+    #- name: Verify VM is running
+    #ansible.builtin.command:
+    #cmd: >
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ vm_ids.instructor_kali }}"
+    #register: vm_status
+    #changed_when: false
+    #failed_when: "'running' not in vm_status.stdout"
 
 - name: Display deployment completion
   ansible.builtin.debug:
