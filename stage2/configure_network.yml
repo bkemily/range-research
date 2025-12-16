@@ -122,3 +122,70 @@
         ========================================
         Network configuration applied to all pfSense instances
         ========================================
+
+  # ========================================
+  # Start Client VMs Now That pfSense is Configured
+  # ========================================
+  
+  - name: Display client VM startup notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Starting Client VMs
+        ========================================
+        pfSense is now configured. Starting all client VMs...
+        
+        Infrastructure:
+          - Instructor Kali (VM {{ vm_ids.instructor_kali }})
+        
+        Student Groups ({{ max_student_groups }} groups):
+          - 2x Kali per group
+          - 2x MS3 (Ubuntu + Windows) per group
+        
+        Total client VMs: {{ 1 + (max_student_groups * 4) }}
+        ========================================
+
+  # Start Instructor Kali
+  - name: Start Instructor Kali
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm start {{ vm_ids.instructor_kali }}"
+    register: start_instructor_kali
+    changed_when: true
+    failed_when: start_instructor_kali.rc != 0
+
+  - name: Display Instructor Kali start status
+    ansible.builtin.debug:
+      msg: "✓ Instructor Kali started (VM {{ vm_ids.instructor_kali }})"
+
+  # Start Student Group Client VMs
+  - name: Start Student Group {{ group_id }} Client VMs
+    ansible.builtin.include_tasks: tasks/infrastructure/start_student_group_vms.yml
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+    loop_control:
+      loop_var: group_id
+      label: "Group {{ group_id }}"
+
+  - name: Wait for client VMs to boot and acquire DHCP
+    ansible.builtin.pause:
+      seconds: 90
+      prompt: "Waiting 90 seconds for client VMs to boot and receive DHCP leases from pfSense..."
+
+  - name: Display client VM startup completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ All Client VMs Started
+        ========================================
+        Total VMs started: {{ 1 + (max_student_groups * 4) }}
+        
+        Client VMs are now booting and receiving DHCP from configured pfSense.
+        
+        Expected IPs:
+          - Instructor Kali: 143.88.255.10
+          - Group X Kali 1: 143.88.X.10
+          - Group X Kali 2: 143.88.X.11
+          - Group X MS3 Ubuntu: 143.88.X.13
+          - Group X MS3 Windows: 143.88.X.14
+        ========================================

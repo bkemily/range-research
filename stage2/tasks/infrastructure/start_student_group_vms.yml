@@ -1,0 +1,69 @@
+---
+# ============================================================================
+# Task: Start Student Group Client VMs
+# ============================================================================
+# Purpose: Start all client VMs for a specific student group
+#
+# Called by: configure_network.yml (after pfSense configuration)
+#
+# This task file:
+#   1. Calculates VM IDs for the group
+#   2. Starts Kali 1
+#   3. Starts Kali 2
+#   4. Starts MS3 Ubuntu
+#   5. Starts MS3 Windows
+#
+# Required Variables:
+#   - group_id: Student group number (1-15)
+#
+# Author: Emily Miller
+# Last Updated: December 15, 2025
+# ============================================================================
+
+- name: Calculate VM IDs for Group {{ group_id }}
+  ansible.builtin.set_fact:
+    group_kali1_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 2 }}"
+    group_kali2_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 3 }}"
+    group_ubuntu_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 4 }}"
+    group_windows_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 5 }}"
+
+- name: Start Group {{ group_id }} Kali 1 (VM {{ group_kali1_id }})
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_kali1_id }}"
+  register: start_kali1
+  changed_when: true
+  failed_when: start_kali1.rc != 0
+
+- name: Start Group {{ group_id }} Kali 2 (VM {{ group_kali2_id }})
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_kali2_id }}"
+  register: start_kali2
+  changed_when: true
+  failed_when: start_kali2.rc != 0
+
+- name: Start Group {{ group_id }} MS3 Ubuntu (VM {{ group_ubuntu_id }})
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_ubuntu_id }}"
+  register: start_ubuntu
+  changed_when: true
+  failed_when: start_ubuntu.rc != 0
+
+- name: Start Group {{ group_id }} MS3 Windows (VM {{ group_windows_id }})
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_windows_id }}"
+  register: start_windows
+  changed_when: true
+  failed_when: start_windows.rc != 0
+
+- name: Display Group {{ group_id }} startup status
+  ansible.builtin.debug:
+    msg: |
+      ✓ Group {{ group_id }} client VMs started:
+        - Kali 1: VM {{ group_kali1_id }} (will get 143.88.{{ group_id }}.10)
+        - Kali 2: VM {{ group_kali2_id }} (will get 143.88.{{ group_id }}.11)
+        - MS3 Ubuntu: VM {{ group_ubuntu_id }} (will get 143.88.{{ group_id }}.13)
+        - MS3 Windows: VM {{ group_windows_id }} (will get 143.88.{{ group_id }}.14)
