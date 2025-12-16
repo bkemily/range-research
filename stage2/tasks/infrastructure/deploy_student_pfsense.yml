@@ -40,20 +40,22 @@
       ========================================
 
 # ========================================
-# Import OVF Template
+# Clone OVF Template
 # ========================================
 
-- name: Import Student pfSense OVF for Group {{ group_id }}
+- name: Clone Student pfSense from template for Group {{ group_id }}
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_pfsense_id }} {{ templates.pfsense_student }} {{ storage }}"
-  register: import_result
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm clone {{ templates.pfsense_template_id }} {{ group_pfsense_id }}
+      --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
+  register: clone_result
   changed_when: true
-  failed_when: import_result.rc != 0
+  failed_when: clone_result.rc != 0
 
-- name: Display import status
+- name: Display clone status
   ansible.builtin.debug:
-    msg: "✓ Student pfSense OVF imported (VM {{ group_pfsense_id }})"
+    msg: "✓ Student pfSense cloned from template (VM {{ group_pfsense_id }})"
 
 # ========================================
 # Configure VM Resources (Memory & CPU)
