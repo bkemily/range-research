@@ -38,7 +38,7 @@
 - name: Import MS3 Ubuntu OVF for Group {{ group_id }}
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_ubuntu_id }} {{ templates.ms3_ubuntu }} {{ storage }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_ubuntu_id }} {{ templates.ms3_ubuntu }} {{ storage }} --name student-group{{ '%02d' | format(group_id) }}-ubuntu --full"
   register: ubuntu_import
   changed_when: true
   failed_when: ubuntu_import.rc != 0
@@ -101,7 +101,7 @@
 - name: Import MS3 Windows OVF for Group {{ group_id }}
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_windows_id }} {{ templates.ms3_windows }} {{ storage }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_windows_id }} {{ templates.ms3_windows }} {{ storage }}  --name student-group{{ '%02d' | format(group_id) }}-windows --full"
   register: windows_import
   changed_when: true
   failed_when: windows_import.rc != 0

@@ -41,7 +41,7 @@
 - name: Import Instructor Kali OVF
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ vm_ids.instructor_kali }} {{ templates.kali }} {{ storage }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ vm_ids.instructor_kali }} {{ templates.kali }} {{ storage }} --name instructor-pfsense --full"
   register: import_result
   changed_when: true
   failed_when: import_result.rc != 0
