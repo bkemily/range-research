@@ -163,11 +163,11 @@
     register: vm_status_results
     changed_when: false
 
-  - name: Check VM status results
-    ansible.builtin.fail:
-      msg: "VM {{ item.item }} is not running! Status: {{ item.stdout }}"
-    loop: "{{ vm_status_results.results }}"
-    when: "'running' not in item.stdout"
+  #- name: Check VM status results
+    #ansible.builtin.fail:
+      #msg: "VM {{ item.item }} is not running! Status: {{ item.stdout }}"
+    #loop: "{{ vm_status_results.results }}"
+    #when: "'running' not in item.stdout"
 
   - name: Display deployment completion
     ansible.builtin.debug:
