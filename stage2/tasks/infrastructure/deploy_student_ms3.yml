@@ -46,7 +46,7 @@
 - name: Set name
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_ubuntu_id }} --name student-group{{ '%02d' | format(group_id) }}-ubuntu"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_ubuntu_id }} --name student-group{{ '%02d' | format(group_id) }}-ms3ubu14"
   register: name2_result
   changed_when: true
   failed_when: name2_result.rc != 0
@@ -121,7 +121,7 @@
 - name: Set name
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_windows_id }} --name student-group{{ '%02d' | format(group_id) }}-windows"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_windows_id }} --name student-group{{ '%02d' | format(group_id) }}-ms3win2k8"
   register: name_result
   changed_when: true
   failed_when: name_result.rc != 0
