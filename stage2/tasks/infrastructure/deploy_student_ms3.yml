@@ -82,22 +82,21 @@
 - name: Display MS3 Ubuntu configuration status
   ansible.builtin.debug:
     msg: "✓ MS3 Ubuntu configured (VM {{ group_ubuntu_id }})"
+    #- name: Start MS3 Ubuntu VM
+    #ansible.builtin.command:
+    #cmd: >
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_ubuntu_id }}"
+    #register: ubuntu_start
+    #changed_when: true
+    #failed_when: ubuntu_start.rc != 0
 
-- name: Start MS3 Ubuntu VM
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_ubuntu_id }}"
-  register: ubuntu_start
-  changed_when: true
-  failed_when: ubuntu_start.rc != 0
+    #- name: Display MS3 Ubuntu start status
+    #ansible.builtin.debug:
+    #msg: "✓ MS3 Ubuntu started (VM {{ group_ubuntu_id }})"
 
-- name: Display MS3 Ubuntu start status
-  ansible.builtin.debug:
-    msg: "✓ MS3 Ubuntu started (VM {{ group_ubuntu_id }})"
-
-# ========================================
-# Deploy MS3 Windows
-# ========================================
+    # ========================================
+    # Deploy MS3 Windows
+    # ========================================
 
 - name: Import MS3 Windows OVF for Group {{ group_id }}
   ansible.builtin.command:

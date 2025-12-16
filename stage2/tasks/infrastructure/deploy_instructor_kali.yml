@@ -125,10 +125,10 @@
     # Wait for Kali to Boot
     # ========================================
 
-- name: Wait for Instructor Kali to boot
-  ansible.builtin.pause:
-    seconds: "{{ automation.vm_boot_wait_seconds }}"
-    prompt: "Waiting {{ automation.vm_boot_wait_seconds }} seconds for Instructor Kali to boot..."
+    #- name: Wait for Instructor Kali to boot
+    #ansible.builtin.pause:
+    #seconds: "{{ automation.vm_boot_wait_seconds }}"
+    #prompt: "Waiting {{ automation.vm_boot_wait_seconds }} seconds for Instructor Kali to boot..."
     #- name: Verify VM is running
     #ansible.builtin.command:
     #cmd: >

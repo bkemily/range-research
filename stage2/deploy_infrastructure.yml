@@ -151,17 +151,17 @@
   # Wait for VMs to Boot
   # ========================================
 
-  - name: Wait for all VMs to boot
-    ansible.builtin.pause:
-      seconds: "{{ automation.vm_boot_wait_seconds }}"
-      prompt: "Waiting {{ automation.vm_boot_wait_seconds }} seconds for all VMs to boot..."
+  #- name: Wait for all VMs to boot
+    #ansible.builtin.pause:
+      #seconds: "{{ automation.vm_boot_wait_seconds }}"
+      #prompt: "Waiting {{ automation.vm_boot_wait_seconds }} seconds for all VMs to boot..."
 
-  - name: Verify all VMs are running
-    ansible.builtin.command:
-      cmd: ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ item }}"
-    loop: "{{ vm_ids_to_check }}"
-    register: vm_status_results
-    changed_when: false
+  #- name: Verify all VMs are running
+    #ansible.builtin.command:
+      #cmd: ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ item }}"
+    #loop: "{{ vm_ids_to_check }}"
+    #register: vm_status_results
+    #changed_when: false
 
   #- name: Check VM status results
     #ansible.builtin.fail:
