@@ -1,0 +1,108 @@
+---
+# ============================================================================
+# Teardown Script
+# ============================================================================
+# Purpose: Stop and destroy VMs created during Stage 2 deployment
+#
+# This playbook destroys:
+#   - Spark pfSense (VM 50)
+#   - Instructor pfSense (VM 100)
+#   - Instructor Kali (VM 101)
+#   - Student Group VMs (5 VMs per group)
+#
+# Does NOT destroy:
+#   - Security Onion (VM 109) - created in Stage 1
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml stage2/teardown.yml
+#   ansible-playbook -i inventory/hosts.yml stage2/teardown.yml -e max_student_groups=5
+#
+# Author: Emily Miller
+# Last Updated: December 15, 2025
+# ============================================================================
+
+- name: Teardown Stage 2 Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+  # ========================================
+  # Generate VM ID Lists
+  # ========================================
+
+  - name: Generate list of student VM IDs
+    ansible.builtin.set_fact:
+      student_vm_ids: "{{ student_vm_ids | default([]) + group_vms }}"
+    vars:
+      base_vmid: "{{ vm_ids.student_base + ((item - 1) * vm_ids.student_block_size) }}"
+      group_vms:
+      - "{{ base_vmid | int + 1 }}" # pfSense
+      - "{{ base_vmid | int + 2 }}" # Kali 1
+      - "{{ base_vmid | int + 3 }}" # Kali 2
+      - "{{ base_vmid | int + 4 }}" # MS3 Ubuntu
+      - "{{ base_vmid | int + 5 }}" # MS3 Windows
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
+
+  - name: Combine all VM IDs to destroy
+    ansible.builtin.set_fact:
+      all_vm_ids: "{{ [vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
+
+  - name: Display teardown notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Teardown Stage 2 Infrastructure
+        ========================================
+        Destroying {{ all_vm_ids | length }} VMs:
+
+        Infrastructure:
+          - Spark pfSense: VM {{ vm_ids.spark_pfsense }}
+          - Instructor pfSense: VM {{ vm_ids.instructor_pfsense }}
+          - Instructor Kali: VM {{ vm_ids.instructor_kali }}
+
+        Student Groups ({{ max_student_groups }} groups):
+          {{ student_vm_ids | sort | join(', ') }}
+
+        NOT destroying:
+          - Security Onion: VM {{ vm_ids.security_onion }} (Stage 1)
+        ========================================
+
+  # ========================================
+  # Stop All VMs
+  # ========================================
+
+  - name: Stop VMs
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm stop {{ item }}"
+    loop: "{{ all_vm_ids }}"
+    register: stop_results
+    changed_when: true
+    failed_when: false
+
+  - name: Wait for VMs to stop
+    ansible.builtin.pause:
+      seconds: 5
+
+  # ========================================
+  # Destroy All VMs
+  # ========================================
+
+  - name: Destroy VMs
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm destroy {{ item }}"
+    loop: "{{ all_vm_ids }}"
+    register: destroy_results
+    changed_when: true
+    failed_when: false
+
+  - name: Display completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ Teardown Complete
+        ========================================
+        {{ all_vm_ids | length }} VMs destroyed
+        ========================================
