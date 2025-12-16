@@ -39,20 +39,22 @@
       ========================================
 
 # ========================================
-# Import OVF Template
+# Clone OVF Template
 # ========================================
 
-- name: Import Spark pfSense OVF
+- name: Clone Spark pfSense from template
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ vm_ids.spark_pfsense }} {{ templates.pfsense_spark }} {{ storage }}"
-  register: import_result
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm clone {{ templates.pfsense_template_id }} {{ vm_ids.spark_pfsense }}
+      --name spark-pfsense --full"
+  register: clone_result
   changed_when: true
-  failed_when: import_result.rc != 0
+  failed_when: clone_result.rc != 0
 
-- name: Display import status
+- name: Display clone status
   ansible.builtin.debug:
-    msg: "✓ Spark pfSense OVF imported (VM {{ vm_ids.spark_pfsense }})"
+    msg: "✓ Spark pfSense cloned from template (VM {{ vm_ids.spark_pfsense }})"
 
 # ========================================
 # Configure VM Resources (Memory & CPU)
