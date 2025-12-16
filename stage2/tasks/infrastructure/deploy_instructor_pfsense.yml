@@ -181,7 +181,9 @@
 - name: Assign student group WAN interfaces
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --{{ item.net_id }} virtio,bridge={{ item.bridge }},firewall=1"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.instructor_pfsense }}
+      --{{ item.net_id }} virtio,bridge={{ item.bridge }},firewall=1"
   loop: "{{ student_wan_interfaces }}"
   register: student_wan_result
   changed_when: true
