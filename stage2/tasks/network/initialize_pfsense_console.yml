@@ -32,65 +32,33 @@
     seconds: 15
     prompt: "Waiting for {{ vm_name }} to reach VLAN setup prompt..."
 
-- name: Send interface assignment keystrokes
-  ansible.builtin.shell:
-    cmd: |
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} << 'ENDSCRIPT'
-      # No VLANs
-      qm monitor {{ pfsense_vm_id }} sendkey n
-      sleep 0.5
-      qm monitor {{ pfsense_vm_id }} sendkey ret
-      sleep 2
-      
-      # WAN interface: vtnet0
-      qm monitor {{ pfsense_vm_id }} sendkey v
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey t
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey n
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey e
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey t
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey 0
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey ret
-      sleep 2
-      
-      # LAN interface: vtnet1
-      qm monitor {{ pfsense_vm_id }} sendkey v
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey t
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey n
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey e
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey t
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey 1
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey ret
-      sleep 2
-      
-      # No optional interfaces
-      qm monitor {{ pfsense_vm_id }} sendkey ret
-      sleep 2
-      
-      # Proceed: y
-      qm monitor {{ pfsense_vm_id }} sendkey y
-      sleep 0.1
-      qm monitor {{ pfsense_vm_id }} sendkey ret
-      ENDSCRIPT
+- name: Create initialization script
+  ansible.builtin.template:
+    src: initialize_pfsense.sh.j2
+    dest: /tmp/init_pfsense_{{ pfsense_vm_id }}.sh
+    mode: '0755'
+  delegate_to: localhost
+
+- name: Copy script to Proxmox
+  ansible.builtin.command:
+    cmd: >
+      scp {{ ssh.common_args }}
+      /tmp/init_pfsense_{{ pfsense_vm_id }}.sh
+      {{ proxmox_user }}@{{ proxmox_host }}:/tmp/
+  changed_when: true
+
+- name: Execute initialization script on Proxmox
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "bash /tmp/init_pfsense_{{ pfsense_vm_id }}.sh"
   register: console_init
   changed_when: true
 
 - name: Wait for interface assignment to complete
   ansible.builtin.pause:
     seconds: 30
-    prompt: "Waiting for {{ vm_name }} to complete interface assignment..."
 
 - name: Display initialization completion
   ansible.builtin.debug:
-    msg: "✓ {{ vm_name }} initialized - default LAN IP should be 192.168.1.1"
+    msg: "✓ {{ vm_name }} initialized"
