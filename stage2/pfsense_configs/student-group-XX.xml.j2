@@ -76,7 +76,7 @@
     <!-- WAN Interface -->
     <wan>
       <enable/>
-      <if>vtnet0</if>
+      <if>em0</if>
       <descr>WAN to Instructor</descr>
       <ipaddr>143.88.0.{{ group_id * 4 - 2 }}</ipaddr>
       <subnet>30</subnet>
@@ -88,7 +88,7 @@
     <!-- LAN Interface -->
     <lan>
       <enable/>
-      <if>vtnet1</if>
+      <if>em1</if>
       <descr>Student LAN</descr>
       <ipaddr>143.88.{{ group_id }}.1</ipaddr>
       <subnet>24</subnet>
