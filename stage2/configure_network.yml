@@ -16,13 +16,13 @@
 # Last Updated: December 15, 2025
 # ============================================================================
 
+---
 - name: Phase 2.2 - Configure Network
   hosts: localhost
   connection: local
   gather_facts: yes
 
   vars:
-    # pfSense default credentials (change these!)
     pfsense_default_user: "admin"
     pfsense_default_password: "pfsense"
 
@@ -38,6 +38,7 @@
         Initializing pfSense Consoles
         ========================================
         Automating interface assignment for all pfSense VMs
+        This will take approximately 2-3 minutes per pfSense
         ========================================
 
   - name: Initialize Instructor pfSense
@@ -58,7 +59,14 @@
 
   - name: Display initialization completion
     ansible.builtin.debug:
-      msg: "✓ All pfSense VMs initialized with default interfaces"
+      msg: |
+        ========================================
+        ✓ All pfSense VMs Initialized
+        ========================================
+        pfSense instances now have interfaces assigned
+        Default LAN IPs: 192.168.1.1
+        Ready for XML configuration
+        ========================================
         
   # ========================================
   # Configure Spark pfSense
