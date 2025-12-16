@@ -93,8 +93,8 @@
 # Deploy Student MS3 VMs
 # ========================================
 
-#- name: Deploy Student MS3 VMs for Group {{ group_id }}
-  #ansible.builtin.include_tasks: deploy_student_ms3.yml
+- name: Deploy Student MS3 VMs for Group {{ group_id }}
+  ansible.builtin.include_tasks: deploy_student_ms3.yml
 
 # ========================================
 # Display Completion
