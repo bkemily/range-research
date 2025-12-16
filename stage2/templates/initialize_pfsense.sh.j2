@@ -1,0 +1,53 @@
+#!/bin/bash
+# Initialize pfSense VM {{ pfsense_vm_id }}
+
+VMID={{ pfsense_vm_id }}
+
+# No VLANs
+qm monitor ${VMID} sendkey n
+sleep 0.5
+qm monitor ${VMID} sendkey ret
+sleep 2
+
+# WAN interface: vtnet0
+qm monitor ${VMID} sendkey v
+sleep 0.1
+qm monitor ${VMID} sendkey t
+sleep 0.1
+qm monitor ${VMID} sendkey n
+sleep 0.1
+qm monitor ${VMID} sendkey e
+sleep 0.1
+qm monitor ${VMID} sendkey t
+sleep 0.1
+qm monitor ${VMID} sendkey 0
+sleep 0.1
+qm monitor ${VMID} sendkey ret
+sleep 2
+
+# LAN interface: vtnet1
+qm monitor ${VMID} sendkey v
+sleep 0.1
+qm monitor ${VMID} sendkey t
+sleep 0.1
+qm monitor ${VMID} sendkey n
+sleep 0.1
+qm monitor ${VMID} sendkey e
+sleep 0.1
+qm monitor ${VMID} sendkey t
+sleep 0.1
+qm monitor ${VMID} sendkey 1
+sleep 0.1
+qm monitor ${VMID} sendkey ret
+sleep 2
+
+# No optional interfaces
+qm monitor ${VMID} sendkey ret
+sleep 2
+
+# Proceed: y
+qm monitor ${VMID} sendkey y
+sleep 0.1
+qm monitor ${VMID} sendkey ret
+
+echo "Initialization complete for VM ${VMID}"
