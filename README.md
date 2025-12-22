@@ -1,8 +1,24 @@
 # Orchestrated Generation of Correlated Host and Network-Based Datasets for Advanced Threat Detection
 
-This project automates creating and booting a single virtual machine from an OVF template in Proxmox VE using Ansible.  
-It’s built using the infrastructure part of the University of West Florida's CNT4416 War Gaming environment.
+This project enables fully automated orchestrated generation of correlated host and network-based datasets for advanced threat detection research. Built for the CNT4416 War Gaming course, it automates the deployment and orchestration of multi-group cybersecurity training environments in Proxmox VE to produce diverse, accurately labeled, time-synchronized multimodal security datasets.
 
+The system addresses critical limitations in current intrusion detection research by generating reproducible datasets that combine network traffic (PCAP), protocol analysis (Zeek logs), signature-based alerts (Suricata), and host-level telemetry. Through parameterized campaign orchestration with seeded randomization, the platform creates realistic attack scenarios while maintaining precise ground-truth labels usable for supervised machine learning applications.
+
+## Research Objectives
+### Primary Goals
+
+- Automated Dataset Generation: Create diverse, labeled cybersecurity datasets without manual intervention
+- Multimodal Correlation: Generate time-synchronized network and host-based telemetry for comprehensive threat analysis
+- Reproducibility: Enable exact replication of attack scenarios through seeded randomization
+- Scalability: Support configurable deployment sizes (1-15 student groups) for varied dataset complexity
+- Realism: Produce datasets reflecting authentic network conditions and attack patterns
+
+### Dataset Characteristics
+
+- Network Layer: Full packet captures (PCAP), Zeek protocol logs, IDS alerts
+- Host Layer: System logs, process telemetry
+- Ground Truth: Precise timestamps, attack classifications, MITRE ATT&CK mappings
+- Diversity: Multiple attack types, temporal variations, infrastructure configurations
 ---
 
 ## Project Files
