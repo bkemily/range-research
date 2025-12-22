@@ -24,11 +24,6 @@
 - name: "Cyber Range Full Experiment - Simple Orchestration"
   hosts: localhost
   gather_facts: yes
-  vars:
-    # Stage control flags
-    skip_stage0: "{{ skip_stage0 | default(false) | bool }}"
-    skip_stage1: "{{ skip_stage1 | default(false) | bool }}"
-    skip_stage2: "{{ skip_stage2 | default(false) | bool }}"
 
   tasks:
     - name: Display execution plan
