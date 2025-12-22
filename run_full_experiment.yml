@@ -101,23 +101,23 @@
 ###############################################################################
 # CLEANUP: Experiment Cleanup and Teardown
 ###############################################################################
-- name: "Cleanup - Experiment Cleanup and Teardown"
-  hosts: localhost
-  gather_facts: no
-  tasks:
-    - name: Display Cleanup start
-      debug:
-        msg: ">>> Starting Cleanup: Experiment Cleanup and Teardown"
+#- name: "Cleanup - Experiment Cleanup and Teardown"
+  #hosts: localhost
+  #gather_facts: no
+  #tasks:
+    - #name: Display Cleanup start
+      #debug:
+        #msg: ">>> Starting Cleanup: Experiment Cleanup and Teardown"
 
 - import_playbook: stage2/teardown.yml
 
-- name: "Cleanup Complete"
-  hosts: localhost
-  gather_facts: no
-  tasks:
-    - name: Display Cleanup completion
-      debug:
-        msg: "✓ Cleanup Complete: Experiment Cleanup and Teardown Complete"
+#- name: "Cleanup Complete"
+  #hosts: localhost
+  #gather_facts: no
+  #tasks:
+    #- name: Display Cleanup completion
+      #debug:
+        #msg: "✓ Cleanup Complete: Experiment Cleanup and Teardown Complete"
 
 ###############################################################################
 # Completion Summary
