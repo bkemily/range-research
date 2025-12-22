@@ -25,9 +25,9 @@
     - name: Display execution plan
       debug:
         msg:
-          - "╔══════════════════════════════════════════════════════════════════╗"
-          - "║         CYBER RANGE FULL EXPERIMENT - SIMPLE MODE               ║"
-          - "╚══════════════════════════════════════════════════════════════════╝"
+          - "╔═════════════════════════════════════════════╗"
+          - "║         CYBER RANGE FULL EXPERIMENT         ║"
+          - "╚═════════════════════════════════════════════╝"
           - ""
           - "This playbook will execute the following stages in sequence:"
           - "  1. Stage 0: Network Topology"
@@ -96,7 +96,7 @@
   tasks:
     - name: Display Stage 2 completion
       debug:
-        msg: "✓ Stage 2 Complete: Experiment Complete; Data Ready for Analysis"
+        msg: "✓ Stage 2 Complete: Experiment Complete"
 
 ###############################################################################
 # CLEANUP: Experiment Cleanup and Teardown
@@ -141,9 +141,9 @@
       debug:
         msg:
           - ""
-          - "╔══════════════════════════════════════════════════════════════════╗"
-          - "║              EXPERIMENT EXECUTION COMPLETE                       ║"
-          - "╚══════════════════════════════════════════════════════════════════╝"
+          - "╔═════════════════════════════════════════════════════════╗"
+          - "║              EXPERIMENT EXECUTION COMPLETE              ║"
+          - "╚═════════════════════════════════════════════════════════╝"
           - ""
           - "Campaign Information:"
           - "  Campaign ID: {{ campaign_id | default('N/A') }}"
@@ -167,4 +167,5 @@
           - "  ✓ Stage 2: Campaign Execution"
           - ""
           - "All stages completed successfully!"
+          - "Data Ready for Analysis."
           - ""
