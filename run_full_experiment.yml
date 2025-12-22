@@ -45,8 +45,7 @@
           debug:
             msg: ">>> Starting Stage 0: Network Topology and Template Setup"
 
-        - name: Run Stage 0 playbook
-          include_tasks: stage0/stage0_configure_proxmox_network.yml
+        - import_playbook: stage0/stage0_configure_proxmox_network.yml
 
         - name: Display Stage 0 completion
           debug:
@@ -61,8 +60,7 @@
           debug:
             msg: ">>> Starting Stage 1: Security Onion Deployment"
 
-        - name: Run Stage 1 playbook
-          include_tasks: stage1/stage1_bootstrap_security_onion.yml
+        - import_playbook: stage1/stage1_bootstrap_security_onion.yml
 
         - name: Display Stage 1 completion
           debug:
@@ -77,8 +75,7 @@
           debug:
             msg: ">>> Starting Stage 2: Student Environment Deployment"
 
-        - name: Run Stage 2 playbook
-          include_tasks: stage2/run_full_campaign.yml
+        - import_playbook: stage2/run_full_campaign.yml
 
         - name: Display Stage 2 completion
           debug:
