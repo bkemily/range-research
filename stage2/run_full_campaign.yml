@@ -169,41 +169,21 @@
 #- import_playbook: collect_data.yml
 
 # ============================================================================
-# PLAY 11: Campaign Completion
+# PLAY 11: Stage 2 Completion
 # ============================================================================
-- name: Campaign Completion
+- name: Stage 2 Completion
   hosts: localhost
   connection: local
-  gather_facts: yes
+  gather_facts: no
 
   tasks:
-  - name: Record campaign end time
-    ansible.builtin.set_fact:
-      campaign_end_time: "{{ ansible_date_time.iso8601 }}"
-      campaign_end_epoch: "{{ ansible_date_time.epoch }}"
-
-  - name: Calculate actual campaign duration
-    set_fact:
-      actual_duration_seconds: "{{ campaign_end_epoch | int - campaign_start_epoch | int }}"
-      actual_duration_hours: "{{ ((campaign_end_epoch | int - campaign_start_epoch | int) / 3600) | round(2) }}"
-
-  - name: Display campaign completion
+  - name: Display Stage 2 completion
     ansible.builtin.debug:
       msg: |
         ========================================
-        CAMPAIGN COMPLETE
+        STAGE 2 COMPLETE
         ========================================
         
-        Campaign ID: {{ campaign_id }}
-        Start Time: {{ campaign_start_time }}
-        End Time: {{ campaign_end_time }}
-        Duration: {{ actual_duration_hours }} hours
-        
-        Student Groups: {{ max_student_groups }}
-        Total VMs Deployed: {{ 3 + (max_student_groups * 5) }}
-        
-        All phases completed successfully!
-        
-        Data collected and available for analysis.
+        Campaign Run Successfully
         
         ========================================
