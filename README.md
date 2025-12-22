@@ -1,6 +1,6 @@
 # Orchestrated Generation of Correlated Host and Network-Based Datasets for Advanced Threat Detection
 
-This project enables fully automated orchestrated generation of correlated host and network-based datasets for advanced threat detection research. Built for the CNT4416 War Gaming course, it automates the deployment and orchestration of multi-group cybersecurity training environments in Proxmox VE to produce diverse, accurately labeled, time-synchronized multimodal security datasets.
+This project enables fully automated orchestrated generation of correlated host and network-based datasets for advanced threat detection research. Built around the University of West Florida CNT4416 Cyber War Gaming course, it automates the deployment and orchestration of multi-group cybersecurity training environments in Proxmox VE to produce diverse, accurately labeled, time-synchronized multimodal security datasets.
 
 The system addresses critical limitations in current intrusion detection research by generating reproducible datasets that combine network traffic (PCAP), protocol analysis (Zeek logs), signature-based alerts (Suricata), and host-level telemetry. Through parameterized campaign orchestration with seeded randomization, the platform creates realistic attack scenarios while maintaining precise ground-truth labels usable for supervised machine learning applications.
 
