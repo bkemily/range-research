@@ -5,15 +5,16 @@
 # Automated Cyber Range for Threat Detection Dataset Generation
 #
 # Purpose: Simple orchestration of all three automation stages
-# Author: Emily
-# 
+# Author: Emily Miller
+# Last Updated: December 21, 2025
+#
 # This playbook runs the complete pipeline in sequence:
 #   Stage 0: Network topology and VM template preparation
 #   Stage 1: Security Onion deployment and configuration
 #   Stage 2: Student environment deployment and configuration
 #
 # Usage:
-#   ansible-playbook -i inventory.yml run_full_experiment.yml
+#   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml
 #
 ###############################################################################
 
@@ -30,9 +31,9 @@
           - "╚══════════════════════════════════════════════════════════════════╝"
           - ""
           - "This playbook will execute the following stages in sequence:"
-          - "  1. Stage 0: Network Topology and VM Template Preparation"
+          - "  1. Stage 0: Network Topology"
           - "  2. Stage 1: Security Onion Deployment and Configuration"
-          - "  3. Stage 2: Student Environment Deployment and Configuration"
+          - "  3. Stage 2: Experiment Environment Deployment and Configuration"
           - ""
 
     ###########################################################################
@@ -45,7 +46,7 @@
             msg: ">>> Starting Stage 0: Network Topology and Template Setup"
 
         - name: Run Stage 0 playbook
-          include_tasks: stage0_network_topology.yml
+          include_tasks: stage0/stage0_configure_proxmox_network.yml
 
         - name: Display Stage 0 completion
           debug:
@@ -61,7 +62,7 @@
             msg: ">>> Starting Stage 1: Security Onion Deployment"
 
         - name: Run Stage 1 playbook
-          include_tasks: stage1_security_onion.yml
+          include_tasks: stage1/stage1_bootstrap_security_onion.yml
 
         - name: Display Stage 1 completion
           debug:
@@ -77,7 +78,7 @@
             msg: ">>> Starting Stage 2: Student Environment Deployment"
 
         - name: Run Stage 2 playbook
-          include_tasks: stage2_student_environment.yml
+          include_tasks: stage2/run_full_campaign.yml
 
         - name: Display Stage 2 completion
           debug:

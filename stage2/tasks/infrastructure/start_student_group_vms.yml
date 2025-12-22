@@ -17,7 +17,7 @@
 #   - group_id: Student group number (1-15)
 #
 # Author: Emily Miller
-# Last Updated: December 15, 2025
+# Last Updated: December 16, 2025
 # ============================================================================
 
 - name: Calculate VM IDs for Group {{ group_id }}

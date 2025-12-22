@@ -22,7 +22,7 @@
 #   - group_lan_bridge: LAN bridge name (vmbr00X000)
 #
 # Author: Emily Miller
-# Last Updated: December 15, 2025
+# Last Updated: December 16, 2025
 # ============================================================================
 
 - name: Display Student pfSense deployment notice

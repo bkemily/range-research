@@ -22,7 +22,7 @@
 #   ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml -e max_student_groups=5
 #
 # Author: Emily Miller
-# Last Updated: December 14, 2025
+# Last Updated: December 21, 2025
 # ============================================================================
 
 # ============================================================================
