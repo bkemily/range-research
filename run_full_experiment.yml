@@ -1,0 +1,110 @@
+---
+###############################################################################
+# Simple Master Experiment Playbook
+# University of West Florida - Cyber War Gaming Course
+# Automated Cyber Range for Threat Detection Dataset Generation
+#
+# Purpose: Simple orchestration of all three automation stages
+# Author: Emily
+# 
+# This playbook runs the complete pipeline in sequence:
+#   Stage 0: Network topology and VM template preparation
+#   Stage 1: Security Onion deployment and configuration
+#   Stage 2: Student environment deployment and configuration
+#
+# Usage:
+#   ansible-playbook -i inventory.yml run_full_experiment.yml
+#
+# Optional flags:
+#   -e "skip_stage0=true"  # Skip network/template setup
+#   -e "skip_stage1=true"  # Skip Security Onion deployment
+#   -e "skip_stage2=true"  # Skip student environments
+###############################################################################
+
+- name: "Cyber Range Full Experiment - Simple Orchestration"
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    # Stage control flags
+    skip_stage0: "{{ skip_stage0 | default(false) | bool }}"
+    skip_stage1: "{{ skip_stage1 | default(false) | bool }}"
+    skip_stage2: "{{ skip_stage2 | default(false) | bool }}"
+
+  tasks:
+    - name: Display execution plan
+      debug:
+        msg:
+          - "╔══════════════════════════════════════════════════════════════════╗"
+          - "║         CYBER RANGE FULL EXPERIMENT - SIMPLE MODE               ║"
+          - "╚══════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "Execution Plan:"
+          - "  Stage 0 (Network Topology): {{ 'SKIP' if skip_stage0 else 'RUN' }}"
+          - "  Stage 1 (Security Onion):   {{ 'SKIP' if skip_stage1 else 'RUN' }}"
+          - "  Stage 2 (Student Envs):     {{ 'SKIP' if skip_stage2 else 'RUN' }}"
+          - ""
+
+    ###########################################################################
+    # STAGE 0: Network Topology and VM Template Preparation
+    ###########################################################################
+    - name: "Execute Stage 0 - Network Topology Setup"
+      when: not skip_stage0
+      block:
+        - name: Display Stage 0 start
+          debug:
+            msg: ">>> Starting Stage 0: Network Topology and Template Setup"
+
+        - name: Run Stage 0 playbook
+          include_tasks: stage0_network_topology.yml
+
+        - name: Display Stage 0 completion
+          debug:
+            msg: "✓ Stage 0 Complete: Network topology and templates ready"
+
+    ###########################################################################
+    # STAGE 1: Security Onion Deployment and Configuration
+    ###########################################################################
+    - name: "Execute Stage 1 - Security Onion Deployment"
+      when: not skip_stage1
+      block:
+        - name: Display Stage 1 start
+          debug:
+            msg: ">>> Starting Stage 1: Security Onion Deployment"
+
+        - name: Run Stage 1 playbook
+          include_tasks: stage1_security_onion.yml
+
+        - name: Display Stage 1 completion
+          debug:
+            msg: "✓ Stage 1 Complete: Security Onion monitoring active"
+
+    ###########################################################################
+    # STAGE 2: Student Environment Deployment
+    ###########################################################################
+    - name: "Execute Stage 2 - Student Environment Deployment"
+      when: not skip_stage2
+      block:
+        - name: Display Stage 2 start
+          debug:
+            msg: ">>> Starting Stage 2: Student Environment Deployment"
+
+        - name: Run Stage 2 playbook
+          include_tasks: stage2_student_environment.yml
+
+        - name: Display Stage 2 completion
+          debug:
+            msg: "✓ Stage 2 Complete: Student environments deployed"
+
+    ###########################################################################
+    # Completion Summary
+    ###########################################################################
+    - name: Display final summary
+      debug:
+        msg:
+          - ""
+          - "╔══════════════════════════════════════════════════════════════════╗"
+          - "║              EXPERIMENT EXECUTION COMPLETE                       ║"
+          - "╚══════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "All enabled stages completed successfully!"
+          - ""

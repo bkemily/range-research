@@ -1,7 +1,7 @@
 # CIS4416 Proxmox VM Provisioning (Ansible)
 
 This project automates creating and booting a single virtual machine from an OVF template in Proxmox VE using Ansible.  
-It’s built for the **CIS4416 War Gaming** environment.
+It’s built for the **CNT4416 War Gaming** environment.
 
 ---
 
@@ -23,6 +23,7 @@ Ensure:
 
 ## How to Run
 
+ansible-playbook -i inventory.yml run_full_experiment.yml
 
 
 ## Notes & Current Behavior
