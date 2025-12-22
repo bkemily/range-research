@@ -1,7 +1,7 @@
-# CIS4416 Proxmox VM Provisioning (Ansible)
+# Orchestrated Generation of Correlated Host and Network-Based Datasets for Advanced Threat Detection
 
 This project automates creating and booting a single virtual machine from an OVF template in Proxmox VE using Ansible.  
-It’s built for the **CNT4416 War Gaming** environment.
+It’s built using the infrastructure part of the University of West Florida's CNT4416 War Gaming environment.
 
 ---
 
