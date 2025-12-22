@@ -141,6 +141,27 @@ ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.y
 # Stage 2: Deploy infrastructure (currently implemented)
 ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml
 ```
+### Detailed Execution Instructions
+
+For comprehensive guidance on running different experiment configurations, troubleshooting, and understanding playbook options, see the **[Experiment Execution Guide]((https://github.com/bkemily/range-research/blob/main/EXPERIMENT_EXECUTION_GUIDE.md))**.
+
+The execution guide provides detailed instructions for:
+
+**Configuration & Parameters:**
+- All configurable parameters (`campaign_id`, `max_student_groups`, `scenario_type`, `campaign_duration_hours`)
+- Default values and override methods using `-e` flags
+- Attack distribution patterns (uniform, clustered, random)
+
+**Monitoring & Troubleshooting:**
+- Real-time progress monitoring via Ansible output and Proxmox GUI
+- Security Onion status checks and data validation
+- Error handling procedures and recovery steps
+
+**Best Practices:**
+- Starting with small-scale tests before full deployments
+- Using descriptive campaign IDs for dataset organization
+- Verifying data collection after campaign completion
+- Pre-flight checklists for infrastructure validation
 
 ## Notes & Current Behavior
 ### Stage 0: Network Topology Configuration
