@@ -18,10 +18,9 @@
 #
 ###############################################################################
 
-- name: "Cyber Range Full Experiment - Simple Orchestration"
+- name: "Display Experiment Start"
   hosts: localhost
-  gather_facts: yes
-
+  gather_facts: no
   tasks:
     - name: Display execution plan
       debug:
@@ -36,54 +35,76 @@
           - "  3. Stage 2: Experiment Environment Deployment and Configuration"
           - ""
 
-    ###########################################################################
-    # STAGE 0: Network Topology and VM Template Preparation
-    ###########################################################################
-    - name: "Execute Stage 0 - Network Topology Setup"
-      block:
-        - name: Display Stage 0 start
-          debug:
-            msg: ">>> Starting Stage 0: Network Topology and Template Setup"
+###############################################################################
+# STAGE 0: Network Topology and VM Template Preparation
+###############################################################################
+- name: "Stage 0 - Network Topology Setup"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display Stage 0 start
+      debug:
+        msg: ">>> Starting Stage 0: Network Topology and Template Setup"
 
-        - import_playbook: stage0/stage0_configure_proxmox_network.yml
+- import_playbook: stage0/stage0_configure_proxmox_network.yml
 
-        - name: Display Stage 0 completion
-          debug:
-            msg: "✓ Stage 0 Complete: Network topology and templates ready"
+- name: "Stage 0 Complete"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display Stage 0 completion
+      debug:
+        msg: "✓ Stage 0 Complete: Network topology and templates ready"
 
-    ###########################################################################
-    # STAGE 1: Security Onion Deployment and Configuration
-    ###########################################################################
-    - name: "Execute Stage 1 - Security Onion Deployment"
-      block:
-        - name: Display Stage 1 start
-          debug:
-            msg: ">>> Starting Stage 1: Security Onion Deployment"
+###############################################################################
+# STAGE 1: Security Onion Deployment and Configuration
+###############################################################################
+- name: "Stage 1 - Security Onion Deployment"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display Stage 1 start
+      debug:
+        msg: ">>> Starting Stage 1: Security Onion Deployment"
 
-        - import_playbook: stage1/stage1_bootstrap_security_onion.yml
+- import_playbook: stage1/stage1_bootstrap_security_onion.yml
 
-        - name: Display Stage 1 completion
-          debug:
-            msg: "✓ Stage 1 Complete: Security Onion monitoring active"
+- name: "Stage 1 Complete"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display Stage 1 completion
+      debug:
+        msg: "✓ Stage 1 Complete: Security Onion monitoring active"
 
-    ###########################################################################
-    # STAGE 2: Student Environment Deployment
-    ###########################################################################
-    - name: "Execute Stage 2 - Student Environment Deployment"
-      block:
-        - name: Display Stage 2 start
-          debug:
-            msg: ">>> Starting Stage 2: Student Environment Deployment"
+###############################################################################
+# STAGE 2: Student Environment Deployment
+###############################################################################
+- name: "Stage 2 - Student Environment Deployment"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display Stage 2 start
+      debug:
+        msg: ">>> Starting Stage 2: Student Environment Deployment"
 
-        - import_playbook: stage2/run_full_campaign.yml
+- import_playbook: stage2/run_full_campaign.yml
 
-        - name: Display Stage 2 completion
-          debug:
-            msg: "✓ Stage 2 Complete: Student environments deployed"
+- name: "Stage 2 Complete"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display Stage 2 completion
+      debug:
+        msg: "✓ Stage 2 Complete: Student environments deployed"
 
-    ###########################################################################
-    # Completion Summary
-    ###########################################################################
+###############################################################################
+# Completion Summary
+###############################################################################
+- name: "Experiment Complete"
+  hosts: localhost
+  gather_facts: no
+  tasks:
     - name: Display final summary
       debug:
         msg:
@@ -92,5 +113,5 @@
           - "║              EXPERIMENT EXECUTION COMPLETE                       ║"
           - "╚══════════════════════════════════════════════════════════════════╝"
           - ""
-          - "All enabled stages completed successfully!"
+          - "All stages completed successfully!"
           - ""
