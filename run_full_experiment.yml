@@ -1,10 +1,10 @@
 ---
 ###############################################################################
-# Simple Master Experiment Playbook
-# University of West Florida - Cyber War Gaming Course
-# Automated Cyber Range for Threat Detection Dataset Generation
+# Master Experiment Playbook
+# University of West Florida
+# Orchestrated Generation of Correlated Host and Network-Based Datasets for Advanced Threat Detection
 #
-# Purpose: Simple orchestration of all three automation stages
+# Purpose: Orchestration of the entire experiment from network setup to data collection/teardown.
 # Author: Emily Miller
 # Last Updated: December 21, 2025
 #
