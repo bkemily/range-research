@@ -41,17 +41,17 @@ network_attack_scripts/
 ├── psexecExploit.sh
 └── smbExploit.sh
 stage0/
-├── stage0_configure_proxmox_network.yml   # Main playbook
-└── README.md                              # Stage 0 Documentation
+├── stage0_configure_proxmox_network.yml  # Main Stage 0 playbook
+└── README.md                             # Stage 0 Documentation
 stage1/
-├── stage1_bootstrap_security_onion.yml   # Main playbook
+├── stage1_bootstrap_security_onion.yml   # Main Stage 1 playbook
 ├── files/
 │   ├── auto_runner.sh                    # Auto-runner script (future use)
 │   ├── start_campaign.sh                 # Manual campaign script (future use)
 │   └── auto-runner.service               # Systemd service (future use)
 └── README.md                             # Stage 1 Documentation
 stage2/
-├── run_full_campaign.yml                 # Master orchestrator
+├── run_full_campaign.yml                 # Main Stage 2 playbook
 ├── deploy_infrastructure.yml             # Phase 2.1: VM deployment
 ├── configure_network.yml                 # Phase 2.2: Network config (in progress)
 ├── activate_attacks.yml                  # Phase 2.3: Attack activation (future use)
@@ -85,7 +85,7 @@ stage2/
 │       ├── instructor.xml
 │       ├── Group[1-N].xml                # Based on max_student_groups
 └── README.md                             # Stage 2 Documentation
-run_full_experiment.yml                   # Top-level experiment orchestrator
+run_full_experiment.yml                   # Full experiment orchestrator
 EXPERIMENT_EXECUTION_GUIDE.md             # Detailed execution guide
 QUICK_REFERENCE.md                        # Quick commands reference
 README.md                                 # Full Project Documentation
