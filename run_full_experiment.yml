@@ -15,10 +15,6 @@
 # Usage:
 #   ansible-playbook -i inventory.yml run_full_experiment.yml
 #
-# Optional flags:
-#   -e "skip_stage0=true"  # Skip network/template setup
-#   -e "skip_stage1=true"  # Skip Security Onion deployment
-#   -e "skip_stage2=true"  # Skip student environments
 ###############################################################################
 
 - name: "Cyber Range Full Experiment - Simple Orchestration"
@@ -33,17 +29,16 @@
           - "║         CYBER RANGE FULL EXPERIMENT - SIMPLE MODE               ║"
           - "╚══════════════════════════════════════════════════════════════════╝"
           - ""
-          - "Execution Plan:"
-          - "  Stage 0 (Network Topology): {{ 'SKIP' if skip_stage0 else 'RUN' }}"
-          - "  Stage 1 (Security Onion):   {{ 'SKIP' if skip_stage1 else 'RUN' }}"
-          - "  Stage 2 (Student Envs):     {{ 'SKIP' if skip_stage2 else 'RUN' }}"
+          - "This playbook will execute the following stages in sequence:"
+          - "  1. Stage 0: Network Topology and VM Template Preparation"
+          - "  2. Stage 1: Security Onion Deployment and Configuration"
+          - "  3. Stage 2: Student Environment Deployment and Configuration"
           - ""
 
     ###########################################################################
     # STAGE 0: Network Topology and VM Template Preparation
     ###########################################################################
     - name: "Execute Stage 0 - Network Topology Setup"
-      when: not skip_stage0
       block:
         - name: Display Stage 0 start
           debug:
@@ -60,7 +55,6 @@
     # STAGE 1: Security Onion Deployment and Configuration
     ###########################################################################
     - name: "Execute Stage 1 - Security Onion Deployment"
-      when: not skip_stage1
       block:
         - name: Display Stage 1 start
           debug:
@@ -77,7 +71,6 @@
     # STAGE 2: Student Environment Deployment
     ###########################################################################
     - name: "Execute Stage 2 - Student Environment Deployment"
-      when: not skip_stage2
       block:
         - name: Display Stage 2 start
           debug:
