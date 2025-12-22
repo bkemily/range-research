@@ -124,15 +124,52 @@
 ###############################################################################
 - name: "Experiment Complete"
   hosts: localhost
-  gather_facts: no
+  gather_facts: yes
   tasks:
-    - name: Display final summary
+    - name: Record experiment end time
+      ansible.builtin.set_fact:
+        experiment_end_time: "{{ ansible_date_time.iso8601 }}"
+        experiment_end_epoch: "{{ ansible_date_time.epoch }}"
+
+    - name: Calculate actual experiment duration
+      set_fact:
+        actual_duration_seconds: "{{ experiment_end_epoch | int - hostvars['localhost']['campaign_start_epoch'] | default(experiment_end_epoch) | int }}"
+        actual_duration_hours: "{{ ((experiment_end_epoch | int - hostvars['localhost']['campaign_start_epoch'] | default(experiment_end_epoch) | int) / 3600) | round(2) }}"
+      when: hostvars['localhost']['campaign_start_epoch'] is defined
+
+    - name: Display detailed experiment summary
       debug:
         msg:
           - ""
           - "╔══════════════════════════════════════════════════════════════════╗"
           - "║              EXPERIMENT EXECUTION COMPLETE                       ║"
           - "╚══════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "Campaign Information:"
+          - "  Campaign ID: {{ campaign_id | default('N/A') }}"
+          - "  Start Time: {{ hostvars['localhost']['campaign_start_time'] | default('N/A') }}"
+          - "  End Time: {{ experiment_end_time }}"
+          - "  Duration: {{ actual_duration_hours | default('N/A') }} hours"
+          - ""
+          - "Infrastructure Deployed:"
+          - "  Student Groups: {{ max_student_groups | default(0) }}"
+          - "  Total VMs: {{ 3 + (max_student_groups | default(0) | int * 5) }}"
+          - "    - Spark pfSense: 1"
+          - "    - Instructor pfSense: 1"
+          - "    - Instructor Kali: 1"
+          - "    - Student pfSense VMs: {{ max_student_groups | default(0) }}"
+          - "    - Student Kali VMs: {{ max_student_groups | default(0) * 2 }}"
+          - "    - Student Metasploitable VMs: {{ max_student_groups | default(0) * 2 }}"
+          - ""
+          - "Phases Completed:"
+          - "  ✓ Stage 0: Network Topology Setup"
+          - "  ✓ Stage 1: Security Onion Deployment"
+          - "  ✓ Stage 2: Campaign Execution"
+          - "  ✓ Cleanup: VM Teardown"
+          - ""
+          - "Data Collection:"
+          - "  Security Onion data collected and available for analysis"
+          - "  Dataset ready for threat detection research"
           - ""
           - "All stages completed successfully!"
           - ""
