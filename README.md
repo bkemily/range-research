@@ -102,8 +102,8 @@ stage2/
 │       ├── Group[1-N].xml                # Based on max_student_groups
 └── README.md                             # Stage 2 Documentation
 run_full_experiment.yml                   # Full experiment orchestrator
-EXPERIMENT_EXECUTION_GUIDE.md             # Detailed execution guide
-QUICK_REFERENCE.md                        # Quick commands reference
+EXPERIMENT_EXECUTION_GUIDE.md             # Detailed execution guide (future use)
+QUICK_REFERENCE.md                        # Quick commands reference (future use)
 README.md                                 # Full Project Documentation
 ```
 ## Prerequisites
