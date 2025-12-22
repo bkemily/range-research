@@ -8,6 +8,7 @@
 #   - Spark pfSense (VM 50)
 #   - Instructor pfSense (VM 100)
 #   - Instructor Kali (VM 101)
+#   - Instructor Security Onion (VM 109)
 #   - Student Group VMs (5 VMs per group)
 #
 # Does NOT destroy:
@@ -46,7 +47,7 @@
 
   - name: Combine all VM IDs to destroy
     ansible.builtin.set_fact:
-      all_vm_ids: "{{ [vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
+      all_vm_ids: "{{ [vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali, vm_ids.security_onion] + student_vm_ids }}"
 
   - name: Display teardown notice
     ansible.builtin.debug:
@@ -60,6 +61,7 @@
           - Spark pfSense: VM {{ vm_ids.spark_pfsense }}
           - Instructor pfSense: VM {{ vm_ids.instructor_pfsense }}
           - Instructor Kali: VM {{ vm_ids.instructor_kali }}
+          - Instructor Security Onion: VM {{ vm_ids.security_onion }}
 
         Student Groups ({{ max_student_groups }} groups):
           {{ student_vm_ids | sort | join(', ') }}

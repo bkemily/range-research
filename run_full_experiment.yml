@@ -109,7 +109,7 @@
       debug:
         msg: ">>> Starting Cleanup: Experiment Cleanup and Teardown"
 
-#- import_playbook: stage2/teardown.yml
+- import_playbook: stage2/teardown.yml
 
 - name: "Cleanup Complete"
   hosts: localhost
