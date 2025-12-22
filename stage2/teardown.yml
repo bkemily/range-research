@@ -19,7 +19,7 @@
 #   ansible-playbook -i inventory/hosts.yml stage2/teardown.yml -e max_student_groups=5
 #
 # Author: Emily Miller
-# Last Updated: December 15, 2025
+# Last Updated: December 21, 2025
 # ============================================================================
 
 - name: Teardown Stage 2 Infrastructure
