@@ -62,6 +62,7 @@
   - name: Record campaign start time
     ansible.builtin.set_fact:
       campaign_start_time: "{{ ansible_date_time.iso8601 }}"
+      campaign_start_epoch: "{{ ansible_date_time.epoch }}"
 
   - name: Display Phase 2.1 notice
     ansible.builtin.debug:
@@ -179,6 +180,12 @@
   - name: Record campaign end time
     ansible.builtin.set_fact:
       campaign_end_time: "{{ ansible_date_time.iso8601 }}"
+      campaign_end_epoch: "{{ ansible_date_time.epoch }}"
+
+  - name: Calculate actual campaign duration
+    set_fact:
+      actual_duration_seconds: "{{ campaign_end_epoch | int - campaign_start_epoch | int }}"
+      actual_duration_hours: "{{ ((campaign_end_epoch | int - campaign_start_epoch | int) / 3600) | round(2) }}"
 
   - name: Display campaign completion
     ansible.builtin.debug:
@@ -190,7 +197,7 @@
         Campaign ID: {{ campaign_id }}
         Start Time: {{ campaign_start_time }}
         End Time: {{ campaign_end_time }}
-        Duration: {{ campaign_duration_hours }} hours
+        Duration: {{ actual_duration_hours }} hours
         
         Student Groups: {{ max_student_groups }}
         Total VMs Deployed: {{ 3 + (max_student_groups * 5) }}
