@@ -1,14 +1,10 @@
-################################################################################
 # EXPERIMENT EXECUTION GUIDE
-# University of West Florida
-################################################################################
+## University of West Florida
 
 This guide provides comprehensive instructions for executing full cyber range
 experiments using the master orchestration playbook.
 
-================================================================================
-QUICK START
-================================================================================
+# QUICK START
 
 Basic full experiment execution (uses defaults from inventory/hosts.yml):
 
@@ -22,9 +18,7 @@ With custom parameters:
       -e "scenario_type=apt" \
       -e "campaign_duration_hours=24"
 
-================================================================================
-CONFIGURATION PARAMETERS
-================================================================================
+# CONFIGURATION PARAMETERS
 
 All parameters are optional and default to values in inventory/hosts.yml.
 Override any parameter using -e "parameter_name=value"
@@ -60,9 +54,7 @@ campaign_duration_hours (integer: 1-168, optional)
     Example: 24 (for 24-hour campaign)
     Override: -e "campaign_duration_hours=48"
 
-================================================================================
-ADDITIONAL OPTIONAL PARAMETERS
-================================================================================
+## ADDITIONAL OPTIONAL PARAMETERS
 
 start_delay_minutes (integer, default: 60)
     Random delay before attack campaign starts (in minutes).
@@ -80,9 +72,7 @@ attack_distribution (string: uniform|clustered|random, default: uniform)
     
     Example: -e "attack_distribution=clustered"
 
-================================================================================
-EXAMPLE COMMANDS
-================================================================================
+## EXAMPLE COMMANDS
 
 1. SIMPLE RUN - Use all defaults from inventory
    
@@ -129,9 +119,7 @@ EXAMPLE COMMANDS
      -e "campaign_duration_hours=2" \
      -e "start_delay_minutes=10"
 
-================================================================================
-EXECUTION FLOW
-================================================================================
+# EXECUTION FLOW
 
 The playbook executes in this sequence:
 
@@ -169,9 +157,7 @@ The playbook executes in this sequence:
 Note: All variables passed via -e are automatically available to each stage
       playbook. Variables in inventory/hosts.yml serve as defaults.
 
-================================================================================
-OUTPUT FILES
-================================================================================
+# OUTPUT FILES
 
 Experiment outputs are created by individual stage playbooks:
 
@@ -197,9 +183,7 @@ Data can be retrieved from Security Onion after campaign completion.
 Note: The simple orchestration playbook focuses on execution flow.
       Individual stage playbooks handle their own logging and output.
 
-================================================================================
-MONITORING EXECUTION
-================================================================================
+# MONITORING EXECUTION
 
 During execution, monitor progress:
 
@@ -233,11 +217,9 @@ During execution, monitor progress:
    
    This shows Zeek, Suricata, and other service status.
 
-================================================================================
-ERROR HANDLING
-================================================================================
+# ERROR HANDLING
 
-STAGE FAILURES
+## STAGE FAILURES
     If any stage fails, the playbook stops at that point.
     Infrastructure deployed up to the failure point remains.
     
@@ -252,7 +234,7 @@ STAGE FAILURES
     # Teardown Stage 0 (if needed)
     ansible-playbook -i inventory/hosts.yml stage0/teardown_network.yml
 
-NETWORK CONNECTIVITY ISSUES
+## NETWORK CONNECTIVITY ISSUES
     Check Proxmox network bridges:
     
     ip link show | grep vmbr
@@ -261,7 +243,7 @@ NETWORK CONNECTIVITY ISSUES
     
     ssh securityonion@<SO_IP> "ip link show"
 
-PFSENSE CONSOLE LOOP (KNOWN ISSUE)
+## PFSENSE CONSOLE LOOP (KNOWN ISSUE)
     pfSense VMs may boot into setup wizard despite template config.
     
     Workaround:
@@ -271,9 +253,7 @@ PFSENSE CONSOLE LOOP (KNOWN ISSUE)
        - vtnet1 -> LAN
     3. Continue playbook execution
 
-================================================================================
-BEST PRACTICES
-================================================================================
+# BEST PRACTICES
 
 1. START SMALL
    First run: max_student_groups=1, campaign_duration_hours=2
@@ -307,9 +287,7 @@ BEST PRACTICES
    
    Check Zeek and Suricata logs for campaign timeframe
 
-================================================================================
-TROUBLESHOOTING CHECKLIST
-================================================================================
+# TROUBLESHOOTING CHECKLIST
 
 □ Inventory file configured correctly (inventory/hosts.yml)
 □ Proxmox credentials in inventory (ansible_user, ansible_password)
@@ -326,9 +304,7 @@ TROUBLESHOOTING CHECKLIST
 □ Python proxmoxer library installed
 □ SSH access configured for deployed VMs
 
-================================================================================
-SUPPORT AND DOCUMENTATION
-================================================================================
+# SUPPORT AND DOCUMENTATION
 
 For additional help:
 
@@ -347,5 +323,3 @@ For additional help:
 
 5. Check inventory configuration:
    inventory/hosts.yml - Verify all variables are set correctly
-
-================================================================================
