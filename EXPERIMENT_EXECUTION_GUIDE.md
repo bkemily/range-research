@@ -1,4 +1,4 @@
-# EXPERIMENT EXECUTION GUIDE
+# EXPERIMENT EXECUTION GUIDE (In Progress)
 ## University of West Florida
 
 This guide provides comprehensive instructions for executing full cyber range
@@ -29,7 +29,7 @@ campaign_id (string, optional)
     Format: CAMP### or descriptive name
     Example: CAMP001, APT_STUDY_JAN2025, RANSOMWARE_TEST_01
 
-max_student_groups (integer: 1-10, optional)
+max_student_groups (integer: 1-15, optional)
     Number of student groups to deploy.
     Default: Uses value from inventory/hosts.yml
     Each group gets isolated network environment with pfSense, Kali, Metasploitable.
@@ -47,7 +47,7 @@ scenario_type (string: apt|ransomware|insider|recon, optional)
     
     Override: -e "scenario_type=apt"
 
-campaign_duration_hours (integer: 1-168, optional)
+campaign_duration_hours (integer, optional)
     How long to run the attack campaign (in hours).
     Default: Uses value from inventory/hosts.yml or stage2 defaults
     Maximum: 168 hours (1 week)
@@ -56,7 +56,7 @@ campaign_duration_hours (integer: 1-168, optional)
 
 ## ADDITIONAL OPTIONAL PARAMETERS
 
-start_delay_minutes (integer, default: 60)
+start_delay_minutes (integer)
     Random delay before attack campaign starts (in minutes).
     Allows VMs to stabilize and reach steady-state.
     Default: 60 minutes or value from inventory/hosts.yml
@@ -101,11 +101,11 @@ attack_distribution (string: uniform|clustered|random, default: uniform)
    ansible-playbook -i inventory/hosts.yml run_full_experiment.yml \
      -e "max_student_groups=7"
 
-5. MAXIMUM SCALE - 10 Groups, Week-long Campaign
+5. MAXIMUM SCALE - 15 Groups, Week-long Campaign
    
    ansible-playbook -i inventory/hosts.yml run_full_experiment.yml \
      -e "campaign_id=LARGE_SCALE_APT_001" \
-     -e "max_student_groups=10" \
+     -e "max_student_groups=15" \
      -e "scenario_type=apt" \
      -e "campaign_duration_hours=168" \
      -e "attack_distribution=random"
