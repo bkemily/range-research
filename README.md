@@ -143,7 +143,7 @@ ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml
 ```
 ### Detailed Execution Instructions
 
-For comprehensive guidance on running different experiment configurations, troubleshooting, and understanding playbook options, see the **[Experiment Execution Guide]((https://github.com/bkemily/range-research/blob/main/EXPERIMENT_EXECUTION_GUIDE.md))**.
+For comprehensive guidance on running different experiment configurations, troubleshooting, and understanding playbook options, see the **[Experiment Execution Guide](https://github.com/bkemily/range-research/blob/main/EXPERIMENT_EXECUTION_GUIDE.md)**.
 
 The execution guide provides detailed instructions for:
 
