@@ -119,14 +119,14 @@ isos:
 #     204: Ubuntu
 #     205: Windows
 #
-#   Group 2: 211-220
-#     211: pfSense
-#     212: Kali 1
-#     213: Kali 2
-#     214: Ubuntu
-#     215: Windows
+#   Group 2: 301-320
+#     301: pfSense
+#     302: Kali 1
+#     303: Kali 2
+#     304: Ubuntu
+#     305: Windows
 #
-#   Group N: (200 + (N-1)*10 + 1) through (200 + N*10)
+#   Group N: (200 + (N-1)*100 + 1) through (200 + N*100)
 #
 # VM ID Formulas:
 #   Student pfSense:  200 + ((group_id - 1) * 100) + 1
@@ -140,7 +140,7 @@ vm_ids:
   spark_pfsense: 150
   instructor_pfsense: 151
   instructor_kali: 152
-  security_onion: 159
+  security_onion: 109
 
   # Student VM base ID (formulas calculated in Stage 2+)
   student_base: 200
