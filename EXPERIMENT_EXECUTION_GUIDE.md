@@ -1,6 +1,6 @@
 ################################################################################
-# CYBER RANGE EXPERIMENT EXECUTION GUIDE
-# University of West Florida - Cyber War Gaming Course
+# EXPERIMENT EXECUTION GUIDE
+# University of West Florida
 ################################################################################
 
 This guide provides comprehensive instructions for executing full cyber range
