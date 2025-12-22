@@ -22,8 +22,8 @@ Ensure:
 - The user (root@pam) has permission to manage VMs.
 
 ## How to Run
-
+```bash
 ansible-playbook -i inventory.yml run_full_experiment.yml
-
+```
 
 ## Notes & Current Behavior

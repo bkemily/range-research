@@ -96,7 +96,7 @@
   tasks:
     - name: Display Stage 2 completion
       debug:
-        msg: "✓ Stage 2 Complete: Student environments deployed"
+        msg: "✓ Stage 2 Complete: Experiment Complete; Data Ready for Analysis"
 
 ###############################################################################
 # Completion Summary
