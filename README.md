@@ -89,7 +89,7 @@ run_full_experiment.yml                   # Top-level experiment orchestrator
 EXPERIMENT_EXECUTION_GUIDE.md             # Detailed execution guide
 QUICK_REFERENCE.md                        # Quick commands reference
 README.md                                 # Full Project Documentation
-
+```
 ## Prerequisites
 
 ### On the control machine
@@ -99,13 +99,101 @@ Install Ansible and required collections:
 
 ### On the Proxmox node
 Ensure:
-- /mnt/pve/ovfstore/ exists and contains one or more .ovf template files.
-- The control machine can reach Proxmox on port 8006 (for API) and 22 (for SSH).
-- The user (root@pam) has permission to manage VMs.
+- VM templates exist in `/mnt/pve/ovfstore/`:
+  - `pfsense-template.ovf`
+  - `kali-template.ovf`
+  - `metasploitable3-template.ovf`
+  - `security-onion-template.ovf`
+- Control machine can reach Proxmox on port 8006 (API) and 22 (SSH)
+- User credentials (root@pam) have permission to manage VMs
 
 ## How to Run
+
+### Full Experiment
 ```bash
-ansible-playbook -i inventory.yml run_full_experiment.yml
+ansible-playbook -i inventory/hosts.yml run_full_experiment.yml
+```
+
+### Individual Stages
+```bash
+# Stage 0: Configure network topology
+ansible-playbook -i inventory/hosts.yml stage0/stage0_configure_proxmox_network.yml
+
+# Stage 1: Deploy Security Onion monitoring
+ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml
+
+# Stage 2: Deploy infrastructure (currently implemented)
+ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml
 ```
 
 ## Notes & Current Behavior
+### Stage 0: Network Topology Configuration
+**Status:** Fully implemented and operational
+
+Creates the foundational network infrastructure:
+- Configures Proxmox network bridges (vmbr0.68, vmbr51, vmbr255000 series)
+- Validates VM templates in `/mnt/pve/ovfstore/`
+- Sets up VLAN tagging and network segmentation
+
+### Stage 1: Security Onion Bootstrap
+**Status:** Fully implemented and operational
+
+Deploys centralized monitoring infrastructure:
+- Provisions Security Onion VM from template
+- Configures network interfaces for traffic monitoring
+- Validates service health and Zeek workers
+- Prepares for multi-group traffic capture
+
+### Stage 2: Infrastructure Deployment (Phase 2.1)
+**Status:** Partially implemented
+
+#### Currently Working:
+- **Instructor Group Deployment**
+  - Deploys instructor pfSense VM
+  - Assigns network bridges (WAN: vmbr255000, LAN: vmbr51)
+  - Deploys instructor Kali Linux VM with vmbr51 connection
+  
+- **Student Group Deployment** (dynamic based on `max_student_groups`)
+  - Deploys student pfSense VMs for each group (Group 1 through N)
+  - Assigns hierarchical network bridges:
+    - WAN: vmbr51 (connects to instructor pfSense)
+    - LAN: vmbr255001, vmbr255002, ... vmbr25500N
+  - Deploys student Kali Linux VMs (connected to group LAN bridges)
+  - Deploys Metasploitable3 target VMs (connected to group LAN bridges)
+
+#### In Progress:
+- **Phase 2.2:** Network Configuration
+  - Automated pfSense configuration via SSH
+
+#### Pending Implementation:
+- **Phase 2.3:** Attack Activation
+  - Deploy attack scripts to Kali VMs
+  - Configure attack orchestration and timing
+  
+- **Phase 2.4:** Campaign Monitoring
+  - Real-time status checks
+  
+- **Phase 2.5:** Data Collection
+  - PCAP and log retrieval from Security Onion
+  - Dataset labeling and organization
+  
+- **Phase 2.6:** Teardown
+  - Automated VM cleanup
+
+Future stages will include:
+- Campaign variation strategies
+- Seeded randomization for reproducible datasets
+- Multi-modal data collection (PCAP, Zeek logs, Suricata alerts)
+- Automated labeling and metadata generation
+
+## Known Issues & Workarounds
+
+### pfSense Console Setup Wizard
+**Issue:** pfSense VMs boot into initial setup wizard despite template pre-configuration  
+**Impact:** Blocks automated SSH access and network configuration  
+**Current Workaround:** Manual console interaction required to assign interfaces (vtnet0→WAN, vtnet1→LAN)  
+**Future Solution:** Investigating pre-seed configuration methods or API-based initial setup
+
+### Security Onion Interface Bonding
+**Issue:** Bonded interfaces conflict with Zeek worker requirements  
+**Resolution:** Use individual promiscuous mode interfaces instead of bonds
