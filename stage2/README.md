@@ -177,14 +177,14 @@ qm template 9000
 ### Run a Complete Campaign
 
 ```bash
-cd /mnt/ovfstore/cyber-range-automation/stage2
-ansible-playbook -i ../inventory/hosts.yml run_full_campaign.yml
+cd /mnt/ovfstore/cyber-range-automation
+ansible-playbook -i ../inventory/hosts.yml /stage2/run_full_campaign.yml
 ```
 
 With custom parameters:
 
 ```bash
-ansible-playbook -i ../inventory/hosts.yml run_full_campaign.yml \
+ansible-playbook -i ../inventory/hosts.yml /stage2/run_full_campaign.yml \
   -e max_student_groups=10 \
   -e campaign_duration_hours=6 \
   -e campaign_id=exp-2025-001
@@ -195,14 +195,14 @@ ansible-playbook -i ../inventory/hosts.yml run_full_campaign.yml \
 Deploy infrastructure only:
 
 ```bash
-ansible-playbook -i ../inventory/hosts.yml deploy_infrastructure.yml \
+ansible-playbook -i ../inventory/hosts.yml /stage2/deploy_infrastructure.yml \
   -e max_student_groups=5
 ```
 
 Configure network only (requires infrastructure deployed):
 
 ```bash
-ansible-playbook -i ../inventory/hosts.yml configure_network.yml \
+ansible-playbook -i ../inventory/hosts.yml /stage2/configure_network.yml \
   -e max_student_groups=5
 ```
 
@@ -211,7 +211,7 @@ ansible-playbook -i ../inventory/hosts.yml configure_network.yml \
 Destroy all VMs and clean up:
 
 ```bash
-ansible-playbook -i ../inventory/hosts.yml teardown.yml \
+ansible-playbook -i ../inventory/hosts.yml /stage2/teardown.yml \
   -e max_student_groups=10
 ```
 
@@ -273,13 +273,13 @@ qm list | grep -E "50|100|101|201|202|203|204|205"
 
 Expected output for 1 group:
 ```
-50   spark-pfsense              running
-100  instructor-pfsense         running
-101  instructor-kali            running
-201  student-group01-pfsense    running
-202  student-group01-kali1      running
-203  student-group01-kali2      running
-204  student-group01-ms3-ubuntu running
+50   spark-pfsense               running
+100  instructor-pfsense          running
+101  instructor-kali             running
+201  student-group01-pfsense     running
+202  student-group01-kali1       running
+203  student-group01-kali2       running
+204  student-group01-ms3-ubuntu  running
 205  student-group01-ms3-windows running
 ```
 
@@ -309,14 +309,6 @@ ssh kali@143.88.1.10
 ip addr show  # Should have 143.88.1.10
 ```
 
-### Check Attack Status
-
-```bash
-# On Kali VM
-ssh kali@143.88.1.10
-ps aux | grep attack
-# Should show running attack processes
-```
 
 ## Safety Features
 
