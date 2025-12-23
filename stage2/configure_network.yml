@@ -96,7 +96,7 @@
     ansible.builtin.include_tasks: tasks/network/configure_pfsense.yml
     vars:
       vm_name: "Instructor pfSense"
-      group_number: "0"  # Or whatever number instructor should use
+      group_number: "255"  # Using 255 for Instructor group
 
   # ========================================
   # Configure Student pfSense Instances
