@@ -7,13 +7,17 @@
 # Called by: deploy_student_group.yml
 #
 # This task file:
-#   1. Imports Student pfSense OVF from NFS storage
-#   2. Configures VM hardware (memory, CPU, SCSI, BIOS, boot order)
-#   3. Assigns network interfaces:
+#   1. Clones Student pfSense from template (VM 9000)
+#   2. Assigns network interfaces (ONLY changes bridge assignments):
 #      - net0: WAN to Instructor pfSense (vmbr255XXX)
 #      - net1: Student LAN (vmbr00X000)
-#   4. Starts the VM
-#   5. Waits for pfSense to boot
+#   3. Starts the VM
+#   4. Waits for pfSense to boot
+#
+# Template Requirements:
+#   - VM 9000 must have all hardware pre-configured (memory, CPU, BIOS, etc.)
+#   - VM 9000 must have net0 and net1 already configured with virtio
+#   - pfSense setup wizard must be completed in template
 #
 # Required Variables from deploy_student_group.yml:
 #   - group_id: Group number (1-15)
@@ -22,7 +26,7 @@
 #   - group_lan_bridge: LAN bridge name (vmbr00X000)
 #
 # Author: Emily Miller
-# Last Updated: December 16, 2025
+# Last Updated: December 23, 2025
 # ============================================================================
 
 - name: Display Student pfSense deployment notice
@@ -40,10 +44,14 @@
       ========================================
 
 # ========================================
-# Clone OVF Template
+# Clone from Template
 # ========================================
 
 - name: Clone Student pfSense from template for Group {{ group_id }}
+  ansible.builtin.debug:
+    msg: "Cloning VM {{ templates.pfsense_template_id }} → VM {{ group_pfsense_id }}"
+
+- name: Execute clone operation
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
@@ -58,69 +66,21 @@
     msg: "✓ Student pfSense cloned from template (VM {{ group_pfsense_id }})"
 
 # ========================================
-# Configure VM Resources (Memory & CPU)
+# Update Bridge Assignments ONLY
 # ========================================
+# Note: We only change bridge assignments, not interface configuration
+# This prevents pfSense from detecting hardware changes and triggering
+# the setup wizard. The guest OS still sees the same vtnet0/vtnet1 interfaces.
 
-- name: Configure memory and CPU
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --memory {{ pfsense_resources.memory }} --cores {{ pfsense_resources.cores }} --sockets {{ pfsense_resources.sockets }}"
-  register: resources_result
-  changed_when: true
-  failed_when: resources_result.rc != 0
-
-- name: Display resource configuration status
+- name: Display network configuration notice
   ansible.builtin.debug:
-    msg: "✓ Memory: {{ pfsense_resources.memory }} MB, CPU: {{ pfsense_resources.cores }} cores"
+    msg: "Updating bridge assignments (hardware configuration unchanged)"
 
-# ========================================
-# Configure VM Hardware
-# ========================================
-
-- name: Configure SCSI controller and disk
+- name: Assign WAN bridge (connects to Instructor pfSense)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ group_pfsense_id }}-disk-0"
-  register: scsi_result
-  changed_when: true
-  failed_when: scsi_result.rc != 0
-
-- name: Display SCSI configuration status
-  ansible.builtin.debug:
-    msg: "✓ SCSI controller configured"
-
-- name: Configure BIOS
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --bios seabios"
-  register: bios_result
-  changed_when: true
-  failed_when: bios_result.rc != 0
-
-- name: Display BIOS configuration status
-  ansible.builtin.debug:
-    msg: "✓ BIOS set to SeaBIOS"
-
-- name: Configure boot order
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --boot order=scsi0"
-  register: boot_result
-  changed_when: true
-  failed_when: boot_result.rc != 0
-
-- name: Display boot order status
-  ansible.builtin.debug:
-    msg: "✓ Boot order configured (scsi0)"
-
-# ========================================
-# Configure Network Interfaces
-# ========================================
-
-- name: Assign WAN interface to Instructor (net0)
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --net0 virtio,bridge={{ group_wan_bridge }},firewall=1"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ group_pfsense_id }} --net0 virtio,bridge={{ group_wan_bridge }},firewall=1"
   register: net0_result
   changed_when: true
   failed_when: net0_result.rc != 0
@@ -129,10 +89,11 @@
   ansible.builtin.debug:
     msg: "✓ net0 assigned: {{ group_wan_bridge }} (WAN to Instructor)"
 
-- name: Assign Student LAN interface (net1)
+- name: Assign LAN bridge (Student group network)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --net1 virtio,bridge={{ group_lan_bridge }},firewall=1"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ group_pfsense_id }} --net1 virtio,bridge={{ group_lan_bridge }},firewall=1"
   register: net1_result
   changed_when: true
   failed_when: net1_result.rc != 0
@@ -140,15 +101,20 @@
 - name: Display LAN interface assignment
   ansible.builtin.debug:
     msg: "✓ net1 assigned: {{ group_lan_bridge }} (Student LAN)"
-
+  
 # ========================================
 # Start VM
 # ========================================
 
+- name: Display VM start notice
+  ansible.builtin.debug:
+    msg: "Starting Student pfSense VM {{ group_pfsense_id }}"
+
 - name: Start Student pfSense VM
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_pfsense_id }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm start {{ group_pfsense_id }}"
   register: start_result
   changed_when: true
   failed_when: start_result.rc != 0
@@ -169,7 +135,8 @@
 - name: Verify VM is running
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ group_pfsense_id }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm status {{ group_pfsense_id }}"
   register: vm_status
   changed_when: false
   failed_when: "'running' not in vm_status.stdout"
