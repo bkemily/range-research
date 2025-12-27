@@ -79,9 +79,11 @@
 # Deploy Student pfSense
 # ========================================
 
-- name: Deploy Student pfSense for Group {{ group_id }}
-  ansible.builtin.include_tasks: deploy_student_pfsense.yml
-
+#- name: Deploy Student pfSense for Group {{ group_id }}
+  #ansible.builtin.include_tasks: deploy_student_pfsense.yml
+- name: Deploy Student pfSense for Group {{ group_id }} using group-specific template
+  ansible.builtin.include_tasks: "deploy_group{{ '%02d' | format(group_id) }}_pfsense_template.yml"
+  when: group_id <= max_student_groups
 # ========================================
 # Deploy Student Kali VMs
 # ========================================
