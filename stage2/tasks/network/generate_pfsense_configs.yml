@@ -8,7 +8,6 @@
 #   ansible-playbook stage2/tasks/network/generate_pfsense_configs.yml
 #
 # This creates:
-#   - instructor.xml (with 15 OPT interfaces)
 #   - group03.xml through group15.xml (student configs)
 #
 # Author: Emily Miller
@@ -29,10 +28,6 @@
       path: "{{ playbook_dir }}/pfsense_configs/generated"
       state: directory
 
-  - name: Generate Instructor pfSense config
-    ansible.builtin.template:
-      src: "{{ playbook_dir }}/pfsense_configs/instructor-conf.xml.j2"
-      dest: "{{ playbook_dir }}/pfsense_configs/generated/instructor.xml"
     vars:
       max_student_groups: 15
 
@@ -68,7 +63,6 @@
         Location: {{ playbook_dir }}/pfsense_configs/generated/
         
         Files created:
-          - instructor.xml
           - group03.xml through group15.xml
         
         IP Address Summary:
