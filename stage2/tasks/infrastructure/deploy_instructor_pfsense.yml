@@ -7,21 +7,23 @@
 # Called by: deploy_instructor_group.yml
 #
 # This task file:
-#   1. Imports Instructor pfSense OVF from NFS storage
-#   2. Configures VM hardware (memory, CPU, SCSI, BIOS, boot order)
-#   3. Assigns network interfaces:
+#   1. Clones Instructor pfSense from template (VM 9000)
+#   2. Assigns network interfaces (ONLY changes bridge assignments):
 #      - net0: WAN (vmbr51)
 #      - net1: Instructor LAN (vmbr255000)
 #      - net2-net16: OPT interfaces to student group WANs (vmbr255001-vmbr255015)
-#   4. Starts the VM
-#   5. Waits for pfSense to boot
+#   3. Starts the VM
+#   4. Waits for pfSense to boot
+#
+# Template Requirements:
+#   - VM 9000 must have all hardware pre-configured (memory, CPU, BIOS, etc.)
+#   - VM 9000 must have sufficient network interfaces already configured with virtio
+#   - pfSense setup wizard must be completed in template
 #
 # VM Configuration:
-#   - VM ID: 100 (vm_ids.instructor_pfsense)
-#   - Template: TEMPLATE-pfsense-instructor.ovf
+#   - VM ID: 151 (vm_ids.instructor_pfsense)
+#   - Template: VM 9000
 #   - Storage: raid-lvm
-#   - Memory: 2048 MB
-#   - CPU: 2 cores (1 socket)
 #
 # Network Interfaces (total: 2 + max_student_groups):
 #   - net0: vmbr51 (WAN)
@@ -29,7 +31,7 @@
 #   - net2-net16: vmbr255001-vmbr255015 (OPT1-OPT15 to student groups)
 #
 # Author: Emily Miller
-# Last Updated: December 15, 2025
+# Last Updated: December 23, 2025
 # ============================================================================
 
 - name: Display Instructor pfSense deployment notice
@@ -38,7 +40,7 @@
       ========================================
       Deploying Instructor pfSense (VM {{ vm_ids.instructor_pfsense }})
       ========================================
-      Template: {{ templates.pfsense_instructor }}
+      Template: VM {{ templates.pfsense_template_id }}
       Storage: {{ storage }}
       Networks:
         - net0: {{ bridges.instructor_wan }} (WAN)
@@ -48,8 +50,12 @@
       ========================================
 
 # ========================================
-# Clone OVF Template
+# Clone from Template
 # ========================================
+
+- name: Display clone notice
+  ansible.builtin.debug:
+    msg: "Cloning VM {{ templates.pfsense_template_id }} → VM {{ vm_ids.instructor_pfsense }}"
 
 - name: Clone Instructor pfSense from template
   ansible.builtin.command:
@@ -66,69 +72,21 @@
     msg: "✓ Instructor pfSense cloned from template (VM {{ vm_ids.instructor_pfsense }})"
 
 # ========================================
-# Configure VM Resources (Memory & CPU)
+# Update Bridge Assignments ONLY
 # ========================================
+# Note: We only change bridge assignments, not interface configuration
+# This prevents pfSense from detecting hardware changes and triggering
+# the setup wizard. The guest OS still sees the same vtnet interfaces.
 
-- name: Configure memory and CPU
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --memory {{ pfsense_resources.memory }} --cores {{ pfsense_resources.cores }} --sockets {{ pfsense_resources.sockets }}"
-  register: resources_result
-  changed_when: true
-  failed_when: resources_result.rc != 0
-
-- name: Display resource configuration status
+- name: Display network configuration notice
   ansible.builtin.debug:
-    msg: "✓ Memory: {{ pfsense_resources.memory }} MB, CPU: {{ pfsense_resources.cores }} cores ({{ pfsense_resources.sockets }} socket)"
-
-# ========================================
-# Configure VM Hardware
-# ========================================
-
-- name: Configure SCSI controller and disk
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ vm_ids.instructor_pfsense }}-disk-0"
-  register: scsi_result
-  changed_when: true
-  failed_when: scsi_result.rc != 0
-
-- name: Display SCSI configuration status
-  ansible.builtin.debug:
-    msg: "✓ SCSI controller configured"
-
-- name: Configure BIOS
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --bios seabios"
-  register: bios_result
-  changed_when: true
-  failed_when: bios_result.rc != 0
-
-- name: Display BIOS configuration status
-  ansible.builtin.debug:
-    msg: "✓ BIOS set to SeaBIOS"
-
-- name: Configure boot order
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --boot order=scsi0"
-  register: boot_result
-  changed_when: true
-  failed_when: boot_result.rc != 0
-
-- name: Display boot order status
-  ansible.builtin.debug:
-    msg: "✓ Boot order configured (scsi0)"
-
-# ========================================
-# Configure Network Interfaces
-# ========================================
+    msg: "Updating bridge assignments (hardware configuration unchanged)"
 
 - name: Assign WAN interface (net0)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --net0 virtio,bridge={{ bridges.instructor_wan }},firewall=1"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.instructor_pfsense }} --net0 virtio,bridge={{ bridges.instructor_wan }},firewall=1"
   register: net0_result
   changed_when: true
   failed_when: net0_result.rc != 0
@@ -140,7 +98,8 @@
 - name: Assign Instructor LAN interface (net1)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_pfsense }} --net1 virtio,bridge={{ bridges.instructor_lan }},firewall=1"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.instructor_pfsense }} --net1 virtio,bridge={{ bridges.instructor_lan }},firewall=1"
   register: net1_result
   changed_when: true
   failed_when: net1_result.rc != 0
@@ -220,10 +179,15 @@
 # Start VM
 # ========================================
 
+- name: Display VM start notice
+  ansible.builtin.debug:
+    msg: "Starting Instructor pfSense VM {{ vm_ids.instructor_pfsense }}"
+
 - name: Start Instructor pfSense VM
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ vm_ids.instructor_pfsense }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm start {{ vm_ids.instructor_pfsense }}"
   register: start_result
   changed_when: true
   failed_when: start_result.rc != 0
@@ -244,7 +208,8 @@
 - name: Verify VM is running
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ vm_ids.instructor_pfsense }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm status {{ vm_ids.instructor_pfsense }}"
   register: vm_status
   changed_when: false
   failed_when: "'running' not in vm_status.stdout"
