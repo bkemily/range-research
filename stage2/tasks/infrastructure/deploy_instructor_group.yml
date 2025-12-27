@@ -7,12 +7,12 @@
 # Called by: deploy_infrastructure.yml
 #
 # This task file:
-#   1. Deploys Instructor pfSense (VM 100)
-#   2. Deploys Instructor Kali (VM 101)
+#   1. Deploys Instructor pfSense (VM 151)
+#   2. Deploys Instructor Kali (VM 152)
 #
 # Instructor Infrastructure:
-#   - pfSense (VM 100): Gateway/router for instructor network and all student groups
-#   - Kali (VM 101): Instructor workstation for demonstrations and monitoring
+#   - pfSense (VM 151): Gateway/router for instructor network and all student groups
+#   - Kali (VM 152): Instructor workstation for demonstrations and monitoring
 #
 # Note: Security Onion (VM 109) already deployed in Stage 1
 #

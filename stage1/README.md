@@ -75,11 +75,11 @@ stage1/
    - Tests SSH connectivity to Proxmox
    - Generates dynamic bridge list based on `max_student_groups`
    - Verifies all required bridges exist (infrastructure + student groups)
-   - Checks if VM 109 already exists (prevents overwrites)
+   - Checks if VM 159 already exists (prevents overwrites)
    - Verifies Security Onion ISO exists in ISO_Library
 
 3. **Create Security Onion VM**
-   - Creates VM 109 with proper hardware configuration
+   - Creates VM 159 with proper hardware configuration
    - Allocates 32GB RAM, 8 CPU cores, q35 machine type
    - Uses OVMF (UEFI) BIOS instead of legacy SeaBIOS
 
@@ -134,7 +134,7 @@ ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml -
 
 ### Hardware Specifications
 ```yaml
-VM ID: 109
+VM ID: 159
 Name: so-master
 Memory: 32000 MB (31.25 GiB)
 CPUs: 8 cores (1 socket)
@@ -166,14 +166,14 @@ Dynamic based on `max_student_groups`:
 
 ```bash
 # Check VM exists and is running
-ssh root@192.168.68.89 "qm status 109"
+ssh root@192.168.68.89 "qm status 159"
 # Expected: status: running
 
 # View VM configuration
-ssh root@192.168.68.89 "qm config 109"
+ssh root@192.168.68.89 "qm config 159"
 
 # Check network interfaces
-ssh root@192.168.68.89 "qm config 109 | grep net"
+ssh root@192.168.68.89 "qm config 159 | grep net"
 # Should show 6 interfaces for 2 groups, 32 for 15 groups
 ```
 
@@ -181,7 +181,7 @@ ssh root@192.168.68.89 "qm config 109 | grep net"
 
 For `max_student_groups=2`:
 ```bash
-ssh root@192.168.68.89 "qm config 109" | grep "^net"
+ssh root@192.168.68.89 "qm config 159" | grep "^net"
 ```
 
 Expected output:
@@ -196,7 +196,7 @@ net5: virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr002000
 
 ## Safety Features
 
-- **VM Existence Check:** Prevents overwriting existing VM 109
+- **VM Existence Check:** Prevents overwriting existing VM 159
 - **Bridge Verification:** Ensures all required bridges exist before deployment
 - **ISO Verification:** Checks ISO availability (non-fatal warning if check fails)
 - **Idempotent:** Safe to re-run after destroying VM
@@ -208,8 +208,8 @@ If you need to start over:
 
 ```bash
 # Stop and destroy the VM
-ssh root@192.168.68.89 "qm stop 109"
-ssh root@192.168.68.89 "qm destroy 109"
+ssh root@192.168.68.89 "qm stop 159"
+ssh root@192.168.68.89 "qm destroy 159"
 
 # Re-run Stage 1
 cd /opt/cyber-range-automation/stage1
@@ -290,14 +290,14 @@ ssh root@192.168.68.89 "pvesm status"
 **Solution:**
 ```bash
 # Check VM configuration
-ssh root@192.168.68.89 "qm config 109"
+ssh root@192.168.68.89 "qm config 159"
 
 # Check VM status and logs
-ssh root@192.168.68.89 "qm status 109"
-ssh root@192.168.68.89 "qm showcmd 109"
+ssh root@192.168.68.89 "qm status 159"
+ssh root@192.168.68.89 "qm showcmd 159"
 
 # Try starting manually
-ssh root@192.168.68.89 "qm start 109"
+ssh root@192.168.68.89 "qm start 159"
 
 # Check Proxmox logs
 ssh root@192.168.68.89 "journalctl -xe | grep 'qemu\|kvm'"
@@ -310,7 +310,7 @@ ssh root@192.168.68.89 "journalctl -xe | grep 'qemu\|kvm'"
 **Solution:**
 ```bash
 # Check from Proxmox console if VM has correct IP
-# Access Proxmox UI -> VM 109 -> Console
+# Access Proxmox UI -> VM 159 -> Console
 # Login and check: ip addr show
 
 # Verify IP is 143.88.255.9
@@ -326,13 +326,13 @@ ssh analyst@143.88.255.9
 
 After Stage 1 automation completes:
 
-- [ ] VM 109 exists (`qm status 109` shows running)
-- [ ] VM has 32GB RAM (`qm config 109 | grep memory`)
-- [ ] VM has 8 CPU cores (`qm config 109 | grep cores`)
-- [ ] VM has 2TB disk (`qm config 109 | grep scsi0`)
-- [ ] VM has correct number of network interfaces (`qm config 109 | grep -c net`)
-- [ ] ISO is attached (`qm config 109 | grep ide2`)
-- [ ] EFI disk exists (`qm config 109 | grep efidisk0`)
+- [ ] VM 159 exists (`qm status 159` shows running)
+- [ ] VM has 32GB RAM (`qm config 159 | grep memory`)
+- [ ] VM has 8 CPU cores (`qm config 159 | grep cores`)
+- [ ] VM has 2TB disk (`qm config 159 | grep scsi0`)
+- [ ] VM has correct number of network interfaces (`qm config 159 | grep -c net`)
+- [ ] ISO is attached (`qm config 159 | grep ide2`)
+- [ ] EFI disk exists (`qm config 159 | grep efidisk0`)
 - [ ] VM is running and accessible via console
 - [ ] VM boots from ISO and shows Security Onion installer
 

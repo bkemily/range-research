@@ -20,7 +20,7 @@
 #   - All pfSense configurations (interfaces, firewall rules, etc.) must be complete
 #
 # VM Configuration:
-#   - VM ID: 221 (vm_ids.group2_pfsense)
+#   - VM ID: 301 (vm_ids.group2_pfsense)
 #   - Template: Group 2 pfSense template VM
 #   - Storage: raid-lvm
 #

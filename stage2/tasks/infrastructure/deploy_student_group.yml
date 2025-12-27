@@ -16,11 +16,11 @@
 #   - group_id: Student group number (1-15)
 #
 # VM ID Allocation (per group):
-#   - pfSense:  200 + ((group_id - 1) * 10) + 1  (e.g., Group 1 = 201, Group 2 = 211)
-#   - Kali 1:   200 + ((group_id - 1) * 10) + 2  (e.g., Group 1 = 202, Group 2 = 212)
-#   - Kali 2:   200 + ((group_id - 1) * 10) + 3  (e.g., Group 1 = 203, Group 2 = 213)
-#   - Ubuntu:   200 + ((group_id - 1) * 10) + 4  (e.g., Group 1 = 204, Group 2 = 214)
-#   - Windows:  200 + ((group_id - 1) * 10) + 5  (e.g., Group 1 = 205, Group 2 = 215)
+#   - pfSense:  200 + ((group_id - 1) * 100) + 1  (e.g., Group 1 = 201, Group 2 = 301)
+#   - Kali 1:   200 + ((group_id - 1) * 100) + 2  (e.g., Group 1 = 202, Group 2 = 302)
+#   - Kali 2:   200 + ((group_id - 1) * 100) + 3  (e.g., Group 1 = 203, Group 2 = 303)
+#   - Ubuntu:   200 + ((group_id - 1) * 100) + 4  (e.g., Group 1 = 204, Group 2 = 304)
+#   - Windows:  200 + ((group_id - 1) * 100) + 5  (e.g., Group 1 = 205, Group 2 = 305)
 #
 # Network Bridges (per group):
 #   - WAN: vmbr255XXX (e.g., Group 1 = vmbr255001, Group 2 = vmbr255002)

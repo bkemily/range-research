@@ -112,9 +112,9 @@ isos:
 #
 # Infrastructure (IDs 50-199):
 #   50:  Spark pfSense (Internet gateway)
-#   100: Instructor pfSense
-#   101: Instructor Kali
-#   109: Security Onion
+#   151: Instructor pfSense
+#   152: Instructor Kali
+#   159: Security Onion
 #
 # Student Groups (IDs 200+):
 #   Group 1: 201-210
@@ -145,7 +145,7 @@ vm_ids:
   spark_pfsense: 150
   instructor_pfsense: 151
   instructor_kali: 152
-  security_onion: 109
+  security_onion: 159
 
   # Student VM base ID (formulas calculated in Stage 2+)
   student_base: 200
@@ -160,7 +160,7 @@ vm_ids:
 # Will need to change exact location and boot configs later
 
 security_onion:
-  vmid: 109
+  vmid: 159
   name: "so-master"
 
   # ISO-based installation (not OVF)

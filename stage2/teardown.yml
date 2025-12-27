@@ -6,13 +6,13 @@
 #
 # This playbook destroys:
 #   - Spark pfSense (VM 50)
-#   - Instructor pfSense (VM 100)
-#   - Instructor Kali (VM 101)
-#   - Instructor Security Onion (VM 109)
+#   - Instructor pfSense (VM 151)
+#   - Instructor Kali (VM 152)
+#   - Instructor Security Onion (VM 159)
 #   - Student Group VMs (5 VMs per group)
 #
 # Does NOT destroy:
-#   - Security Onion (VM 109) - created in Stage 1
+#   - Security Onion (VM 159) - created in Stage 1
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml stage2/teardown.yml --ask-vault-pass

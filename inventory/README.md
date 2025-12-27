@@ -193,7 +193,7 @@ ip_ranges:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `vm_ids.security_onion` | Security Onion VM ID | `109` |
+| `vm_ids.security_onion` | Security Onion VM ID | `159` |
 | `vm_ids.instructor_pfsense` | Instructor pfSense ID | `100` |
 | `vm_ids.student_pfsense_base` | Student pfSense base ID | `200` |
 
