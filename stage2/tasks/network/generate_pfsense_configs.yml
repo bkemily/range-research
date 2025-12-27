@@ -9,10 +9,10 @@
 #
 # This creates:
 #   - instructor.xml (with 15 OPT interfaces)
-#   - group01.xml through group15.xml (student configs)
+#   - group03.xml through group15.xml (student configs)
 #
 # Author: Emily Miller
-# Last Updated: December 16, 2025
+# Last Updated: December 27, 2025
 # ============================================================================
 
 - name: Generate pfSense Configurations
@@ -36,13 +36,28 @@
     vars:
       max_student_groups: 15
 
-  - name: Generate Student Group configs
+  - name: Generate Student Group configs (3-15)
     ansible.builtin.template:
       src: "{{ playbook_dir }}/pfsense_configs/student-group-XX.xml.j2"
-      dest: "{{ playbook_dir }}/pfsense_configs/generated/Group{{ item }}.xml"  # Changed format
-    loop: "{{ range(1, 16) | list }}"
+      dest: "{{ playbook_dir }}/pfsense_configs/generated/group{{ '%02d' | format(item) }}.xml"
+    loop: "{{ range(3, 16) | list }}"
     vars:
       group_id: "{{ item }}"
+      # IP address calculations based on group number from IP table
+      # Group N: WAN = 143.88.0.(4N-2), Gateway = 143.88.0.(4N-3)
+      wan_ip: "143.88.0.{{ 4 * item - 2 }}"
+      wan_gateway: "143.88.0.{{ 4 * item - 3 }}"
+      wan_subnet: "30"
+      # LAN subnet: 143.88.N.0/24, pfSense LAN IP: 143.88.N.1
+      lan_ip: "143.88.{{ item }}.1"
+      lan_subnet: "24"
+      lan_network: "143.88.{{ item }}.0"
+      # DHCP range: 143.88.N.10 to 143.88.N.50
+      dhcp_start: "143.88.{{ item }}.10"
+      dhcp_end: "143.88.{{ item }}.50"
+      # Syslog server (Security Onion)
+      syslog_server: "143.88.255.1"
+      ntp_server: "0-instructor.uwf.edu"
 
   - name: Display generation complete
     ansible.builtin.debug:
@@ -54,7 +69,14 @@
         
         Files created:
           - instructor.xml
-          - group01.xml through group15.xml
+          - group03.xml through group15.xml
+        
+        IP Address Summary:
+        {% for g in range(3, 16) %}
+          Group {{ '%02d' | format(g) }}:
+            WAN: 143.88.0.{{ 4 * g - 2 }}/30 (GW: 143.88.0.{{ 4 * g - 3 }})
+            LAN: 143.88.{{ g }}.1/24 (DHCP: .10-.50)
+        {% endfor %}
         
         Next steps:
           1. Review the generated XMLs
