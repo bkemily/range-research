@@ -5,7 +5,7 @@
 # Purpose: Generate static XML configs for all pfSense instances
 #
 # Usage:
-#   ansible-playbook stage2/generate_pfsense_configs.yml
+#   ansible-playbook stage2/tasks/network/generate_pfsense_configs.yml
 #
 # This creates:
 #   - instructor.xml (with 15 OPT interfaces)
