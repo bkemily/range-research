@@ -36,7 +36,7 @@
   ansible.builtin.debug:
     msg: |
       ========================================
-      Deploying Group 1 pfSense (VM {{ vm_ids.group1_pfsense }})
+      Deploying Group 1 pfSense (VM {{ group_pfsense_id }})
       ========================================
       Template: VM {{ templates.group1_pfsense_template_id }}
       Storage: {{ storage }}
@@ -51,13 +51,13 @@
 
 - name: Display clone notice
   ansible.builtin.debug:
-    msg: "Cloning VM {{ templates.group1_pfsense_template_id }} → VM {{ vm_ids.group1_pfsense }}"
+    msg: "Cloning VM {{ templates.group1_pfsense_template_id }} → VM {{ group_pfsense_id }}"
 
 - name: Clone Group 1 pfSense from template
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm clone {{ templates.group1_pfsense_template_id }} {{ vm_ids.group1_pfsense }}
+      "qm clone {{ templates.group1_pfsense_template_id }} {{ group_pfsense_id }}
       --name student-group01-pfsense --full"
   register: clone_result
   changed_when: true
@@ -65,7 +65,7 @@
 
 - name: Display clone status
   ansible.builtin.debug:
-    msg: "✓ Group 1 pfSense cloned from template (VM {{ vm_ids.group1_pfsense }})"
+    msg: "✓ Group 1 pfSense cloned from template (VM {{ group_pfsense_id }})"
 
 # ========================================
 # Start VM
@@ -73,20 +73,20 @@
 
 - name: Display VM start notice
   ansible.builtin.debug:
-    msg: "Starting Group 1 pfSense VM {{ vm_ids.group1_pfsense }}"
+    msg: "Starting Group 1 pfSense VM {{ group_pfsense_id }}"
 
 - name: Start Group 1 pfSense VM
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm start {{ vm_ids.group1_pfsense }}"
+      "qm start {{ group_pfsense_id }}"
   register: start_result
   changed_when: true
   failed_when: start_result.rc != 0
 
 - name: Display VM start status
   ansible.builtin.debug:
-    msg: "✓ Group 1 pfSense VM started (VM {{ vm_ids.group1_pfsense }})"
+    msg: "✓ Group 1 pfSense VM started (VM {{ group_pfsense_id }})"
 
 # ========================================
 # Wait for pfSense to Boot
@@ -101,7 +101,7 @@
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm status {{ vm_ids.group1_pfsense }}"
+      "qm status {{ group_pfsense_id }}"
   register: vm_status
   changed_when: false
   failed_when: "'running' not in vm_status.stdout"
@@ -113,7 +113,7 @@
       ✓ Group 1 pfSense Deployment Complete
       ========================================
       Group: 1
-      VM ID: {{ vm_ids.group1_pfsense }}
+      VM ID: {{ group_pfsense_id }}
       Status: {{ vm_status.stdout }}
       WAN: vmbr255001 (net0)
       LAN: vmbr001000 (net1)
