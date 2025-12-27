@@ -1,142 +1,107 @@
 ---
 # ============================================================================
-# Task: Deploy Student pfSense
+# Task: Deploy Group 1 pfSense from Template
 # ============================================================================
-# Purpose: Deploy student pfSense gateway for a specific group
+# Purpose: Deploy Group 1 pfSense gateway from pre-configured template
 #
-# Called by: deploy_student_group.yml
+# Called by: deploy_student_group.yml (when group_id == 1)
 #
 # This task file:
-#   1. Clones Student pfSense from template (VM 9000)
-#   2. Assigns network interfaces (ONLY changes bridge assignments):
-#      - net0: WAN to Instructor pfSense (vmbr255XXX)
-#      - net1: Student LAN (vmbr00X000)
-#   3. Starts the VM
-#   4. Waits for pfSense to boot
+#   1. Clones Group 1 pfSense from its dedicated template
+#   2. Starts the VM
+#   3. Waits for pfSense to boot
 #
 # Template Requirements:
-#   - VM 9000 must have all hardware pre-configured (memory, CPU, BIOS, etc.)
-#   - VM 9000 must have net0 and net1 already configured with virtio
+#   - Template VM must have all hardware pre-configured (memory, CPU, BIOS, etc.)
+#   - Template VM must have network interfaces configured with correct bridges:
+#       * net0: vmbr255001 (WAN to Instructor pfSense OPT1)
+#       * net1: vmbr001000 (Group 1 LAN)
 #   - pfSense setup wizard must be completed in template
+#   - All pfSense configurations (interfaces, firewall rules, etc.) must be complete
 #
-# Required Variables from deploy_student_group.yml:
-#   - group_id: Group number (1-15)
-#   - group_pfsense_id: VM ID for this pfSense
-#   - group_wan_bridge: WAN bridge name (vmbr255XXX)
-#   - group_lan_bridge: LAN bridge name (vmbr00X000)
+# VM Configuration:
+#   - VM ID: 211 (vm_ids.group1_pfsense)
+#   - Template: Group 1 pfSense template VM
+#   - Storage: raid-lvm
+#
+# Network Interfaces:
+#   - net0: vmbr255001 (WAN to Instructor)
+#   - net1: vmbr001000 (Group 1 LAN)
 #
 # Author: Emily Miller
-# Last Updated: December 23, 2025
+# Last Updated: December 27, 2025
 # ============================================================================
 
-- name: Display Student pfSense deployment notice
+- name: Display Group 1 pfSense deployment notice
   ansible.builtin.debug:
     msg: |
       ========================================
-      Deploying Student pfSense for Group {{ group_id }}
+      Deploying Group 1 pfSense (VM {{ vm_ids.group1_pfsense }})
       ========================================
-      VM ID: {{ group_pfsense_id }}
-      Template: {{ templates.pfsense_student }}
+      Template: VM {{ templates.group1_pfsense_template_id }}
       Storage: {{ storage }}
-      Networks:
-        - net0: {{ group_wan_bridge }} (WAN to Instructor)
-        - net1: {{ group_lan_bridge }} (Student LAN)
+      Networks (pre-configured in template):
+        - net0: vmbr255001 (WAN to Instructor)
+        - net1: vmbr001000 (Group 1 LAN)
       ========================================
 
 # ========================================
 # Clone from Template
 # ========================================
 
-- name: Clone Student pfSense from template for Group {{ group_id }}
+- name: Display clone notice
   ansible.builtin.debug:
-    msg: "Cloning VM {{ templates.pfsense_template_id }} → VM {{ group_pfsense_id }}"
+    msg: "Cloning VM {{ templates.group1_pfsense_template_id }} → VM {{ vm_ids.group1_pfsense }}"
 
-- name: Execute clone operation
+- name: Clone Group 1 pfSense from template
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm clone {{ templates.pfsense_template_id }} {{ group_pfsense_id }}
-      --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
+      "qm clone {{ templates.group1_pfsense_template_id }} {{ vm_ids.group1_pfsense }}
+      --name student-group01-pfsense --full"
   register: clone_result
   changed_when: true
   failed_when: clone_result.rc != 0
 
 - name: Display clone status
   ansible.builtin.debug:
-    msg: "✓ Student pfSense cloned from template (VM {{ group_pfsense_id }})"
+    msg: "✓ Group 1 pfSense cloned from template (VM {{ vm_ids.group1_pfsense }})"
 
-# ========================================
-# Update Bridge Assignments ONLY
-# ========================================
-# Note: We only change bridge assignments, not interface configuration
-# This prevents pfSense from detecting hardware changes and triggering
-# the setup wizard. The guest OS still sees the same vtnet0/vtnet1 interfaces.
-
-- name: Display network configuration notice
-  ansible.builtin.debug:
-    msg: "Updating bridge assignments (hardware configuration unchanged)"
-
-- name: Assign WAN bridge (connects to Instructor pfSense)
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ group_pfsense_id }} --net0 virtio,bridge={{ group_wan_bridge }},firewall=1"
-  register: net0_result
-  changed_when: true
-  failed_when: net0_result.rc != 0
-
-- name: Display WAN interface assignment
-  ansible.builtin.debug:
-    msg: "✓ net0 assigned: {{ group_wan_bridge }} (WAN to Instructor)"
-
-- name: Assign LAN bridge (Student group network)
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ group_pfsense_id }} --net1 virtio,bridge={{ group_lan_bridge }},firewall=1"
-  register: net1_result
-  changed_when: true
-  failed_when: net1_result.rc != 0
-
-- name: Display LAN interface assignment
-  ansible.builtin.debug:
-    msg: "✓ net1 assigned: {{ group_lan_bridge }} (Student LAN)"
-  
 # ========================================
 # Start VM
 # ========================================
 
 - name: Display VM start notice
   ansible.builtin.debug:
-    msg: "Starting Student pfSense VM {{ group_pfsense_id }}"
+    msg: "Starting Group 1 pfSense VM {{ vm_ids.group1_pfsense }}"
 
-- name: Start Student pfSense VM
+- name: Start Group 1 pfSense VM
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm start {{ group_pfsense_id }}"
+      "qm start {{ vm_ids.group1_pfsense }}"
   register: start_result
   changed_when: true
   failed_when: start_result.rc != 0
 
 - name: Display VM start status
   ansible.builtin.debug:
-    msg: "✓ Student pfSense VM started (VM {{ group_pfsense_id }})"
+    msg: "✓ Group 1 pfSense VM started (VM {{ vm_ids.group1_pfsense }})"
 
 # ========================================
 # Wait for pfSense to Boot
 # ========================================
 
-- name: Wait for Student pfSense to boot
+- name: Wait for Group 1 pfSense to boot
   ansible.builtin.pause:
     seconds: "{{ automation.pfsense_boot_wait_seconds }}"
-    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Student pfSense to boot..."
+    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Group 1 pfSense to boot..."
 
 - name: Verify VM is running
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm status {{ group_pfsense_id }}"
+      "qm status {{ vm_ids.group1_pfsense }}"
   register: vm_status
   changed_when: false
   failed_when: "'running' not in vm_status.stdout"
@@ -145,11 +110,11 @@
   ansible.builtin.debug:
     msg: |
       ========================================
-      ✓ Student pfSense Deployment Complete
+      ✓ Group 1 pfSense Deployment Complete
       ========================================
-      Group: {{ group_id }}
-      VM ID: {{ group_pfsense_id }}
+      Group: 1
+      VM ID: {{ vm_ids.group1_pfsense }}
       Status: {{ vm_status.stdout }}
-      WAN: {{ group_wan_bridge }} (net0)
-      LAN: {{ group_lan_bridge }} (net1)
+      WAN: vmbr255001 (net0)
+      LAN: vmbr001000 (net1)
       ========================================
