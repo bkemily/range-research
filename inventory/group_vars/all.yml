@@ -6,7 +6,7 @@
 #
 # Usage:
 #   Variables automatically loaded when using:
-#   ansible-playbook -i inventory/hosts.yml playbook.yml
+#   ansible-playbook -i inventory/hosts.yml playbook.yml --ask-vault-pass
 #
 # Override from command line:
 #   -e max_student_groups=15

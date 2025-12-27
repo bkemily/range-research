@@ -8,11 +8,11 @@ experiments using the master orchestration playbook.
 
 Basic full experiment execution (uses defaults from inventory/hosts.yml):
 
-    ansible-playbook -i inventory/hosts.yml run_full_experiment.yml
+    ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass
 
 With custom parameters:
 
-    ansible-playbook -i inventory/hosts.yml run_full_experiment.yml \
+    ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass \
       -e "campaign_id=CAMP001" \
       -e "max_student_groups=3" \
       -e "scenario_type=apt" \
@@ -76,11 +76,11 @@ attack_distribution (string: uniform|clustered|random, default: uniform)
 
 1. SIMPLE RUN - Use all defaults from inventory
    
-   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml
+   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass
 
 2. FULL EXPERIMENT - APT Scenario, 5 Groups, 48 Hours
    
-   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml \
+   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass \
      -e "campaign_id=APT_RESEARCH_001" \
      -e "max_student_groups=5" \
      -e "scenario_type=apt" \
@@ -89,7 +89,7 @@ attack_distribution (string: uniform|clustered|random, default: uniform)
 
 3. QUICK TEST - Ransomware Scenario, 2 Groups, 4 Hours
    
-   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml \
+   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass \
      -e "campaign_id=RANSOMWARE_TEST_01" \
      -e "max_student_groups=2" \
      -e "scenario_type=ransomware" \
@@ -98,12 +98,12 @@ attack_distribution (string: uniform|clustered|random, default: uniform)
 
 4. OVERRIDE STUDENT GROUPS ONLY - Keep other defaults
    
-   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml \
+   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass \
      -e "max_student_groups=7"
 
 5. MAXIMUM SCALE - 15 Groups, Week-long Campaign
    
-   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml \
+   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass \
      -e "campaign_id=LARGE_SCALE_APT_001" \
      -e "max_student_groups=15" \
      -e "scenario_type=apt" \
@@ -112,7 +112,7 @@ attack_distribution (string: uniform|clustered|random, default: uniform)
 
 6. CLASSROOM DEMO - Quick insider threat demo
    
-   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml \
+   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass \
      -e "campaign_id=CLASS_DEMO_INSIDER" \
      -e "max_student_groups=1" \
      -e "scenario_type=insider" \
@@ -226,13 +226,13 @@ During execution, monitor progress:
     To clean up after a failure, run teardown playbooks manually:
     
     # Teardown Stage 2 (if it was running)
-    ansible-playbook -i inventory/hosts.yml stage2/teardown_campaign.yml
+    ansible-playbook -i inventory/hosts.yml stage2/teardown_campaign.yml --ask-vault-pass
     
     # Teardown Stage 1 (if needed)
-    ansible-playbook -i inventory/hosts.yml stage1/teardown_security_onion.yml
+    ansible-playbook -i inventory/hosts.yml stage1/teardown_security_onion.yml --ask-vault-pass
     
     # Teardown Stage 0 (if needed)
-    ansible-playbook -i inventory/hosts.yml stage0/teardown_network.yml
+    ansible-playbook -i inventory/hosts.yml stage0/teardown_network.yml --ask-vault-pass
 
 ## NETWORK CONNECTIVITY ISSUES
     Check Proxmox network bridges:

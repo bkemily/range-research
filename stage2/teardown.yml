@@ -15,8 +15,8 @@
 #   - Security Onion (VM 109) - created in Stage 1
 #
 # Usage:
-#   ansible-playbook -i inventory/hosts.yml stage2/teardown.yml
-#   ansible-playbook -i inventory/hosts.yml stage2/teardown.yml -e max_student_groups=5
+#   ansible-playbook -i inventory/hosts.yml stage2/teardown.yml --ask-vault-pass
+#   ansible-playbook -i inventory/hosts.yml stage2/teardown.yml --ask-vault-pass -e max_student_groups=5
 #
 # Author: Emily Miller
 # Last Updated: December 21, 2025

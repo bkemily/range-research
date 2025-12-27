@@ -127,19 +127,19 @@ Ensure:
 
 ### Full Experiment
 ```bash
-ansible-playbook -i inventory/hosts.yml run_full_experiment.yml
+ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass
 ```
 
 ### Individual Stages
 ```bash
 # Stage 0: Configure network topology
-ansible-playbook -i inventory/hosts.yml stage0/stage0_configure_proxmox_network.yml
+ansible-playbook -i inventory/hosts.yml stage0/stage0_configure_proxmox_network.yml --ask-vault-pass
 
 # Stage 1: Deploy Security Onion monitoring
-ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml
+ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml --ask-vault-pass
 
 # Stage 2: Deploy infrastructure (currently implemented)
-ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml
+ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml --ask-vault-pass
 ```
 ### Detailed Execution Instructions
 

@@ -88,8 +88,8 @@ ansible group1 -i inventory/hosts.yml -m ping
 
 ```bash
 # Use the inventory with any playbook
-ansible-playbook -i inventory/hosts.yml stage0/stage0_configure_proxmox_network.yml
-ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml
+ansible-playbook -i inventory/hosts.yml stage0/stage0_configure_proxmox_network.yml --ask-vault-pass
+ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml --ask-vault-pass
 ```
 
 ## Customization
@@ -206,7 +206,7 @@ The following variables contain sensitive information:
 - `proxmox_api_token_secret` - Proxmox API token
 - `pfsense.default_password` - pfSense admin password
 
-**Recommendations:**
+**What We Use:**
 
 1. **Use Ansible Vault for production:**
    ```bash
@@ -217,30 +217,13 @@ The following variables contain sensitive information:
    ansible-playbook -i inventory/hosts.yml playbook.yml --ask-vault-pass
    ```
 
-2. **Use environment variables:**
-   ```bash
-   export PROXMOX_TOKEN="your-token"
-   ansible-playbook -i inventory/hosts.yml playbook.yml -e proxmox_api_token_secret="$PROXMOX_TOKEN"
-   ```
-
-3. **Store credentials in separate vault file:**
-   ```yaml
-   # group_vars/vault.yml (encrypted)
-   vault_proxmox_token: "your-secret-token"
-   vault_pfsense_password: "your-password"
-   
-   # group_vars/all.yml (references vault)
-   proxmox_api_token_secret: "{{ vault_proxmox_token }}"
-   pfsense_default_password: "{{ vault_pfsense_password }}"
-   ```
-
 ### Token-based Authentication
 
 The inventory is configured to use Proxmox API tokens (more secure than passwords):
 
 ```yaml
 api_token_id: "ansible-token"
-api_token_secret: "fa4dacce-8bd6-4cc4-a6ae-04369af6600b"
+api_token_secret: {{ vault_proxmox_api_token }}
 ```
 
 **To create a new API token in Proxmox:**

@@ -178,13 +178,13 @@ qm template 9000
 
 ```bash
 cd /mnt/ovfstore/cyber-range-automation
-ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml
+ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml --ask-vault-pass
 ```
 
 With custom parameters:
 
 ```bash
-ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml \
+ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml --ask-vault-pass \
   -e max_student_groups=10 \
   -e campaign_duration_hours=6 \
   -e campaign_id=exp-2025-001
@@ -195,14 +195,14 @@ ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml \
 Deploy infrastructure only:
 
 ```bash
-ansible-playbook -i inventory/hosts.yml stage2/deploy_infrastructure.yml \
+ansible-playbook -i inventory/hosts.yml stage2/deploy_infrastructure.yml --ask-vault-pass \
   -e max_student_groups=5
 ```
 
 Configure network only (requires infrastructure deployed):
 
 ```bash
-ansible-playbook -i inventory/hosts.yml stage2/configure_network.yml \
+ansible-playbook -i inventory/hosts.yml stage2/configure_network.yml --ask-vault-pass \
   -e max_student_groups=5
 ```
 
@@ -211,7 +211,7 @@ ansible-playbook -i inventory/hosts.yml stage2/configure_network.yml \
 Destroy all VMs and clean up:
 
 ```bash
-ansible-playbook -i inventory/hosts.yml stage2/teardown.yml \
+ansible-playbook -i inventory/hosts.yml stage2/teardown.yml --ask-vault-pass \
   -e max_student_groups=10
 ```
 
@@ -361,7 +361,7 @@ ip addr show  # Should have 143.88.1.10
 
 **Solution:**
 ```bash
-ansible-playbook -i inventory/hosts.yml stage2/teardown.yml
+ansible-playbook -i inventory/hosts.yml stage2/teardown.yml --ask-vault-pass
 ```
 
 ### Problem: Attack scripts not starting

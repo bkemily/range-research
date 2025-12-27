@@ -14,7 +14,7 @@
 #   Stage 2: Student environment deployment and configuration
 #
 # Usage:
-#   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml
+#   ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass
 #
 ###############################################################################
 
