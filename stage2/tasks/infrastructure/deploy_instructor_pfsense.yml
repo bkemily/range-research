@@ -1,28 +1,28 @@
 ---
 # ============================================================================
-# Task: Deploy Instructor pfSense
+# Task: Deploy Instructor pfSense from Template
 # ============================================================================
-# Purpose: Deploy instructor pfSense gateway
+# Purpose: Deploy instructor pfSense gateway from pre-configured template
 #
 # Called by: deploy_instructor_group.yml
 #
 # This task file:
-#   1. Clones Instructor pfSense from template (VM 9000)
-#   2. Assigns network interfaces (ONLY changes bridge assignments):
-#      - net0: WAN (vmbr51)
-#      - net1: Instructor LAN (vmbr255000)
-#      - net2-net16: OPT interfaces to student group WANs (vmbr255001-vmbr255015)
-#   3. Starts the VM
-#   4. Waits for pfSense to boot
+#   1. Clones Instructor pfSense from its dedicated template
+#   2. Starts the VM
+#   3. Waits for pfSense to boot
 #
 # Template Requirements:
-#   - VM 9000 must have all hardware pre-configured (memory, CPU, BIOS, etc.)
-#   - VM 9000 must have sufficient network interfaces already configured with virtio
+#   - Template VM must have all hardware pre-configured (memory, CPU, BIOS, etc.)
+#   - Template VM must have all network interfaces configured with correct bridges:
+#       * net0: vmbr51 (WAN)
+#       * net1: vmbr255000 (Instructor LAN)
+#       * net2-net16: vmbr255001-vmbr255015 (OPT1-OPT15 to student groups)
 #   - pfSense setup wizard must be completed in template
+#   - All pfSense configurations (interfaces, firewall rules, etc.) must be complete
 #
 # VM Configuration:
 #   - VM ID: 151 (vm_ids.instructor_pfsense)
-#   - Template: VM 9000
+#   - Template: Instructor pfSense template VM
 #   - Storage: raid-lvm
 #
 # Network Interfaces (total: 2 + max_student_groups):
@@ -31,7 +31,7 @@
 #   - net2-net16: vmbr255001-vmbr255015 (OPT1-OPT15 to student groups)
 #
 # Author: Emily Miller
-# Last Updated: December 23, 2025
+# Last Updated: December 27, 2025
 # ============================================================================
 
 - name: Display Instructor pfSense deployment notice
@@ -40,9 +40,9 @@
       ========================================
       Deploying Instructor pfSense (VM {{ vm_ids.instructor_pfsense }})
       ========================================
-      Template: VM {{ templates.pfsense_template_id }}
+      Template: VM {{ templates.instructor_pfsense_template_id }}
       Storage: {{ storage }}
-      Networks:
+      Networks (pre-configured in template):
         - net0: {{ bridges.instructor_wan }} (WAN)
         - net1: {{ bridges.instructor_lan }} (Instructor LAN)
         - net2-net{{ 1 + max_student_groups }}: Student group WANs ({{ max_student_groups }} groups)
@@ -55,13 +55,13 @@
 
 - name: Display clone notice
   ansible.builtin.debug:
-    msg: "Cloning VM {{ templates.pfsense_template_id }} → VM {{ vm_ids.instructor_pfsense }}"
+    msg: "Cloning VM {{ templates.instructor_pfsense_template_id }} → VM {{ vm_ids.instructor_pfsense }}"
 
 - name: Clone Instructor pfSense from template
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm clone {{ templates.pfsense_template_id }} {{ vm_ids.instructor_pfsense }}
+      "qm clone {{ templates.instructor_pfsense_template_id }} {{ vm_ids.instructor_pfsense }}
       --name instructor-pfsense --full"
   register: clone_result
   changed_when: true
@@ -70,110 +70,6 @@
 - name: Display clone status
   ansible.builtin.debug:
     msg: "✓ Instructor pfSense cloned from template (VM {{ vm_ids.instructor_pfsense }})"
-
-# ========================================
-# Update Bridge Assignments ONLY
-# ========================================
-# Note: We only change bridge assignments, not interface configuration
-# This prevents pfSense from detecting hardware changes and triggering
-# the setup wizard. The guest OS still sees the same vtnet interfaces.
-
-- name: Display network configuration notice
-  ansible.builtin.debug:
-    msg: "Updating bridge assignments (hardware configuration unchanged)"
-
-- name: Assign WAN interface (net0)
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ vm_ids.instructor_pfsense }} --net0 virtio,bridge={{ bridges.instructor_wan }},firewall=1"
-  register: net0_result
-  changed_when: true
-  failed_when: net0_result.rc != 0
-
-- name: Display WAN interface assignment
-  ansible.builtin.debug:
-    msg: "✓ net0 assigned: {{ bridges.instructor_wan }} (WAN)"
-
-- name: Assign Instructor LAN interface (net1)
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ vm_ids.instructor_pfsense }} --net1 virtio,bridge={{ bridges.instructor_lan }},firewall=1"
-  register: net1_result
-  changed_when: true
-  failed_when: net1_result.rc != 0
-
-- name: Display Instructor LAN interface assignment
-  ansible.builtin.debug:
-    msg: "✓ net1 assigned: {{ bridges.instructor_lan }} (Instructor LAN)"
-
-# ========================================
-# Configure Student Group WAN Interfaces (OPT1-OPT15)
-# ========================================
-# Each student group gets an OPT interface on the instructor pfSense
-# These connect instructor pfSense to each student group's pfSense WAN
-#
-# Interface mapping:
-#   net2 = OPT1 = vmbr255001 (Group 1 WAN)
-#   net3 = OPT2 = vmbr255002 (Group 2 WAN)
-#   ...
-#   net16 = OPT15 = vmbr255015 (Group 15 WAN)
-
-- name: Generate student group WAN interface assignments
-  ansible.builtin.set_fact:
-    student_wan_interfaces: "{{ student_wan_interfaces | default([]) + [interface_config] }}"
-  vars:
-    net_id: "net{{ item + 1 }}" # net2, net3, ..., net16 (item is 1-15, +1 makes it 2-16)
-    bridge: "vmbr255{{ '%03d' | format(item) }}" # vmbr255001, vmbr255002, ..., vmbr255015
-    interface_config:
-      net_id: "{{ net_id }}"
-      bridge: "{{ bridge }}"
-      group_id: "{{ item }}"
-      description: "OPT{{ item }} - Group {{ item }} WAN"
-  loop: "{{ range(1, max_student_groups + 1) | list }}"
-
-- name: Display student WAN interfaces to assign
-  ansible.builtin.debug:
-    msg: "Assigning {{ max_student_groups }} student group WAN interfaces (net2-net{{ 1 + max_student_groups }})"
-
-- name: Assign student group WAN interfaces
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ vm_ids.instructor_pfsense }}
-      --{{ item.net_id }} virtio,bridge={{ item.bridge }},firewall=1"
-  loop: "{{ student_wan_interfaces }}"
-  register: student_wan_result
-  changed_when: true
-  failed_when: student_wan_result.rc != 0
-
-- name: Display student WAN interface assignments
-  ansible.builtin.debug:
-    msg: "✓ {{ item.net_id }} assigned: {{ item.bridge }} ({{ item.description }})"
-  loop: "{{ student_wan_interfaces }}"
-
-# ========================================
-# Display Network Configuration Summary
-# ========================================
-
-- name: Display network configuration summary
-  ansible.builtin.debug:
-    msg: |
-      ========================================
-      Network Interfaces Configured
-      ========================================
-      Total: {{ 2 + max_student_groups }} interfaces
-
-      Infrastructure:
-        - net0: {{ bridges.instructor_wan }} (WAN)
-        - net1: {{ bridges.instructor_lan }} (Instructor LAN)
-
-      Student Group WANs (OPT interfaces):
-      {% for interface in student_wan_interfaces %}
-        - {{ interface.net_id }}: {{ interface.bridge }} ({{ interface.description }})
-      {% endfor %}
-      ========================================
 
 # ========================================
 # Start VM
