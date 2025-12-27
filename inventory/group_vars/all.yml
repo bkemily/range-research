@@ -90,6 +90,7 @@ templates:
   pfsense_spark: "/mnt/pve/ovfstore/TEMPLATE-pfsense-student-20250621-Experiment.ovf"
   pfsense_instructor: "/mnt/pve/ovfstore/TEMPLATE-pfsense-student-20250621-Experiment.ovf"
   pfsense_student: "/mnt/pve/ovfstore/TEMPLATE-pfsense-student-20250621-Experiment.ovf"
+  pfsense_template_id: 8000
   instr_pfsense_template_id: 8000
   studentG1_pfsense_template_id: 8001
   studentG2_pfsense_template_id: 8002
