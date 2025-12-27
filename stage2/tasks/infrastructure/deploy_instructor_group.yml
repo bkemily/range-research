@@ -14,7 +14,7 @@
 #   - pfSense (VM 151): Gateway/router for instructor network and all student groups
 #   - Kali (VM 152): Instructor workstation for demonstrations and monitoring
 #
-# Note: Security Onion (VM 109) already deployed in Stage 1
+# Note: Security Onion (VM 159) already deployed in Stage 1
 #
 # Author: Emily Miller
 # Last Updated: December 15, 2025
