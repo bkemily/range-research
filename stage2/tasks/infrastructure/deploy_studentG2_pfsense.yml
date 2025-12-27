@@ -1,48 +1,48 @@
 ---
 # ============================================================================
-# Task: Deploy Group 1 pfSense from Template
+# Task: Deploy Group 2 pfSense from Template
 # ============================================================================
-# Purpose: Deploy Group 1 pfSense gateway from pre-configured template
+# Purpose: Deploy Group 2 pfSense gateway from pre-configured template
 #
-# Called by: deploy_student_group.yml (when group_id == 1)
+# Called by: deploy_student_group.yml (when group_id == 2)
 #
 # This task file:
-#   1. Clones Group 1 pfSense from its dedicated template
+#   1. Clones Group 2 pfSense from its dedicated template
 #   2. Starts the VM
 #   3. Waits for pfSense to boot
 #
 # Template Requirements:
 #   - Template VM must have all hardware pre-configured (memory, CPU, BIOS, etc.)
 #   - Template VM must have network interfaces configured with correct bridges:
-#       * net0: vmbr255001 (WAN to Instructor pfSense OPT1)
-#       * net1: vmbr001000 (Group 1 LAN)
+#       * net0: vmbr255002 (WAN to Instructor pfSense OPT2)
+#       * net1: vmbr002000 (Group 2 LAN)
 #   - pfSense setup wizard must be completed in template
 #   - All pfSense configurations (interfaces, firewall rules, etc.) must be complete
 #
 # VM Configuration:
-#   - VM ID: 211 (vm_ids.group1_pfsense)
-#   - Template: Group 1 pfSense template VM
+#   - VM ID: 221 (vm_ids.group2_pfsense)
+#   - Template: Group 2 pfSense template VM
 #   - Storage: raid-lvm
 #
 # Network Interfaces:
-#   - net0: vmbr255001 (WAN to Instructor)
-#   - net1: vmbr001000 (Group 1 LAN)
+#   - net0: vmbr255002 (WAN to Instructor)
+#   - net1: vmbr002000 (Group 2 LAN)
 #
 # Author: Emily Miller
 # Last Updated: December 27, 2025
 # ============================================================================
 
-- name: Display Group 1 pfSense deployment notice
+- name: Display Group 2 pfSense deployment notice
   ansible.builtin.debug:
     msg: |
       ========================================
-      Deploying Group 1 pfSense (VM {{ vm_ids.group1_pfsense }})
+      Deploying Group 2 pfSense (VM {{ vm_ids.group2_pfsense }})
       ========================================
-      Template: VM {{ templates.group1_pfsense_template_id }}
+      Template: VM {{ templates.group2_pfsense_template_id }}
       Storage: {{ storage }}
       Networks (pre-configured in template):
-        - net0: vmbr255001 (WAN to Instructor)
-        - net1: vmbr001000 (Group 1 LAN)
+        - net0: vmbr255002 (WAN to Instructor)
+        - net1: vmbr002000 (Group 2 LAN)
       ========================================
 
 # ========================================
@@ -51,21 +51,21 @@
 
 - name: Display clone notice
   ansible.builtin.debug:
-    msg: "Cloning VM {{ templates.group1_pfsense_template_id }} → VM {{ vm_ids.group1_pfsense }}"
+    msg: "Cloning VM {{ templates.group2_pfsense_template_id }} → VM {{ vm_ids.group2_pfsense }}"
 
-- name: Clone Group 1 pfSense from template
+- name: Clone Group 2 pfSense from template
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm clone {{ templates.group1_pfsense_template_id }} {{ vm_ids.group1_pfsense }}
-      --name student-group01-pfsense --full"
+      "qm clone {{ templates.group2_pfsense_template_id }} {{ vm_ids.group2_pfsense }}
+      --name student-group02-pfsense --full"
   register: clone_result
   changed_when: true
   failed_when: clone_result.rc != 0
 
 - name: Display clone status
   ansible.builtin.debug:
-    msg: "✓ Group 1 pfSense cloned from template (VM {{ vm_ids.group1_pfsense }})"
+    msg: "✓ Group 2 pfSense cloned from template (VM {{ vm_ids.group2_pfsense }})"
 
 # ========================================
 # Start VM
@@ -73,35 +73,35 @@
 
 - name: Display VM start notice
   ansible.builtin.debug:
-    msg: "Starting Group 1 pfSense VM {{ vm_ids.group1_pfsense }}"
+    msg: "Starting Group 2 pfSense VM {{ vm_ids.group2_pfsense }}"
 
-- name: Start Group 1 pfSense VM
+- name: Start Group 2 pfSense VM
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm start {{ vm_ids.group1_pfsense }}"
+      "qm start {{ vm_ids.group2_pfsense }}"
   register: start_result
   changed_when: true
   failed_when: start_result.rc != 0
 
 - name: Display VM start status
   ansible.builtin.debug:
-    msg: "✓ Group 1 pfSense VM started (VM {{ vm_ids.group1_pfsense }})"
+    msg: "✓ Group 2 pfSense VM started (VM {{ vm_ids.group2_pfsense }})"
 
 # ========================================
 # Wait for pfSense to Boot
 # ========================================
 
-- name: Wait for Group 1 pfSense to boot
+- name: Wait for Group 2 pfSense to boot
   ansible.builtin.pause:
     seconds: "{{ automation.pfsense_boot_wait_seconds }}"
-    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Group 1 pfSense to boot..."
+    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Group 2 pfSense to boot..."
 
 - name: Verify VM is running
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm status {{ vm_ids.group1_pfsense }}"
+      "qm status {{ vm_ids.group2_pfsense }}"
   register: vm_status
   changed_when: false
   failed_when: "'running' not in vm_status.stdout"
@@ -110,11 +110,11 @@
   ansible.builtin.debug:
     msg: |
       ========================================
-      ✓ Group 1 pfSense Deployment Complete
+      ✓ Group 2 pfSense Deployment Complete
       ========================================
-      Group: 1
-      VM ID: {{ vm_ids.group1_pfsense }}
+      Group: 2
+      VM ID: {{ vm_ids.group2_pfsense }}
       Status: {{ vm_status.stdout }}
-      WAN: vmbr255001 (net0)
-      LAN: vmbr001000 (net1)
+      WAN: vmbr255002 (net0)
+      LAN: vmbr002000 (net1)
       ========================================
