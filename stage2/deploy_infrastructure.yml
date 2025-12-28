@@ -57,6 +57,7 @@
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "ls {{ item }}"
     loop:
+    - "{{ templates.car }}"
     - "{{ templates.pfsense_spark }}"
     - "{{ templates.pfsense_instructor }}"
     - "{{ templates.pfsense_student }}"
@@ -87,14 +88,14 @@
 
   - name: Combine infrastructure and student VM IDs
     ansible.builtin.set_fact:
-      vm_ids_to_check: "{{ [vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
+      vm_ids_to_check: "{{ [vm_ids.car, vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
 
   - name: Display VM IDs to check
     ansible.builtin.debug:
       msg: |
         Checking for conflicts with {{ vm_ids_to_check | length }} VMs:
-          Infrastructure: {{ vm_ids.spark_pfsense }}, {{ vm_ids.instructor_pfsense }}, {{ vm_ids.instructor_kali }}
-          Student Groups ({{ max_student_groups }} groups): {{ student_vm_ids | sort | join(', ') }}
+        Infrastructure: {{ vm_ids.car }}, {{ vm_ids.spark_pfsense }}, {{ vm_ids.instructor_pfsense }}, {{ vm_ids.instructor_kali }}
+        Student Groups ({{ max_student_groups }} groups): {{ student_vm_ids | sort | join(', ') }}
 
   # Check for conflicts
   - name: Check for existing VMs that would conflict
@@ -131,7 +132,11 @@
         Deploying {{ 3 + (max_student_groups * 5) }} VMs...
         ========================================
 
-  # Deploy Spark pfSense (VM 50)
+    # Deploy CAR Ubuntu
+  - name: Deploy CAR Ubuntu
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_car_vm.yml
+
+  # Deploy Spark pfSense
   - name: Deploy Spark pfSense
     ansible.builtin.include_tasks: tasks/infrastructure/deploy_spark_pfsense.yml
 

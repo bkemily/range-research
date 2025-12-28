@@ -101,6 +101,7 @@ templates:
   ms3_ubuntu: "/mnt/pve/ovfstore/TEMPLATE-ms3ub1404-20250621-Experiment.ovf"
   ms3_windows: "/mnt/pve/ovfstore/imports/virtualbox/box.ovf"
   security_onion: "/mnt/pve/ovfstore/TEMPLATE-so-master-20250621-Experiment.ovf" #need to update this with the correct one
+  car: "/mnt/pve/ovfstore/TEMPLATE-car-20250428.ovf"
 
 # ISO files (for Stage 2+)
 isos:
@@ -143,7 +144,7 @@ isos:
 
 vm_ids:
   # Infrastructure VMs (fixed IDs)
-  car_ubuntu: 110
+  car: 110
   spark_pfsense: 111
   instructor_pfsense: 151
   instructor_kali: 152

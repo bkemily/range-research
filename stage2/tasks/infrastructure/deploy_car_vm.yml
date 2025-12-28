@@ -57,49 +57,99 @@
     ansible.builtin.command:
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --name car"
+        "qm set {{ vm_ids.car }} --name car-ubuntu"
     changed_when: true
 
-  - name: Configure network interface
+  - name: Configure network interfaces
     ansible.builtin.command:
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --net0 virtio,bridge={{ bridges.management }},firewall=1"
+        "qm set {{ vm_ids.car }} 
+        --net0 e1000=BC:24:11:F4:E6:4D,bridge=vmbr50,firewall=1
+        --net1 e1000=BC:24:11:63:45:81,bridge=vmbr255000,firewall=1"
     changed_when: true
 
-  - name: Set memory (adjust as needed)
+  - name: Set memory to 8GB
     ansible.builtin.command:
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --memory {{ vm_specs.car.memory | default(4096) }}"
+        "qm set {{ vm_ids.car }} --memory 8192"
     changed_when: true
-    when: vm_specs.car.memory is defined
 
-  - name: Set CPU cores (adjust as needed)
+  - name: Set CPU to 4 cores
     ansible.builtin.command:
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --cores {{ vm_specs.car.cores | default(2) }}"
+        "qm set {{ vm_ids.car }} --cores 4 --sockets 1"
     changed_when: true
-    when: vm_specs.car.cores is defined
 
-  - name: Enable QEMU Guest Agent
+  - name: Set BIOS to OVMF (UEFI)
     ansible.builtin.command:
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --agent enabled=1"
+        "qm set {{ vm_ids.car }} --bios ovmf"
     changed_when: true
 
-  - name: Set boot order
+  - name: Set machine type to i440fx
     ansible.builtin.command:
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --boot order=scsi0"
+        "qm set {{ vm_ids.car }} --machine i440fx"
+    changed_when: true
+
+  - name: Set SCSI controller to LSI 53C895A
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --scsihw lsi"
+    changed_when: true
+
+  - name: Disable QEMU Guest Agent (as per template)
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --agent enabled=0"
+    changed_when: true
+
+  - name: Set boot order to sata0
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --boot order=sata0"
+    changed_when: true
+
+  - name: Disable start at boot
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --onboot 0"
+    changed_when: true
+
+  - name: Set OS type to other
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --ostype other"
+    changed_when: true
+
+  - name: Enable tablet pointer
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --tablet 1"
     changed_when: true
 
   - name: Display configuration status
     ansible.builtin.debug:
-      msg: "✓ CAR VM configured"
+      msg: |
+        ✓ CAR VM configured with template specifications:
+          - Memory: 8GB
+          - CPU: 4 cores (1 socket)
+          - BIOS: OVMF (UEFI)
+          - Machine: i440fx
+          - SCSI: LSI 53C895A
+          - Network: e1000 on vmbr50 and vmbr255000
+          - Boot: sata0
 
   # ========================================
   # Start VM
@@ -149,11 +199,23 @@
         VM ID: {{ vm_ids.car }}
         Name: car
         Status: {{ vm_status.stdout }}
-        Network: {{ bridges.management }}
-        Storage: {{ storage }}
+        
+        Hardware Configuration:
+          Memory: 8GB
+          CPU: 4 cores (1 socket)
+          BIOS: OVMF (UEFI)
+          Machine: i440fx
+          SCSI Controller: LSI 53C895A
+        
+        Network Configuration:
+          net0: e1000, vmbr50 (SPARK WAN)
+          net1: e1000, vmbr255000 (Instructor LAN)
+        
+        Storage:
+          Hard Disk: sata0 (32GB)
+          EFI Disk: 4MB
         
         Next Steps:
           1. Access VM console to verify boot
-          2. Configure network settings if needed
-          3. Verify CAR services are running
+          2. Verify network connectivity
         ========================================
