@@ -104,7 +104,7 @@
   # Create Improved Expect Script
   # ========================================
 
-  - name: Create expect script for setup wizard automation
+  - name: Create expect script locally
     ansible.builtin.copy:
       content: |
         #!/usr/bin/expect -f
@@ -115,7 +115,7 @@
         log_user 1
         
         puts "Connecting to VM console..."
-        spawn ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} qm terminal $vmid
+        spawn qm terminal $vmid
         
         # Wait for VLAN prompt
         puts "Waiting for VLAN setup prompt..."
@@ -205,7 +205,15 @@
         exit 0
       dest: /tmp/pfsense_setup_{{ group_pfsense_id }}.exp
       mode: '0755'
-    delegate_to: "{{ proxmox_host }}"
+
+  - name: Copy expect script to Proxmox host
+    ansible.builtin.command:
+      cmd: >
+        scp {{ ssh.common_args }} /tmp/pfsense_setup_{{ group_pfsense_id }}.exp 
+        {{ proxmox_user }}@{{ proxmox_host }}:/tmp/
+    register: scp_result
+    changed_when: true
+    failed_when: scp_result.rc != 0
 
   # ========================================
   # Execute Expect Script
@@ -231,7 +239,14 @@
         Errors (if any):
         {{ expect_result.stderr }}
 
-  - name: Cleanup expect script
+  - name: Cleanup local expect script
+    ansible.builtin.file:
+      path: /tmp/pfsense_setup_{{ group_pfsense_id }}.exp
+      state: absent
+    changed_when: false
+    failed_when: false
+
+  - name: Cleanup remote expect script
     ansible.builtin.command:
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
