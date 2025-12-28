@@ -1,0 +1,159 @@
+---
+# ============================================================================
+# Playbook: Deploy CAR VM from OVF
+# ============================================================================
+# Purpose: Deploy CAR (Cyber Analytics Repository) VM from OVF template
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml deploy_car_vm.yml --ask-vault-pass
+#
+# The CAR VM is deployed from an OVF file stored in the main NFS storage
+# location (same location as other OVF templates like Kali, MS3, etc.)
+#
+# Author: Emily Miller
+# Last Updated: December 28, 2025
+# ============================================================================
+
+- name: Deploy CAR VM from OVF
+  hosts: localhost
+  gather_facts: false
+  
+  tasks:
+
+  - name: Display CAR VM deployment notice
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Deploying CAR VM
+        ========================================
+        VM ID: {{ vm_ids.car }}
+        Storage: {{ storage }}
+        OVF Location: {{ nfs_ovf_path }}/car.ovf
+        Network: {{ bridges.management }}
+        ========================================
+
+  # ========================================
+  # Import OVF to Create VM
+  # ========================================
+
+  - name: Import CAR OVF to create VM
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm importovf {{ vm_ids.car }} {{ nfs_ovf_path }}/car.ovf {{ storage }}"
+    register: import_result
+    changed_when: true
+    failed_when: import_result.rc != 0
+
+  - name: Display import status
+    ansible.builtin.debug:
+      msg: "✓ CAR OVF imported successfully (VM {{ vm_ids.car }})"
+
+  # ========================================
+  # Configure VM Settings
+  # ========================================
+
+  - name: Set VM name
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --name car"
+    changed_when: true
+
+  - name: Configure network interface
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --net0 virtio,bridge={{ bridges.management }},firewall=1"
+    changed_when: true
+
+  - name: Set memory (adjust as needed)
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --memory {{ vm_specs.car.memory | default(4096) }}"
+    changed_when: true
+    when: vm_specs.car.memory is defined
+
+  - name: Set CPU cores (adjust as needed)
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --cores {{ vm_specs.car.cores | default(2) }}"
+    changed_when: true
+    when: vm_specs.car.cores is defined
+
+  - name: Enable QEMU Guest Agent
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --agent enabled=1"
+    changed_when: true
+
+  - name: Set boot order
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ vm_ids.car }} --boot order=scsi0"
+    changed_when: true
+
+  - name: Display configuration status
+    ansible.builtin.debug:
+      msg: "✓ CAR VM configured"
+
+  # ========================================
+  # Start VM
+  # ========================================
+
+  - name: Start CAR VM
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm start {{ vm_ids.car }}"
+    register: start_result
+    changed_when: true
+    failed_when: start_result.rc != 0
+
+  - name: Display VM start status
+    ansible.builtin.debug:
+      msg: "✓ CAR VM started (VM {{ vm_ids.car }})"
+
+  # ========================================
+  # Wait for Boot
+  # ========================================
+
+  - name: Wait for CAR VM to boot
+    ansible.builtin.pause:
+      seconds: "{{ automation.vm_boot_wait_seconds | default(30) }}"
+      prompt: "Waiting {{ automation.vm_boot_wait_seconds | default(30) }} seconds for CAR VM to boot..."
+
+  - name: Verify VM is running
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm status {{ vm_ids.car }}"
+    register: vm_status
+    changed_when: false
+    failed_when: "'running' not in vm_status.stdout"
+
+  # ========================================
+  # Display Completion
+  # ========================================
+
+  - name: Display deployment completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ CAR VM Deployment Complete
+        ========================================
+        VM ID: {{ vm_ids.car }}
+        Name: car
+        Status: {{ vm_status.stdout }}
+        Network: {{ bridges.management }}
+        Storage: {{ storage }}
+        
+        Next Steps:
+          1. Access VM console to verify boot
+          2. Configure network settings if needed
+          3. Verify CAR services are running
+        ========================================
