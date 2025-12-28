@@ -97,7 +97,7 @@
         "qm config {{ group_pfsense_id }} | grep '^net0:'"
     register: net0_config
     changed_when: false
-    when: group_id > 1
+    when: (group_id | int) > 1
 
   - name: Get current net1 configuration for Groups 2+
     ansible.builtin.command:
@@ -106,13 +106,13 @@
         "qm config {{ group_pfsense_id }} | grep '^net1:'"
     register: net1_config
     changed_when: false
-    when: group_id > 1
+    when: (group_id | int) > 1
 
   - name: Extract MAC addresses for VLAN update
     ansible.builtin.set_fact:
       net0_mac: "{{ net0_config.stdout | regex_search('virtio=([^,]+)', '\\1') | first }}"
       net1_mac: "{{ net1_config.stdout | regex_search('virtio=([^,]+)', '\\1') | first }}"
-    when: group_id > 1
+    when: (group_id | int) > 1
 
   - name: Display VLAN configuration notice for Groups 2+
     ansible.builtin.debug:
@@ -121,7 +121,7 @@
           - Preserving MAC addresses: {{ net0_mac }}, {{ net1_mac }}
           - Keeping bridges: vmbr255, vmbr100 (NO CHANGE)
           - Updating VLAN tags: 1 → {{ group_id }}
-    when: group_id > 1
+    when: (group_id | int) > 1
 
   - name: Update WAN VLAN tag to {{ group_id }} (bridge stays vmbr255)
     ansible.builtin.command:
@@ -132,7 +132,7 @@
     register: net0_result
     changed_when: true
     failed_when: net0_result.rc != 0
-    when: group_id > 1
+    when: (group_id | int) > 1
 
   - name: Update LAN VLAN tag to {{ group_id }} (bridge stays vmbr100)
     ansible.builtin.command:
@@ -143,7 +143,7 @@
     register: net1_result
     changed_when: true
     failed_when: net1_result.rc != 0
-    when: group_id > 1
+    when: (group_id | int) > 1
 
   - name: Display VLAN tag update status
     ansible.builtin.debug:
@@ -154,7 +154,7 @@
           
         Critical: Bridges unchanged (vmbr255, vmbr100)
                   Only VLAN tag changed → No hardware change expected
-    when: group_id > 1
+    when: (group_id | int) > 1
 
   - name: Display Group 1 notice (no changes needed)
     ansible.builtin.debug:
@@ -164,7 +164,7 @@
           - LAN: vmbr100, VLAN 1
           
         No modifications needed - template already configured correctly
-    when: group_id == 1
+    when: (group_id | int) == 1
 
   # ========================================
   # Start VM
