@@ -1,0 +1,158 @@
+# ============================================================================
+# Task: Deploy Student pfSense from Template
+# ============================================================================
+# Purpose: Deploy student pfSense gateway from Group 1 template with dynamic bridges
+#
+# Called by: deploy_student_group.yml
+#
+# This task file:
+#   1. Clones Student pfSense from Group 1 template (works for all groups)
+#   2. Updates bridge assignments to match the specific group
+#   3. Starts the VM
+#   4. Waits for pfSense to boot
+#
+# Template Requirements:
+#   - Group 1 pfSense template must exist with proper configuration
+#   - Template must have net0 and net1 configured
+#   - pfSense setup wizard must be completed in template
+#
+# Required Variables from deploy_student_group.yml:
+#   - group_id: Group number (1-15)
+#   - group_pfsense_id: VM ID for this pfSense
+#   - group_wan_bridge: WAN bridge name (vmbr255XXX)
+#   - group_lan_bridge: LAN bridge name (vmbr00X000)
+#
+# Network Interfaces:
+#   - net0: WAN to Instructor pfSense (bridge reassigned per group)
+#   - net1: Student LAN (bridge reassigned per group)
+#
+# Author: Emily Miller
+# Last Updated: December 27, 2025
+# ============================================================================
+
+- name: Display Student pfSense deployment notice for Group {{ group_id }}
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying Group {{ group_id }} pfSense (VM {{ group_pfsense_id }})
+      ========================================
+      Template: VM {{ templates.group1_pfsense_template_id }}
+      Storage: {{ storage }}
+      Networks (will be configured):
+        - net0: {{ group_wan_bridge }} (WAN to Instructor)
+        - net1: {{ group_lan_bridge }} (Group {{ group_id }} LAN)
+      ========================================
+
+# ========================================
+# Clone from Group 1 Template
+# ========================================
+
+- name: Display clone notice
+  ansible.builtin.debug:
+    msg: "Cloning VM {{ templates.group1_pfsense_template_id }} → VM {{ group_pfsense_id }}"
+
+- name: Clone Group {{ group_id }} pfSense from Group 1 template
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm clone {{ templates.group1_pfsense_template_id }} {{ group_pfsense_id }} --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
+  register: clone_result
+  changed_when: true
+  failed_when: clone_result.rc != 0
+
+- name: Display clone status
+  ansible.builtin.debug:
+    msg: "✓ Group {{ group_id }} pfSense cloned from template (VM {{ group_pfsense_id }})"
+
+# ========================================
+# Update Bridge Assignments for This Group
+# ========================================
+# Note: Group 1 template already has correct bridges (vmbr255001, vmbr001000)
+# Only reassign bridges for Groups 2-15
+
+- name: Display network configuration notice
+  ansible.builtin.debug:
+    msg: "Updating bridge assignments for Group {{ group_id }}"
+  when: group_id > 1
+
+- name: Assign WAN bridge for Group {{ group_id }}
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --net0 virtio,bridge={{ group_wan_bridge }},firewall=1"
+  register: net0_result
+  changed_when: true
+  failed_when: net0_result.rc != 0
+  when: group_id > 1
+
+- name: Display WAN interface assignment
+  ansible.builtin.debug:
+    msg: "✓ net0 assigned: {{ group_wan_bridge }} (WAN to Instructor)"
+  when: group_id > 1
+
+- name: Assign LAN bridge for Group {{ group_id }}
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --net1 virtio,bridge={{ group_lan_bridge }},firewall=1"
+  register: net1_result
+  changed_when: true
+  failed_when: net1_result.rc != 0
+  when: group_id > 1
+
+- name: Display LAN interface assignment
+  ansible.builtin.debug:
+    msg: "✓ net1 assigned: {{ group_lan_bridge }} (Group {{ group_id }} LAN)"
+  when: group_id > 1
+
+- name: Display Group 1 bridge notice (using template defaults)
+  ansible.builtin.debug:
+    msg: "✓ Group 1 using template bridges: {{ group_wan_bridge }} (WAN), {{ group_lan_bridge }} (LAN)"
+  when: group_id == 1
+
+# ========================================
+# Start VM
+# ========================================
+
+- name: Display VM start notice
+  ansible.builtin.debug:
+    msg: "Starting Group {{ group_id }} pfSense VM {{ group_pfsense_id }}"
+
+- name: Start Group {{ group_id }} pfSense VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_pfsense_id }}"
+  register: start_result
+  changed_when: true
+  failed_when: start_result.rc != 0
+
+- name: Display VM start status
+  ansible.builtin.debug:
+    msg: "✓ Group {{ group_id }} pfSense VM started (VM {{ group_pfsense_id }})"
+
+# ========================================
+# Wait for pfSense to Boot
+# ========================================
+
+- name: Wait for Group {{ group_id }} pfSense to boot
+  ansible.builtin.pause:
+    seconds: "{{ automation.pfsense_boot_wait_seconds }}"
+    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Group {{ group_id }} pfSense to boot..."
+
+- name: Verify VM is running
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ group_pfsense_id }}"
+  register: vm_status
+  changed_when: false
+  failed_when: "'running' not in vm_status.stdout"
+
+- name: Display deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ Group {{ group_id }} pfSense Deployment Complete
+      ========================================
+      Group: {{ group_id }}
+      VM ID: {{ group_pfsense_id }}
+      Status: {{ vm_status.stdout }}
+      WAN: {{ group_wan_bridge }} (net0)
+      LAN: {{ group_lan_bridge }} (net1)
+      ========================================

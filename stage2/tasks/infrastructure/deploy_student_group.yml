@@ -27,7 +27,7 @@
 #   - LAN: vmbr00X000 (e.g., Group 1 = vmbr001000, Group 2 = vmbr002000)
 #
 # Author: Emily Miller
-# Last Updated: December 16, 2025
+# Last Updated: December 28, 2025
 # ============================================================================
 
 - name: Display Student Group deployment notice
@@ -79,14 +79,15 @@
 # Deploy Student pfSense
 # ========================================
 
-#- name: Deploy Student pfSense for Group {{ group_id }}
-  #ansible.builtin.include_tasks: deploy_student_pfsense.yml
-- name: Deploy Student pfSense for Group {{ group_id }} using group-specific template
-  ansible.builtin.include_tasks: "deploy_studentG{{ '%02d' | format(group_id) }}_pfsense.yml"
+- name: Deploy Student pfSense for Group {{ group_id }}
+  ansible.builtin.include_tasks: deploy_student_pfsense.yml
   when: group_id <= max_student_groups
-# ========================================
-# Deploy Student Kali VMs
-# ========================================
+  #- name: Deploy Student pfSense for Group {{ group_id }} using group-specific template
+  #ansible.builtin.include_tasks: "deploy_studentG{{ '%02d' | format(group_id) }}_pfsense.yml"
+  #when: group_id <= max_student_groups
+  # ========================================
+  # Deploy Student Kali VMs
+  # ========================================
 
 - name: Deploy Student Kali VMs for Group {{ group_id }}
   ansible.builtin.include_tasks: deploy_student_kali.yml
