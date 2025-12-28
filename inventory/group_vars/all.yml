@@ -226,8 +226,8 @@ automation:
   ssh_retry_delay: 10
 
   # Boot wait times
-  vm_boot_wait_seconds: 60
-  pfsense_boot_wait_seconds: 120
+  vm_boot_wait_seconds: 30
+  pfsense_boot_wait_seconds: 60
 
 # ==========================================
 # SSH Configuration
