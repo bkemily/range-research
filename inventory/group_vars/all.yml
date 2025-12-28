@@ -143,7 +143,8 @@ isos:
 
 vm_ids:
   # Infrastructure VMs (fixed IDs)
-  spark_pfsense: 150
+  car_ubuntu: 110
+  spark_pfsense: 111
   instructor_pfsense: 151
   instructor_kali: 152
   security_onion: 159
