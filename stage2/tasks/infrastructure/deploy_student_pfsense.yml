@@ -1,238 +1,267 @@
+---
 # ============================================================================
-# Task: Deploy Student pfSense with Simplified Wizard Automation
+# Playbook: Deploy Student pfSense with Automated Setup Wizard
 # ============================================================================
-# Purpose: Automate the simple pfSense setup wizard (VLAN + interface confirm)
+# Purpose: Deploy a single student pfSense VM with automated wizard completion
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml deploy_student_pfsense_expect.yml \
+#     -e "group_id=2" --ask-vault-pass
 #
 # Setup wizard flow:
 #   1. "Do you want to set up VLANs now?" → n
-#   2. "Enter the WAN interface name" → vtnet0 (or just Enter to accept)
-#   3. "Enter the LAN interface name" → vtnet1 (or just Enter to accept)  
-#   4. "Enter the Optional interface name" → (just Enter for none)
+#   2. "Enter the WAN interface name" → vtnet0
+#   3. "Enter the LAN interface name" → vtnet1
+#   4. "Enter the Optional interface name" → (skip)
 #   5. "Do you want to proceed?" → y
 #
-# This uses expect with generous timeouts and multiple match patterns
-# to handle timing variations during boot.
+# Required Variables (pass with -e):
+#   - group_id: Student group number (1-15)
 #
 # Author: Emily Miller
 # Last Updated: December 27, 2025
 # ============================================================================
 
-- name: Display Student pfSense deployment notice for Group {{ group_id }}
-  ansible.builtin.debug:
-    msg: |
-      ========================================
-      Deploying Group {{ group_id }} pfSense (VM {{ group_pfsense_id }})
-      ========================================
-      Template: VM {{ templates.group1_pfsense_template_id }}
-      Method: Automated wizard (expect script)
-      ========================================
+- name: Deploy Student pfSense with Automated Setup Wizard
+  hosts: localhost
+  gather_facts: false
+  
+  tasks:
 
-# ========================================
-# Clone and Configure
-# ========================================
+  - name: Display Student pfSense deployment notice for Group {{ group_id }}
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Deploying Group {{ group_id }} pfSense (VM {{ group_pfsense_id }})
+        ========================================
+        Template: VM {{ templates.group1_pfsense_template_id }}
+        Method: Automated wizard (expect script)
+        ========================================
 
-- name: Clone Group {{ group_id }} pfSense from Group 1 template
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm clone {{ templates.group1_pfsense_template_id }} {{ group_pfsense_id }}
-      --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
-  register: clone_result
-  changed_when: true
-  failed_when: clone_result.rc != 0
+  # ========================================
+  # Calculate VM IDs and Bridges
+  # ========================================
 
-- name: Assign WAN bridge
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ group_pfsense_id }} --net0 virtio,bridge={{ group_wan_bridge }},firewall=1"
-  changed_when: true
+  - name: Calculate VM IDs and bridges for Group {{ group_id }}
+    ansible.builtin.set_fact:
+      group_pfsense_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 1 }}"
+      group_wan_bridge: "vmbr255{{ '%03d' | format(group_id) }}"
+      group_lan_bridge: "vmbr{{ '%03d' | format(group_id) }}000"
 
-- name: Assign LAN bridge
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ group_pfsense_id }} --net1 virtio,bridge={{ group_lan_bridge }},firewall=1"
-  changed_when: true
+  - name: Display calculated configuration
+    ansible.builtin.debug:
+      msg: |
+        Group {{ group_id }} Configuration:
+          VM ID: {{ group_pfsense_id }}
+          WAN Bridge: {{ group_wan_bridge }}
+          LAN Bridge: {{ group_lan_bridge }}
 
-- name: Start VM
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm start {{ group_pfsense_id }}"
-  changed_when: true
+  # ========================================
+  # Clone and Configure
+  # ========================================
 
-- name: Wait for initial boot
-  ansible.builtin.pause:
-    seconds: 45
-    prompt: "Waiting 45 seconds for pfSense to start booting..."
+  - name: Clone Group {{ group_id }} pfSense from Group 1 template
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm clone {{ templates.group1_pfsense_template_id }} {{ group_pfsense_id }}
+        --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
+    register: clone_result
+    changed_when: true
+    failed_when: clone_result.rc != 0
 
-# ========================================
-# Create Improved Expect Script
-# ========================================
+  - name: Assign WAN bridge
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ group_pfsense_id }} --net0 virtio,bridge={{ group_wan_bridge }},firewall=1"
+    changed_when: true
 
-- name: Create expect script for setup wizard automation
-  ansible.builtin.copy:
-    content: |
-      #!/usr/bin/expect -f
-      
-      set timeout 180
-      set vmid {{ group_pfsense_id }}
-      
-      log_user 1
-      
-      puts "Connecting to VM console..."
-      spawn ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} qm terminal $vmid
-      
-      # Wait for VLAN prompt
-      puts "Waiting for VLAN setup prompt..."
-      expect {
-        -re "(Do you want to set up VLANs|Should VLANs be set up)" {
-          puts "Found VLAN prompt, sending 'n'"
-          sleep 1
-          send "n\r"
+  - name: Assign LAN bridge
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm set {{ group_pfsense_id }} --net1 virtio,bridge={{ group_lan_bridge }},firewall=1"
+    changed_when: true
+
+  - name: Start VM
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm start {{ group_pfsense_id }}"
+    changed_when: true
+
+  - name: Wait for initial boot
+    ansible.builtin.pause:
+      seconds: 45
+      prompt: "Waiting 45 seconds for pfSense to start booting..."
+
+  # ========================================
+  # Create Improved Expect Script
+  # ========================================
+
+  - name: Create expect script for setup wizard automation
+    ansible.builtin.copy:
+      content: |
+        #!/usr/bin/expect -f
+        
+        set timeout 180
+        set vmid {{ group_pfsense_id }}
+        
+        log_user 1
+        
+        puts "Connecting to VM console..."
+        spawn ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} qm terminal $vmid
+        
+        # Wait for VLAN prompt
+        puts "Waiting for VLAN setup prompt..."
+        expect {
+          -re "(Do you want to set up VLANs|Should VLANs be set up)" {
+            puts "Found VLAN prompt, sending 'n'"
+            sleep 1
+            send "n\r"
+          }
+          timeout {
+            puts "WARNING: Timeout waiting for VLAN prompt"
+          }
         }
-        timeout {
-          puts "WARNING: Timeout waiting for VLAN prompt"
+        
+        # Wait for WAN interface prompt
+        puts "Waiting for WAN interface prompt..."
+        expect {
+          -re "(Enter the WAN interface name|WAN interface)" {
+            puts "Found WAN prompt, accepting default (vtnet0)"
+            sleep 1
+            send "vtnet0\r"
+          }
+          timeout {
+            puts "WARNING: Timeout waiting for WAN prompt"
+          }
         }
-      }
-      
-      # Wait for WAN interface prompt
-      puts "Waiting for WAN interface prompt..."
-      expect {
-        -re "(Enter the WAN interface name|WAN interface)" {
-          puts "Found WAN prompt, accepting default (vtnet0)"
-          sleep 1
-          send "vtnet0\r"
+        
+        # Wait for LAN interface prompt
+        puts "Waiting for LAN interface prompt..."
+        expect {
+          -re "(Enter the LAN interface name|LAN interface)" {
+            puts "Found LAN prompt, accepting default (vtnet1)"
+            sleep 1
+            send "vtnet1\r"
+          }
+          timeout {
+            puts "WARNING: Timeout waiting for LAN prompt"
+          }
         }
-        timeout {
-          puts "WARNING: Timeout waiting for WAN prompt"
+        
+        # Optional interface (just press enter)
+        puts "Waiting for Optional interface prompt..."
+        expect {
+          -re "(Enter the Optional|Optional interface)" {
+            puts "Found Optional prompt, skipping"
+            sleep 1
+            send "\r"
+          }
+          timeout {
+            puts "WARNING: Timeout waiting for Optional prompt (may not appear)"
+          }
         }
-      }
-      
-      # Wait for LAN interface prompt
-      puts "Waiting for LAN interface prompt..."
-      expect {
-        -re "(Enter the LAN interface name|LAN interface)" {
-          puts "Found LAN prompt, accepting default (vtnet1)"
-          sleep 1
-          send "vtnet1\r"
+        
+        # Confirmation
+        puts "Waiting for confirmation prompt..."
+        expect {
+          -re "(Do you want to proceed|Proceed with)" {
+            puts "Found confirmation prompt, sending 'y'"
+            sleep 1
+            send "y\r"
+          }
+          timeout {
+            puts "WARNING: Timeout waiting for confirmation"
+          }
         }
-        timeout {
-          puts "WARNING: Timeout waiting for LAN prompt"
+        
+        # Wait for completion
+        puts "Waiting for setup to complete..."
+        expect {
+          -re "(Press.*ENTER|to continue)" {
+            puts "Setup completed successfully!"
+            sleep 2
+            send "\r"
+          }
+          timeout {
+            puts "WARNING: Timeout waiting for completion message"
+          }
         }
-      }
-      
-      # Optional interface (just press enter)
-      puts "Waiting for Optional interface prompt..."
-      expect {
-        -re "(Enter the Optional|Optional interface)" {
-          puts "Found Optional prompt, skipping"
-          sleep 1
-          send "\r"
-        }
-        timeout {
-          puts "WARNING: Timeout waiting for Optional prompt (may not appear)"
-        }
-      }
-      
-      # Confirmation
-      puts "Waiting for confirmation prompt..."
-      expect {
-        -re "(Do you want to proceed|Proceed with)" {
-          puts "Found confirmation prompt, sending 'y'"
-          sleep 1
-          send "y\r"
-        }
-        timeout {
-          puts "WARNING: Timeout waiting for confirmation"
-        }
-      }
-      
-      # Wait for completion
-      puts "Waiting for setup to complete..."
-      expect {
-        -re "(Press.*ENTER|to continue)" {
-          puts "Setup completed successfully!"
-          sleep 2
-          send "\r"
-        }
-        timeout {
-          puts "WARNING: Timeout waiting for completion message"
-        }
-      }
-      
-      # Exit console (Ctrl+O, then 'q')
-      sleep 2
-      send "\x0f"
-      sleep 1
-      send "q"
-      
-      puts "DONE: Exited console"
-      exit 0
-    dest: /tmp/pfsense_setup_{{ group_pfsense_id }}.exp
-    mode: '0755'
-  delegate_to: "{{ proxmox_host }}"
+        
+        # Exit console (Ctrl+O, then 'q')
+        sleep 2
+        send "\x0f"
+        sleep 1
+        send "q"
+        
+        puts "DONE: Exited console"
+        exit 0
+      dest: /tmp/pfsense_setup_{{ group_pfsense_id }}.exp
+      mode: '0755'
+    delegate_to: "{{ proxmox_host }}"
 
-# ========================================
-# Execute Expect Script
-# ========================================
+  # ========================================
+  # Execute Expect Script
+  # ========================================
 
-- name: Run expect script to complete setup wizard
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "expect /tmp/pfsense_setup_{{ group_pfsense_id }}.exp"
-  register: expect_result
-  changed_when: true
-  failed_when: false
-  async: 300
-  poll: 10
+  - name: Run expect script to complete setup wizard
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "expect /tmp/pfsense_setup_{{ group_pfsense_id }}.exp"
+    register: expect_result
+    changed_when: true
+    failed_when: false
+    async: 300
+    poll: 10
 
-- name: Display expect script output
-  ansible.builtin.debug:
-    msg: |
-      Expect script output:
-      {{ expect_result.stdout }}
-      
-      Errors (if any):
-      {{ expect_result.stderr }}
+  - name: Display expect script output
+    ansible.builtin.debug:
+      msg: |
+        Expect script output:
+        {{ expect_result.stdout }}
+        
+        Errors (if any):
+        {{ expect_result.stderr }}
 
-- name: Cleanup expect script
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "rm -f /tmp/pfsense_setup_{{ group_pfsense_id }}.exp"
-  changed_when: false
-  failed_when: false
+  - name: Cleanup expect script
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "rm -f /tmp/pfsense_setup_{{ group_pfsense_id }}.exp"
+    changed_when: false
+    failed_when: false
 
-# ========================================
-# Verify Completion
-# ========================================
+  # ========================================
+  # Verify Completion
+  # ========================================
 
-- name: Wait for pfSense to stabilize after wizard
-  ansible.builtin.pause:
-    seconds: 30
-    prompt: "Waiting 30 seconds for pfSense to complete initialization..."
+  - name: Wait for pfSense to stabilize after wizard
+    ansible.builtin.pause:
+      seconds: 30
+      prompt: "Waiting 30 seconds for pfSense to complete initialization..."
 
-- name: Verify VM is running
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm status {{ group_pfsense_id }}"
-  register: vm_status
-  changed_when: false
+  - name: Verify VM is running
+    ansible.builtin.command:
+      cmd: >
+        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        "qm status {{ group_pfsense_id }}"
+    register: vm_status
+    changed_when: false
 
-- name: Display deployment completion
-  ansible.builtin.debug:
-    msg: |
-      ========================================
-      ✓ Group {{ group_id }} pfSense Deployment Complete
-      ========================================
-      VM ID: {{ group_pfsense_id }}
-      Status: {{ vm_status.stdout }}
-      WAN: {{ group_wan_bridge }} (vtnet0)
-      LAN: {{ group_lan_bridge }} (vtnet1)
-      
-      Setup wizard: {{ 'Completed via automation' if expect_result.rc == 0 else 'Check console for status' }}
-      ========================================
+  - name: Display deployment completion
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ Group {{ group_id }} pfSense Deployment Complete
+        ========================================
+        VM ID: {{ group_pfsense_id }}
+        Status: {{ vm_status.stdout }}
+        WAN: {{ group_wan_bridge }} (vtnet0)
+        LAN: {{ group_lan_bridge }} (vtnet1)
+        
+        Setup wizard: {{ 'Completed via automation' if expect_result.rc == 0 else 'Check console for status' }}
+        ========================================
