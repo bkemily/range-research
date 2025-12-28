@@ -1,11 +1,10 @@
 ---
 # ============================================================================
-# Playbook: Deploy CAR VM from OVF
+# Task: Deploy CAR VM from OVF
 # ============================================================================
 # Purpose: Deploy CAR (Cyber Analytics Repository) VM from OVF template
 #
-# Usage:
-#   ansible-playbook -i inventory/hosts.yml deploy_car_vm.yml --ask-vault-pass
+# Called by: deploy_infrastructure.yml
 #
 # The CAR VM is deployed from an OVF file stored in the main NFS storage
 # location (same location as other OVF templates like Kali, MS3, etc.)
@@ -14,208 +13,203 @@
 # Last Updated: December 28, 2025
 # ============================================================================
 
-- name: Deploy CAR VM from OVF
-  hosts: localhost
-  gather_facts: false
-  
-  tasks:
+- name: Display CAR VM deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying CAR VM
+      ========================================
+      VM ID: {{ vm_ids.car }}
+      Storage: {{ storage }}
+      OVF Location: {{ nfs_ovf_path }}/car.ovf
+      Network: vmbr50 (SPARK WAN), vmbr255000 (Instructor LAN)
+      ========================================
 
-  - name: Display CAR VM deployment notice
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        Deploying CAR VM
-        ========================================
-        VM ID: {{ vm_ids.car }}
-        Storage: {{ storage }}
-        OVF Location: {{ nfs_ovf_path }}/car.ovf
-        Network: {{ bridges.management }}
-        ========================================
+# ========================================
+# Import OVF to Create VM
+# ========================================
 
-  # ========================================
-  # Import OVF to Create VM
-  # ========================================
+- name: Import CAR OVF to create VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm importovf {{ vm_ids.car }} {{ nfs_ovf_path }}/car.ovf {{ storage }}"
+  register: import_result
+  changed_when: true
+  failed_when: import_result.rc != 0
 
-  - name: Import CAR OVF to create VM
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm importovf {{ vm_ids.car }} {{ nfs_ovf_path }}/car.ovf {{ storage }}"
-    register: import_result
-    changed_when: true
-    failed_when: import_result.rc != 0
+- name: Display import status
+  ansible.builtin.debug:
+    msg: "✓ CAR OVF imported successfully (VM {{ vm_ids.car }})"
 
-  - name: Display import status
-    ansible.builtin.debug:
-      msg: "✓ CAR OVF imported successfully (VM {{ vm_ids.car }})"
+# ========================================
+# Configure VM Settings
+# ========================================
 
-  # ========================================
-  # Configure VM Settings
-  # ========================================
+- name: Set VM name
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --name car"
+  changed_when: true
 
-  - name: Set VM name
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --name car-ubuntu"
-    changed_when: true
+- name: Configure network interfaces
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} 
+      --net0 e1000=BC:24:11:F4:E6:4D,bridge=vmbr50,firewall=1
+      --net1 e1000=BC:24:11:63:45:81,bridge=vmbr255000,firewall=1"
+  changed_when: true
 
-  - name: Configure network interfaces
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} 
-        --net0 e1000=BC:24:11:F4:E6:4D,bridge=vmbr50,firewall=1
-        --net1 e1000=BC:24:11:63:45:81,bridge=vmbr255000,firewall=1"
-    changed_when: true
+- name: Set memory to 8GB
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --memory 8192"
+  changed_when: true
 
-  - name: Set memory to 8GB
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --memory 8192"
-    changed_when: true
+- name: Set CPU to 4 cores
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --cores 4 --sockets 1"
+  changed_when: true
 
-  - name: Set CPU to 4 cores
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --cores 4 --sockets 1"
-    changed_when: true
+- name: Set BIOS to OVMF (UEFI)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --bios ovmf"
+  changed_when: true
 
-  - name: Set BIOS to OVMF (UEFI)
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --bios ovmf"
-    changed_when: true
+- name: Set machine type to i440fx
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --machine i440fx"
+  changed_when: true
 
-  - name: Set machine type to i440fx
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --machine i440fx"
-    changed_when: true
+- name: Set SCSI controller to LSI 53C895A
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --scsihw lsi"
+  changed_when: true
 
-  - name: Set SCSI controller to LSI 53C895A
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --scsihw lsi"
-    changed_when: true
+- name: Disable QEMU Guest Agent (as per template)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --agent enabled=0"
+  changed_when: true
 
-  - name: Disable QEMU Guest Agent (as per template)
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --agent enabled=0"
-    changed_when: true
+- name: Set boot order to sata0
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --boot order=sata0"
+  changed_when: true
 
-  - name: Set boot order to sata0
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --boot order=sata0"
-    changed_when: true
+- name: Disable start at boot
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --onboot 0"
+  changed_when: true
 
-  - name: Disable start at boot
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --onboot 0"
-    changed_when: true
+- name: Set OS type to other
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --ostype other"
+  changed_when: true
 
-  - name: Set OS type to other
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --ostype other"
-    changed_when: true
+- name: Enable tablet pointer
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --tablet 1"
+  changed_when: true
 
-  - name: Enable tablet pointer
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ vm_ids.car }} --tablet 1"
-    changed_when: true
+- name: Display configuration status
+  ansible.builtin.debug:
+    msg: |
+      ✓ CAR VM configured with template specifications:
+        - Memory: 8GB
+        - CPU: 4 cores (1 socket)
+        - BIOS: OVMF (UEFI)
+        - Machine: i440fx
+        - SCSI: LSI 53C895A
+        - Network: e1000 on vmbr50 and vmbr255000
+        - Boot: sata0
 
-  - name: Display configuration status
-    ansible.builtin.debug:
-      msg: |
-        ✓ CAR VM configured with template specifications:
-          - Memory: 8GB
-          - CPU: 4 cores (1 socket)
-          - BIOS: OVMF (UEFI)
-          - Machine: i440fx
-          - SCSI: LSI 53C895A
-          - Network: e1000 on vmbr50 and vmbr255000
-          - Boot: sata0
+# ========================================
+# Start VM
+# ========================================
 
-  # ========================================
-  # Start VM
-  # ========================================
+- name: Start CAR VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm start {{ vm_ids.car }}"
+  register: start_result
+  changed_when: true
+  failed_when: start_result.rc != 0
 
-  - name: Start CAR VM
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm start {{ vm_ids.car }}"
-    register: start_result
-    changed_when: true
-    failed_when: start_result.rc != 0
+- name: Display VM start status
+  ansible.builtin.debug:
+    msg: "✓ CAR VM started (VM {{ vm_ids.car }})"
 
-  - name: Display VM start status
-    ansible.builtin.debug:
-      msg: "✓ CAR VM started (VM {{ vm_ids.car }})"
+# ========================================
+# Wait for Boot
+# ========================================
 
-  # ========================================
-  # Wait for Boot
-  # ========================================
+- name: Wait for CAR VM to boot
+  ansible.builtin.pause:
+    seconds: "{{ automation.vm_boot_wait_seconds | default(30) }}"
+    prompt: "Waiting {{ automation.vm_boot_wait_seconds | default(30) }} seconds for CAR VM to boot..."
 
-  - name: Wait for CAR VM to boot
-    ansible.builtin.pause:
-      seconds: "{{ automation.vm_boot_wait_seconds | default(30) }}"
-      prompt: "Waiting {{ automation.vm_boot_wait_seconds | default(30) }} seconds for CAR VM to boot..."
+- name: Verify VM is running
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm status {{ vm_ids.car }}"
+  register: vm_status
+  changed_when: false
+  failed_when: "'running' not in vm_status.stdout"
 
-  - name: Verify VM is running
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm status {{ vm_ids.car }}"
-    register: vm_status
-    changed_when: false
-    failed_when: "'running' not in vm_status.stdout"
+# ========================================
+# Display Completion
+# ========================================
 
-  # ========================================
-  # Display Completion
-  # ========================================
-
-  - name: Display deployment completion
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        ✓ CAR VM Deployment Complete
-        ========================================
-        VM ID: {{ vm_ids.car }}
-        Name: car
-        Status: {{ vm_status.stdout }}
-        
-        Hardware Configuration:
-          Memory: 8GB
-          CPU: 4 cores (1 socket)
-          BIOS: OVMF (UEFI)
-          Machine: i440fx
-          SCSI Controller: LSI 53C895A
-        
-        Network Configuration:
-          net0: e1000, vmbr50 (SPARK WAN)
-          net1: e1000, vmbr255000 (Instructor LAN)
-        
-        Storage:
-          Hard Disk: sata0 (32GB)
-          EFI Disk: 4MB
-        
-        Next Steps:
-          1. Access VM console to verify boot
-          2. Verify network connectivity
-        ========================================
+- name: Display deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ CAR VM Deployment Complete
+      ========================================
+      VM ID: {{ vm_ids.car }}
+      Name: car
+      Status: {{ vm_status.stdout }}
+      
+      Hardware Configuration:
+        Memory: 8GB
+        CPU: 4 cores (1 socket)
+        BIOS: OVMF (UEFI)
+        Machine: i440fx
+        SCSI Controller: LSI 53C895A
+      
+      Network Configuration:
+        net0: e1000, vmbr50 (SPARK WAN)
+        net1: e1000, vmbr255000 (Instructor LAN)
+      
+      Storage:
+        Hard Disk: sata0 (32GB)
+        EFI Disk: 4MB
+      
+      Next Steps:
+        1. Access VM console to verify boot
+        2. Configure CAR services if needed
+        3. Verify network connectivity
+      ========================================
