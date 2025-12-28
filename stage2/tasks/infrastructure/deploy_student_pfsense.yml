@@ -32,6 +32,10 @@
   # Calculate VM IDs and Bridges
   # ========================================
 
+  - name: Convert group_id to integer
+    ansible.builtin.set_fact:
+      group_id: "{{ group_id | int }}"
+
   - name: Calculate VM IDs and bridges for Group {{ group_id }}
     ansible.builtin.set_fact:
       group_pfsense_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 1 }}"
