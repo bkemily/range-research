@@ -69,7 +69,7 @@
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
         "qm clone {{ templates.group1_pfsense_template_id }} {{ group_pfsense_id }}
-        --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
+        --name student-group{{ '%02d' | format(group_id | int) }}-pfsense --full"
     register: clone_result
     changed_when: true
     failed_when: clone_result.rc != 0
