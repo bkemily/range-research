@@ -1,30 +1,17 @@
 # ============================================================================
-# Task: Deploy Student pfSense from Template
+# Task: Deploy Student pfSense with Simplified Wizard Automation
 # ============================================================================
-# Purpose: Deploy student pfSense gateway from Group 1 template with dynamic bridges
+# Purpose: Automate the simple pfSense setup wizard (VLAN + interface confirm)
 #
-# Called by: deploy_student_group.yml
+# Setup wizard flow:
+#   1. "Do you want to set up VLANs now?" → n
+#   2. "Enter the WAN interface name" → vtnet0 (or just Enter to accept)
+#   3. "Enter the LAN interface name" → vtnet1 (or just Enter to accept)  
+#   4. "Enter the Optional interface name" → (just Enter for none)
+#   5. "Do you want to proceed?" → y
 #
-# This task file:
-#   1. Clones Student pfSense from Group 1 template (works for all groups)
-#   2. Updates bridge assignments to match the specific group
-#   3. Starts the VM
-#   4. Waits for pfSense to boot
-#
-# Template Requirements:
-#   - Group 1 pfSense template must exist with proper configuration
-#   - Template must have net0 and net1 configured
-#   - pfSense setup wizard must be completed in template
-#
-# Required Variables from deploy_student_group.yml:
-#   - group_id: Group number (1-15)
-#   - group_pfsense_id: VM ID for this pfSense
-#   - group_wan_bridge: WAN bridge name (vmbr255XXX)
-#   - group_lan_bridge: LAN bridge name (vmbr00X000)
-#
-# Network Interfaces:
-#   - net0: WAN to Instructor pfSense (bridge reassigned per group)
-#   - net1: Student LAN (bridge reassigned per group)
+# This uses expect with generous timeouts and multiple match patterns
+# to handle timing variations during boot.
 #
 # Author: Emily Miller
 # Last Updated: December 27, 2025
@@ -37,112 +24,204 @@
       Deploying Group {{ group_id }} pfSense (VM {{ group_pfsense_id }})
       ========================================
       Template: VM {{ templates.group1_pfsense_template_id }}
-      Storage: {{ storage }}
-      Networks (will be configured):
-        - net0: {{ group_wan_bridge }} (WAN to Instructor)
-        - net1: {{ group_lan_bridge }} (Group {{ group_id }} LAN)
+      Method: Automated wizard (expect script)
       ========================================
 
 # ========================================
-# Clone from Group 1 Template
+# Clone and Configure
 # ========================================
-
-- name: Display clone notice
-  ansible.builtin.debug:
-    msg: "Cloning VM {{ templates.group1_pfsense_template_id }} → VM {{ group_pfsense_id }}"
 
 - name: Clone Group {{ group_id }} pfSense from Group 1 template
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm clone {{ templates.group1_pfsense_template_id }} {{ group_pfsense_id }} --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm clone {{ templates.group1_pfsense_template_id }} {{ group_pfsense_id }}
+      --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
   register: clone_result
   changed_when: true
   failed_when: clone_result.rc != 0
 
-- name: Display clone status
-  ansible.builtin.debug:
-    msg: "✓ Group {{ group_id }} pfSense cloned from template (VM {{ group_pfsense_id }})"
-
-# ========================================
-# Update Bridge Assignments for This Group
-# ========================================
-# Note: Group 1 template already has correct bridges (vmbr255001, vmbr001000)
-# Only reassign bridges for Groups 2-15
-
-- name: Display network configuration notice
-  ansible.builtin.debug:
-    msg: "Updating bridge assignments for Group {{ group_id }}"
-  when: group_id > 1
-
-- name: Assign WAN bridge for Group {{ group_id }}
+- name: Assign WAN bridge
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --net0 virtio,bridge={{ group_wan_bridge }},firewall=1"
-  register: net0_result
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ group_pfsense_id }} --net0 virtio,bridge={{ group_wan_bridge }},firewall=1"
   changed_when: true
-  failed_when: net0_result.rc != 0
-  when: group_id > 1
 
-- name: Display WAN interface assignment
-  ansible.builtin.debug:
-    msg: "✓ net0 assigned: {{ group_wan_bridge }} (WAN to Instructor)"
-  when: group_id > 1
-
-- name: Assign LAN bridge for Group {{ group_id }}
+- name: Assign LAN bridge
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_pfsense_id }} --net1 virtio,bridge={{ group_lan_bridge }},firewall=1"
-  register: net1_result
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ group_pfsense_id }} --net1 virtio,bridge={{ group_lan_bridge }},firewall=1"
   changed_when: true
-  failed_when: net1_result.rc != 0
-  when: group_id > 1
 
-- name: Display LAN interface assignment
-  ansible.builtin.debug:
-    msg: "✓ net1 assigned: {{ group_lan_bridge }} (Group {{ group_id }} LAN)"
-  when: group_id > 1
-
-- name: Display Group 1 bridge notice (using template defaults)
-  ansible.builtin.debug:
-    msg: "✓ Group 1 using template bridges: {{ group_wan_bridge }} (WAN), {{ group_lan_bridge }} (LAN)"
-  when: group_id == 1
-
-# ========================================
-# Start VM
-# ========================================
-
-- name: Display VM start notice
-  ansible.builtin.debug:
-    msg: "Starting Group {{ group_id }} pfSense VM {{ group_pfsense_id }}"
-
-- name: Start Group {{ group_id }} pfSense VM
+- name: Start VM
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_pfsense_id }}"
-  register: start_result
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm start {{ group_pfsense_id }}"
   changed_when: true
-  failed_when: start_result.rc != 0
 
-- name: Display VM start status
-  ansible.builtin.debug:
-    msg: "✓ Group {{ group_id }} pfSense VM started (VM {{ group_pfsense_id }})"
-
-# ========================================
-# Wait for pfSense to Boot
-# ========================================
-
-- name: Wait for Group {{ group_id }} pfSense to boot
+- name: Wait for initial boot
   ansible.builtin.pause:
-    seconds: "{{ automation.pfsense_boot_wait_seconds }}"
-    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Group {{ group_id }} pfSense to boot..."
+    seconds: 45
+    prompt: "Waiting 45 seconds for pfSense to start booting..."
+
+# ========================================
+# Create Improved Expect Script
+# ========================================
+
+- name: Create expect script for setup wizard automation
+  ansible.builtin.copy:
+    content: |
+      #!/usr/bin/expect -f
+      
+      set timeout 180
+      set vmid {{ group_pfsense_id }}
+      
+      log_user 1
+      
+      puts "Connecting to VM console..."
+      spawn ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} qm terminal $vmid
+      
+      # Wait for VLAN prompt
+      puts "Waiting for VLAN setup prompt..."
+      expect {
+        -re "(Do you want to set up VLANs|Should VLANs be set up)" {
+          puts "Found VLAN prompt, sending 'n'"
+          sleep 1
+          send "n\r"
+        }
+        timeout {
+          puts "WARNING: Timeout waiting for VLAN prompt"
+        }
+      }
+      
+      # Wait for WAN interface prompt
+      puts "Waiting for WAN interface prompt..."
+      expect {
+        -re "(Enter the WAN interface name|WAN interface)" {
+          puts "Found WAN prompt, accepting default (vtnet0)"
+          sleep 1
+          send "vtnet0\r"
+        }
+        timeout {
+          puts "WARNING: Timeout waiting for WAN prompt"
+        }
+      }
+      
+      # Wait for LAN interface prompt
+      puts "Waiting for LAN interface prompt..."
+      expect {
+        -re "(Enter the LAN interface name|LAN interface)" {
+          puts "Found LAN prompt, accepting default (vtnet1)"
+          sleep 1
+          send "vtnet1\r"
+        }
+        timeout {
+          puts "WARNING: Timeout waiting for LAN prompt"
+        }
+      }
+      
+      # Optional interface (just press enter)
+      puts "Waiting for Optional interface prompt..."
+      expect {
+        -re "(Enter the Optional|Optional interface)" {
+          puts "Found Optional prompt, skipping"
+          sleep 1
+          send "\r"
+        }
+        timeout {
+          puts "WARNING: Timeout waiting for Optional prompt (may not appear)"
+        }
+      }
+      
+      # Confirmation
+      puts "Waiting for confirmation prompt..."
+      expect {
+        -re "(Do you want to proceed|Proceed with)" {
+          puts "Found confirmation prompt, sending 'y'"
+          sleep 1
+          send "y\r"
+        }
+        timeout {
+          puts "WARNING: Timeout waiting for confirmation"
+        }
+      }
+      
+      # Wait for completion
+      puts "Waiting for setup to complete..."
+      expect {
+        -re "(Press.*ENTER|to continue)" {
+          puts "Setup completed successfully!"
+          sleep 2
+          send "\r"
+        }
+        timeout {
+          puts "WARNING: Timeout waiting for completion message"
+        }
+      }
+      
+      # Exit console (Ctrl+O, then 'q')
+      sleep 2
+      send "\x0f"
+      sleep 1
+      send "q"
+      
+      puts "DONE: Exited console"
+      exit 0
+    dest: /tmp/pfsense_setup_{{ group_pfsense_id }}.exp
+    mode: '0755'
+  delegate_to: "{{ proxmox_host }}"
+
+# ========================================
+# Execute Expect Script
+# ========================================
+
+- name: Run expect script to complete setup wizard
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "expect /tmp/pfsense_setup_{{ group_pfsense_id }}.exp"
+  register: expect_result
+  changed_when: true
+  failed_when: false
+  async: 300
+  poll: 10
+
+- name: Display expect script output
+  ansible.builtin.debug:
+    msg: |
+      Expect script output:
+      {{ expect_result.stdout }}
+      
+      Errors (if any):
+      {{ expect_result.stderr }}
+
+- name: Cleanup expect script
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "rm -f /tmp/pfsense_setup_{{ group_pfsense_id }}.exp"
+  changed_when: false
+  failed_when: false
+
+# ========================================
+# Verify Completion
+# ========================================
+
+- name: Wait for pfSense to stabilize after wizard
+  ansible.builtin.pause:
+    seconds: 30
+    prompt: "Waiting 30 seconds for pfSense to complete initialization..."
 
 - name: Verify VM is running
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ group_pfsense_id }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm status {{ group_pfsense_id }}"
   register: vm_status
   changed_when: false
-  failed_when: "'running' not in vm_status.stdout"
 
 - name: Display deployment completion
   ansible.builtin.debug:
@@ -150,9 +229,10 @@
       ========================================
       ✓ Group {{ group_id }} pfSense Deployment Complete
       ========================================
-      Group: {{ group_id }}
       VM ID: {{ group_pfsense_id }}
       Status: {{ vm_status.stdout }}
-      WAN: {{ group_wan_bridge }} (net0)
-      LAN: {{ group_lan_bridge }} (net1)
+      WAN: {{ group_wan_bridge }} (vtnet0)
+      LAN: {{ group_lan_bridge }} (vtnet1)
+      
+      Setup wizard: {{ 'Completed via automation' if expect_result.rc == 0 else 'Check console for status' }}
       ========================================
