@@ -38,9 +38,9 @@
 
   - name: Calculate VM IDs and bridges for Group {{ group_id }}
     ansible.builtin.set_fact:
-      group_pfsense_id: "{{ (vm_ids.student_base | int) + ((group_id - 1) * (vm_ids.student_block_size | int)) + 1 }}"
-      group_wan_bridge: "vmbr255{{ '%03d' | format(group_id) }}"
-      group_lan_bridge: "vmbr{{ '%03d' | format(group_id) }}000"
+      group_pfsense_id: "{{ (vm_ids.student_base | int) + (((group_id | int) - 1) * (vm_ids.student_block_size | int)) + 1 }}"
+      group_wan_bridge: "vmbr255{{ '%03d' | format(group_id | int) }}"
+      group_lan_bridge: "vmbr{{ '%03d' | format(group_id | int) }}000"
 
   - name: Display Student pfSense deployment notice for Group {{ group_id }}
     ansible.builtin.debug:
