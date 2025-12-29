@@ -132,13 +132,13 @@
         Deploying {{ 3 + (max_student_groups * 5) }} VMs...
         ========================================
 
-  # Deploy Spark pfSense
-  - name: Deploy Spark pfSense
-    ansible.builtin.include_tasks: tasks/infrastructure/deploy_spark_pfsense.yml
-
   # Deploy CAR Ubuntu
   - name: Deploy CAR Ubuntu
     ansible.builtin.include_tasks: tasks/infrastructure/deploy_car_vm.yml
+
+  # Deploy Spark pfSense
+  - name: Deploy Spark pfSense
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_spark_pfsense.yml
 
   # Deploy Instructor Group
   - name: Deploy Instructor Infrastructure

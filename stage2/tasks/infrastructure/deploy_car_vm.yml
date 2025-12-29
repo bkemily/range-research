@@ -82,13 +82,6 @@
       "qm set {{ vm_ids.car }} --bios ovmf"
   changed_when: true
 
-- name: Set SCSI controller to LSI 53C895A
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ vm_ids.car }} --scsihw lsi"
-  changed_when: true
-
 - name: Disable QEMU Guest Agent (as per template)
   ansible.builtin.command:
     cmd: >
@@ -131,8 +124,6 @@
         - Memory: 8GB
         - CPU: 4 cores (1 socket)
         - BIOS: OVMF (UEFI)
-        - Machine: i440fx
-        - SCSI: LSI 53C895A
         - Network: e1000 on vmbr50 and vmbr255000
         - Boot: sata0
 
