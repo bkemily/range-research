@@ -1,4 +1,3 @@
----
 # ============================================================================
 # Task: Deploy CAR VM from OVF
 # ============================================================================
@@ -81,13 +80,6 @@
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
       "qm set {{ vm_ids.car }} --bios ovmf"
-  changed_when: true
-
-- name: Set machine type to i440fx
-  ansible.builtin.command:
-    cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ vm_ids.car }} --machine i440fx"
   changed_when: true
 
 - name: Set SCSI controller to LSI 53C895A
