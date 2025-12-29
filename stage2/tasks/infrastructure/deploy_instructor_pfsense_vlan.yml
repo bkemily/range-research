@@ -1,0 +1,98 @@
+# ============================================================================
+# Task: Deploy Instructor pfSense from VLAN Template
+# ============================================================================
+# Purpose: Deploy instructor pfSense gateway from VLAN-configured template
+#
+# Called by: deploy_instructor_group.yml
+#
+# This task file:
+#   1. Clones Instructor pfSense from VLAN template
+#   2. Starts the VM
+#   3. Waits for pfSense to boot
+#
+# Template Requirements:
+#   - Uses VLAN template (same approach as student groups)
+#   - Template should have VLAN-based network configuration
+#
+# VM Configuration:
+#   - VM ID: 151 (vm_ids.instructor_pfsense)
+#   - Template: VLAN pfSense template
+#   - Storage: raid-lvm
+#
+# Author: Emily Miller
+# Last Updated: December 28, 2025
+# ============================================================================
+
+- name: Display Instructor pfSense deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying Instructor pfSense (VM {{ vm_ids.instructor_pfsense }})
+      ========================================
+      Template: VM {{ templates.vlan_pfsense_test }}
+      Method: VLAN template (matches student approach)
+      ========================================
+
+# ========================================
+# Clone from VLAN Template
+# ========================================
+
+- name: Clone Instructor pfSense from VLAN template
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm clone {{ templates.vlan_pfsense_test }} {{ vm_ids.instructor_pfsense }}
+      --name instructor-pfsense --full"
+  register: clone_result
+  changed_when: true
+  failed_when: clone_result.rc != 0
+
+- name: Display clone status
+  ansible.builtin.debug:
+    msg: "✓ Instructor pfSense cloned from VLAN template (VM {{ vm_ids.instructor_pfsense }})"
+
+# ========================================
+# Start VM
+# ========================================
+
+- name: Start Instructor pfSense VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm start {{ vm_ids.instructor_pfsense }}"
+  register: start_result
+  changed_when: true
+  failed_when: start_result.rc != 0
+
+- name: Display VM start status
+  ansible.builtin.debug:
+    msg: "✓ Instructor pfSense VM started (VM {{ vm_ids.instructor_pfsense }})"
+
+# ========================================
+# Wait for pfSense to Boot
+# ========================================
+
+- name: Wait for Instructor pfSense to boot
+  ansible.builtin.pause:
+    seconds: "{{ automation.pfsense_boot_wait_seconds }}"
+    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Instructor pfSense to boot..."
+
+- name: Verify VM is running
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm status {{ vm_ids.instructor_pfsense }}"
+  register: vm_status
+  changed_when: false
+  failed_when: "'running' not in vm_status.stdout"
+
+- name: Display deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ Instructor pfSense Deployment Complete
+      ========================================
+      VM ID: {{ vm_ids.instructor_pfsense }}
+      Status: {{ vm_status.stdout }}
+      Method: VLAN template (no modifications)
+      ========================================

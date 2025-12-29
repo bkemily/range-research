@@ -29,13 +29,15 @@
       - Instructor pfSense (VM {{ vm_ids.instructor_pfsense }})
       - Instructor Kali (VM {{ vm_ids.instructor_kali }})
       ========================================
+  # ========================================
+  # Deploy Instructor pfSense
+  # ========================================
 
-# ========================================
-# Deploy Instructor pfSense
-# ========================================
+  #- name: Deploy Instructor pfSense
+  #ansible.builtin.include_tasks: deploy_instructor_pfsense.yml
 
-- name: Deploy Instructor pfSense
-  ansible.builtin.include_tasks: deploy_instructor_pfsense.yml
+- name: Deploy Instructor pfSense with VLANs
+  ansible.builtin.include_tasks: deploy_instructor_pfsense_vlan.yml
 
 # ========================================
 # Deploy Instructor Kali
