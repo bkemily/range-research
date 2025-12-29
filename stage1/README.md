@@ -6,9 +6,9 @@ Stage 1 creates and configures the Security Onion VM with comprehensive network 
 
 ## Purpose
 
-- Create Security Onion VM from ISO image
-- Configure hardware (UEFI, 32GB RAM, 8 cores, 2TB disk)
-- Assign network interfaces dynamically based on student groups
+- Create Security Onion VM
+- Configure hardware
+- Assign network interfaces
 - Prepare VM for manual Security Onion installation
 - Enable monitoring of all network segments (instructor + student groups)
 
@@ -19,7 +19,7 @@ Stage 1 creates and configures the Security Onion VM with comprehensive network 
 - Ansible 2.9+ installed on control node
 - Security Onion ISO available in Proxmox ISO_Library storage
   - ISO: `securityonion-2.4.180-20250916.iso`
-- Sufficient storage on `local-lvm` (minimum 2TB available)
+- Sufficient storage (minimum 2TB available)
 
 ## Network Interface Schema
 
@@ -28,30 +28,18 @@ Security Onion is connected to all network segments for comprehensive monitoring
 ### **Management Interface**
 | Interface | Bridge | Purpose |
 |-----------|--------|---------|
-| `net0` | `vmbr255000` | Management/IP communication (143.88.255.9) |
+| `net0` | `vmbr` | Management/IP communication (143.88.255.9) |
 
 ### **Infrastructure Monitoring**
 | Interface | Bridge | Purpose |
 |-----------|--------|---------|
-| `net1` | `vmbr51` | Spark WAN monitoring (internet gateway) |
+| `net1` | `vmbr50` | Spark WAN monitoring (internet gateway) |
 
 ### **Student Group Monitoring** (Dynamic)
-For each student group, two monitoring interfaces are assigned:
+| Interface | Bridge | Purpose |
+|-----------|--------|---------|
+| `netX` | `vmbrXX` |  |
 
-| Interface Formula | Bridge Formula | Purpose |
-|-------------------|----------------|---------|
-| `net(2 + (group_id - 1) * 2)` | `vmbr255{group_id:03d}` | Group N WAN monitoring |
-| `net(2 + (group_id - 1) * 2 + 1)` | `vmbr{group_id:03d}000` | Group N LAN monitoring |
-
-**Example for max_student_groups=2:**
-- `net2` → `vmbr255001` (Group 1 WAN)
-- `net3` → `vmbr001000` (Group 1 LAN)
-- `net4` → `vmbr255002` (Group 2 WAN)
-- `net5` → `vmbr002000` (Group 2 LAN)
-
-**Total interfaces:** 2 + (max_student_groups × 2)
-- 2 groups = 6 interfaces
-- 15 groups = 32 interfaces
 
 ## Files
 
@@ -73,7 +61,7 @@ stage1/
 
 2. **Pre-deployment Validation**
    - Tests SSH connectivity to Proxmox
-   - Generates dynamic bridge list based on `max_student_groups`
+   - Generates dynamic bridge list
    - Verifies all required bridges exist (infrastructure + student groups)
    - Checks if VM 159 already exists (prevents overwrites)
    - Verifies Security Onion ISO exists in ISO_Library
@@ -95,10 +83,7 @@ stage1/
    - Enables KVM hardware virtualization
 
 6. **Assign Network Interfaces**
-   - Assigns management interface (`net0`)
-   - Assigns Spark WAN monitoring interface (`net1`)
-   - **Dynamically generates and assigns student group monitoring interfaces**
-   - Loops through all student groups to create monitoring topology
+   - Assigns all required interfaces
 
 7. **Start VM**
    - Starts VM (boots from ISO)
@@ -116,19 +101,8 @@ stage1/
 
 ```bash
 cd /opt/cyber-range-automation/stage1
-ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml
+ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml --ask-vault-pass
 ```
-
-Specify a custom number of groups:
-
-```bash
-ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml -e max_student_groups=5
-```
-
-**Expected Duration:**
-- Automation: ~2 minutes
-- Manual installation: 30-60 minutes
-- **Total: 32-62 minutes**
 
 ## VM Configuration
 
@@ -151,10 +125,8 @@ ISO: ISO_Library:iso/securityonion-2.4.180-20250916.iso
 ```
 
 ### Network Configuration
-Dynamic based on `max_student_groups`:
-- **2 groups:** 6 total interfaces
-- **5 groups:** 12 total interfaces
-- **15 groups:** 32 total interfaces
+- 
+
 
 ## Manual Installation Required
 
@@ -174,24 +146,6 @@ ssh root@192.168.68.89 "qm config 159"
 
 # Check network interfaces
 ssh root@192.168.68.89 "qm config 159 | grep net"
-# Should show 6 interfaces for 2 groups, 32 for 15 groups
-```
-
-### Verify Network Interfaces
-
-For `max_student_groups=2`:
-```bash
-ssh root@192.168.68.89 "qm config 159" | grep "^net"
-```
-
-Expected output:
-```
-net0: virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr255000
-net1: virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr51
-net2: virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr255001
-net3: virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr001000
-net4: virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr255002
-net5: virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr002000
 ```
 
 ## Safety Features
@@ -213,7 +167,7 @@ ssh root@192.168.68.89 "qm destroy 159"
 
 # Re-run Stage 1
 cd /opt/cyber-range-automation/stage1
-ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml
+ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml --ask-vault-pass
 ```
 
 **Note:** Destroying the VM removes all disks. You will need to reinstall Security Onion.
@@ -244,12 +198,12 @@ mv vars_all.yml all.yml
 # Verify bridges exist
 ssh root@192.168.68.89 "ip link show | grep vmbr"
 
-# Count bridges (should be 2 + max_student_groups * 2)
+# Count bridges
 ssh root@192.168.68.89 "ip link show | grep -c vmbr"
 
 # Re-run Stage 0 if bridges missing
 cd /opt/cyber-range-automation/stage0
-ansible-playbook stage0_configure_proxmox_network.yml
+ansible-playbook stage0_configure_proxmox_network.yml --ask-vault-pass
 ```
 
 ### Problem: ISO not found
@@ -303,7 +257,7 @@ ssh root@192.168.68.89 "qm start 159"
 ssh root@192.168.68.89 "journalctl -xe | grep 'qemu\|kvm'"
 ```
 
-### Problem: Can't access Security Onion after installation
+### Problem: Can't access Security Onion Web UI after installation
 
 **Cause:** Incorrect IP configuration or network issue
 
