@@ -54,7 +54,7 @@
         ========================================
         Deploying Group {{ group_id }} pfSense (VM {{ group_pfsense_id }})
         ========================================
-        Template: VM {{ templates.group1_pfsense_template_test }}
+        Template: VM {{ templates.vlan_pfsense_test }}
         Method: VLAN-based (mirrors vSphere architecture)
         
         Network Configuration:
@@ -73,7 +73,7 @@
     ansible.builtin.command:
       cmd: >
         ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm clone {{ templates.group1_pfsense_template_test }} {{ group_pfsense_id }}
+        "qm clone {{ templates.vlan_pfsense_test }} {{ group_pfsense_id }}
         --name student-group{{ '%02d' | format(group_id | int) }}-pfsense --full"
     register: clone_result
     changed_when: true

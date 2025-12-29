@@ -98,7 +98,7 @@ templates:
   group1_pfsense_template_id: 8001
   group2_pfsense_template_id: 8002
   spark_pfsense_template_id: 8003
-  group1_pfsense_template_test: 8004
+  vlan_pfsense_test: 8004
   kali: "/mnt/pve/ovfstore/TEMPLATE-kali-20241124-Experiment.ovf"
   ms3_ubuntu: "/mnt/pve/ovfstore/TEMPLATE-ms3ub1404-20250621-Experiment.ovf"
   ms3_windows: "/mnt/pve/ovfstore/imports/virtualbox/box.ovf"
