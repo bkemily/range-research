@@ -1,169 +1,233 @@
----
 # ============================================================================
-# Phase 2.1: Deploy Infrastructure
+# Task: Deploy CAR VM from OVF
 # ============================================================================
-# Purpose: Deploy all VMs for cyber range campaign
+# Purpose: Deploy CAR (Cyber Analytics Repository) VM from OVF template
 #
-# Called by: run_full_campaign.yml
+# Called by: deploy_infrastructure.yml
 #
-# This playbook:
-#   1. Validates prerequisites (SSH, templates, VM conflicts)
-#   2. Deploys Spark pfSense (VM 50)
-#   3. Deploys Instructor infrastructure (pfSense, Kali)
-#   4. Deploys Student groups (loops 1-max_student_groups)
-#   5. Waits for all VMs to boot
-#   6. Verifies all VMs are running
+# The CAR VM is deployed from an OVF file stored in the main NFS storage
+# location (same location as other OVF templates like Kali, MS3, etc.)
 #
 # Author: Emily Miller
-# Last Updated: December 14, 2025
+# Last Updated: December 28, 2025
 # ============================================================================
 
-- name: Phase 2.1 - Deploy Infrastructure
-  hosts: localhost
-  connection: local
-  gather_facts: yes
+- name: Display CAR VM deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying CAR VM
+      ========================================
+      VM ID: {{ vm_ids.car }}
+      Storage: {{ storage }}
+      OVF Location: {{ templates.car }}
+      Network: vmbr50 (SPARK WAN), vmbr255000 (Instructor LAN)
+      ========================================
 
-  tasks:
-  # ========================================
-  # Pre-deployment Validation
-  # ========================================
+# ========================================
+# Import OVF to Create VM
+# ========================================
 
-  - name: Test SSH connection to Proxmox
-    ansible.builtin.command:
-      cmd: ssh -o ConnectTimeout=5 {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "echo 'Connection successful'"
-    register: ssh_test
-    changed_when: false
-    failed_when: ssh_test.rc != 0
+- name: Import CAR OVF to create VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm importovf {{ vm_ids.car }} {{ templates.car }} {{ storage }}"
+  register: import_result
+  changed_when: true
+  failed_when: import_result.rc != 0
 
-  - name: Display connection status
-    ansible.builtin.debug:
-      msg: "✓ SSH connection to Proxmox successful"
-  
-  #- name: Test SSH connection to Security Onion
-    #ansible.builtin.wait_for:
-      #host: "{{ security_onion.management_ip | default('143.88.255.9') }}"
-      #port: 22
-      #timeout: 10
-      #state: started
-    #delegate_to: localhost
-    #register: so_ssh_test
+- name: Display import status
+  ansible.builtin.debug:
+    msg: "✓ CAR OVF imported successfully (VM {{ vm_ids.car }})"
 
-  - name: Display Security Onion status
-    ansible.builtin.debug:
-      msg: "✓ Security Onion reachable at {{ security_onion.management_ip | default('143.88.255.9') }}"
+# ========================================
+# Configure Disk and UEFI
+# ========================================
+# The importovf creates a disk (e.g., vm-110-disk-0) but doesn't attach it
+# We need to attach it as sata0 and create EFI disk
 
-  - name: Verify required OVF templates exist
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "ls {{ item }}"
-    loop:
-    - "{{ templates.car }}"
-    - "{{ templates.pfsense_spark }}"
-    - "{{ templates.pfsense_instructor }}"
-    - "{{ templates.pfsense_student }}"
-    - "{{ templates.kali }}"
-    - "{{ templates.ms3_ubuntu }}"
-    - "{{ templates.ms3_windows }}"
-    register: template_check
-    changed_when: false
-    failed_when: template_check.rc != 0
+- name: Create EFI vars disk (no Secure Boot)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} -efidisk0 {{ storage }}:0"
+  register: efi_result
+  changed_when: true
+  failed_when: efi_result.rc != 0
 
-  - name: Display template verification
-    ansible.builtin.debug:
-      msg: "✓ All required OVF templates verified"
+- name: Attach imported disk as sata0
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} -sata0 {{ storage }}:vm-{{ vm_ids.car }}-disk-0"
+  register: sata_result
+  changed_when: true
+  failed_when: sata_result.rc != 0
 
-  # Generate VM IDs BEFORE checking for conflicts
-  - name: Generate list of student VM IDs to check
-    ansible.builtin.set_fact:
-      student_vm_ids: "{{ student_vm_ids | default([]) + group_vms }}"
-    vars:
-      base_vmid: "{{ vm_ids.student_base + ((item - 1) * vm_ids.student_block_size) }}"
-      group_vms:
-      - "{{ base_vmid | int + 1 }}" # pfSense
-      - "{{ base_vmid | int + 2 }}" # Kali 1
-      - "{{ base_vmid | int + 3 }}" # Kali 2
-      - "{{ base_vmid | int + 4 }}" # MS3 Ubuntu
-      - "{{ base_vmid | int + 5 }}" # MS3 Windows
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
+- name: Display disk configuration status
+  ansible.builtin.debug:
+    msg: |
+      ✓ Disk configuration complete:
+        - EFI disk created
+        - Main disk attached as sata0
 
-  - name: Combine infrastructure and student VM IDs
-    ansible.builtin.set_fact:
-      vm_ids_to_check: "{{ [vm_ids.car, vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
+# ========================================
+# Configure VM Settings
+# ========================================
 
-  - name: Display VM IDs to check
-    ansible.builtin.debug:
-      msg: |
-        Checking for conflicts with {{ vm_ids_to_check | length }} VMs:
-        Infrastructure: {{ vm_ids.car }}, {{ vm_ids.spark_pfsense }}, {{ vm_ids.instructor_pfsense }}, {{ vm_ids.instructor_kali }}
-        Student Groups ({{ max_student_groups }} groups): {{ student_vm_ids | sort | join(', ') }}
+- name: Set VM name
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --name car"
+  changed_when: true
 
-  # Check for conflicts
-  - name: Check for existing VMs that would conflict
-    ansible.builtin.command:
-      cmd: ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ item }}"
-    loop: "{{ vm_ids_to_check }}"
-    register: vm_conflicts
-    changed_when: false
-    failed_when: false
+- name: Configure network interfaces
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} 
+      --net0 e1000=BC:24:11:F4:E6:4D,bridge=vmbr50,firewall=1
+      --net1 e1000=BC:24:11:63:45:81,bridge=vmbr255000,firewall=1"
+  changed_when: true
 
-  - name: Report any VM conflicts
-    ansible.builtin.fail:
-      msg: |
-        VM {{ item.item }} already exists!
-        Status: {{ item.stdout }}
+- name: Set memory to 8GB
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --memory 8192"
+  changed_when: true
 
-        Please destroy conflicting VMs before proceeding.
-        To destroy: ssh {{ proxmox_user }}@{{ proxmox_host }} "qm stop {{ item.item }} && qm destroy {{ item.item }}"
-    loop: "{{ vm_conflicts.results }}"
-    when: item.rc == 0
+- name: Set CPU to 4 cores
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --cores 4 --sockets 1"
+  changed_when: true
 
-  - name: Display validation complete
-    ansible.builtin.debug:
-      msg: "✓ Pre-deployment validation complete - no conflicts detected"
+- name: Set BIOS to OVMF (UEFI)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --bios ovmf"
+  changed_when: true
 
-  # ========================================
-  # Deploy Infrastructure
-  # ========================================
+# Note: Machine type i440fx is already default when using OVMF, skip explicit setting
 
-  - name: Display deployment header
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        Deploying {{ 3 + (max_student_groups * 5) }} VMs...
-        ========================================
+# Note: Skipping SCSI controller setting to preserve SATA disk from OVF
 
-  # Deploy CAR Ubuntu
-  - name: Deploy CAR Ubuntu
-    ansible.builtin.include_tasks: tasks/infrastructure/deploy_car_vm.yml
+- name: Disable QEMU Guest Agent (as per template)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --agent enabled=0"
+  changed_when: true
 
-  # Deploy Spark pfSense
-  - name: Deploy Spark pfSense
-    ansible.builtin.include_tasks: tasks/infrastructure/deploy_spark_pfsense.yml
+- name: Set boot order to sata0
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --boot order=sata0"
+  changed_when: true
 
-  # Deploy Instructor Group
-  - name: Deploy Instructor Infrastructure
-    ansible.builtin.include_tasks: tasks/infrastructure/deploy_instructor_group.yml
+- name: Disable start at boot
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --onboot 0"
+  changed_when: true
 
-  # Deploy Student Groups (Loop 1-max_student_groups)
-  - name: Deploy Student Groups
-    ansible.builtin.include_tasks: tasks/infrastructure/deploy_student_group.yml
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
-    loop_control:
-      loop_var: group_id
-      label: "Group {{ group_id }}"
+- name: Set OS type to other
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --ostype other"
+  changed_when: true
 
-  - name: Display deployment completion
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        ✓ Infrastructure Deployment Complete
-        ========================================
-        All {{ 3 + (max_student_groups * 5) }} VMs deployed and running
+- name: Enable tablet pointer
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} --tablet 1"
+  changed_when: true
 
-        Infrastructure VMs:
-          - Spark pfSense: VM {{ vm_ids.spark_pfsense }}
-          - Instructor pfSense: VM {{ vm_ids.instructor_pfsense }}
-          - Instructor Kali: VM {{ vm_ids.instructor_kali }}
+- name: Display configuration status
+  ansible.builtin.debug:
+    msg: |
+      ✓ CAR VM configured with template specifications:
+        - Memory: 8GB
+        - CPU: 4 cores (1 socket)
+        - BIOS: OVMF (UEFI)
+        - Network: e1000 on vmbr50 and vmbr255000
+        - Boot: sata0
 
-        Student Groups: {{ max_student_groups }} groups deployed
-        ========================================
+# ========================================
+# Start VM
+# ========================================
+
+- name: Start CAR VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm start {{ vm_ids.car }}"
+  register: start_result
+  changed_when: true
+  failed_when: start_result.rc != 0
+
+- name: Display VM start status
+  ansible.builtin.debug:
+    msg: "✓ CAR VM started (VM {{ vm_ids.car }})"
+
+# ========================================
+# Wait for Boot
+# ========================================
+
+- name: Wait for CAR VM to boot
+  ansible.builtin.pause:
+    seconds: "{{ automation.vm_boot_wait_seconds | default(30) }}"
+    prompt: "Waiting {{ automation.vm_boot_wait_seconds | default(30) }} seconds for CAR VM to boot..."
+
+- name: Verify VM is running
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm status {{ vm_ids.car }}"
+  register: vm_status
+  changed_when: false
+  failed_when: "'running' not in vm_status.stdout"
+
+# ========================================
+# Display Completion
+# ========================================
+
+- name: Display deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ CAR VM Deployment Complete
+      ========================================
+      VM ID: {{ vm_ids.car }}
+      Name: car
+      Status: {{ vm_status.stdout }}
+      
+      Hardware Configuration:
+        Memory: 8GB
+        CPU: 4 cores (1 socket)
+        BIOS: OVMF (UEFI)
+        Machine: i440fx
+        SCSI Controller: LSI 53C895A
+      
+      Network Configuration:
+        net0: e1000, vmbr50 (SPARK WAN)
+        net1: e1000, vmbr255000 (Instructor LAN)
+      
+      Storage:
+        Hard Disk: sata0 (32GB)
+        EFI Disk: 4MB
+      
+      Next Steps:
+        1. Access VM console to verify boot
+        2. Configure CAR services if needed
+        3. Verify network connectivity
+      ========================================
