@@ -52,73 +52,20 @@
     # Loop Through Groups 3-15
     # ========================================
 
-    - name: Create pfSense templates for groups 3-15
-      block:
-        - name: Set template ID and bridges for Group {{ item }}
-          ansible.builtin.set_fact:
-            current_template_id: "{{ 8002 + item }}"
-            wan_bridge: "vmbr255{{ '%03d' | format(item) }}"
-            lan_bridge: "vmbr{{ '%03d' | format(item) }}000"
-
-        - name: Display Group {{ item }} template creation notice
-          ansible.builtin.debug:
-            msg: |
-              ========================================
-              Creating Group {{ item }} pfSense Template
-              ========================================
-              Template ID: {{ current_template_id }}
-              WAN Bridge: {{ wan_bridge }}
-              LAN Bridge: {{ lan_bridge }}
-              ========================================
-
-        - name: Clone Group 2 pfSense template for Group {{ item }}
-          ansible.builtin.command:
-            cmd: >
-              ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-              "qm clone {{ templates.group2_pfsense_template_id }} {{ current_template_id }}
-              --name pfsense-group{{ '%02d' | format(item) }}-template --full"
-          register: clone_result
-          changed_when: true
-          failed_when: clone_result.rc != 0
-
-        - name: Wait for clone operation to complete
-          ansible.builtin.pause:
-            seconds: 3
-
-        - name: Update WAN bridge for Group {{ item }}
-          ansible.builtin.command:
-            cmd: >
-              ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-              "qm set {{ current_template_id }}
-              --net0 virtio,bridge={{ wan_bridge }}"
-          register: wan_result
-          changed_when: true
-          failed_when: wan_result.rc != 0
-
-        - name: Update LAN bridge for Group {{ item }}
-          ansible.builtin.command:
-            cmd: >
-              ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-              "qm set {{ current_template_id }}
-              --net1 virtio,bridge={{ lan_bridge }}"
-          register: lan_result
-          changed_when: true
-          failed_when: lan_result.rc != 0
-
-        - name: Convert VM to template for Group {{ item }}
-          ansible.builtin.command:
-            cmd: >
-              ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-              "qm template {{ current_template_id }}"
-          register: template_result
-          changed_when: true
-          failed_when: template_result.rc != 0
-
-        - name: Display Group {{ item }} template completion
-          ansible.builtin.debug:
-            msg: "✓ Group {{ item }} pfSense template created (VM {{ current_template_id }})"
-
+    - name: Set template ID and bridges for Group {{ item }}
+      ansible.builtin.set_fact:
+        current_template_id: "{{ 8002 + item }}"
+        wan_bridge: "vmbr255{{ '%03d' | format(item) }}"
+        lan_bridge: "vmbr{{ '%03d' | format(item) }}000"
+        current_group: "{{ item }}"
       loop: "{{ range(3, 16) | list }}"
+      register: group_facts
+
+    - name: Create templates for each group
+      ansible.builtin.include_tasks: create_single_temp.yml
+      loop: "{{ range(3, 16) | list }}"
+      loop_control:
+        loop_var: group_id
 
     - name: Display batch completion summary
       ansible.builtin.debug:
