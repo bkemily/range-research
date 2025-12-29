@@ -19,7 +19,7 @@
 - name: Clone Group 2 pfSense template for Group {{ group_id }}
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm clone {{ templates.group2_pfsense_template_id }} {{ current_template_id }} --name pfsense-group{{ '%02d' | format(group_id) }}-template --full"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm clone {{ templates.group2_pfsense_template_id }} {{ current_template_id }} --name TEMPLATE-pfsense-studentG{{ '%02d' | format(group_id) }} --full"
   register: clone_result
   changed_when: true
   failed_when: clone_result.rc != 0
