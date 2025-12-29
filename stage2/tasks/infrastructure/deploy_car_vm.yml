@@ -97,7 +97,7 @@
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm set {{ vm_ids.car }} --name car"
+      "qm set {{ vm_ids.car }} --name CAR-Ubuntu"
   changed_when: true
 
 - name: Configure network interfaces
