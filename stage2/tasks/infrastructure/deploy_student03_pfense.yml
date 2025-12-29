@@ -4,8 +4,8 @@
   gather_facts: no
   vars:
     group_number: 3
-    base_pfsense_template_id: 9002  # Your Group 2 template ID
-    new_template_id: 9003  # Group 3 template ID
+    base_pfsense_template_id: 8002  # Your Group 2 template ID
+    new_template_id: 8005  # Group 3 template ID
     proxmox_storage: "local-lvm"  # Adjust to your storage
   
   tasks:
