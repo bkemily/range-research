@@ -31,7 +31,7 @@
 - name: Update WAN bridge for Group {{ group_id }}
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ current_template_id }} --net0 virtio,bridge={{ wan_bridge }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ current_template_id }} --net0 virtio,bridge={{ wan_bridge }},firewall=1"
   register: wan_result
   changed_when: true
   failed_when: wan_result.rc != 0
@@ -39,7 +39,7 @@
 - name: Update LAN bridge for Group {{ group_id }}
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ current_template_id }} --net1 virtio,bridge={{ lan_bridge }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ current_template_id }} --net1 virtio,bridge={{ lan_bridge }},firewall=1"
   register: lan_result
   changed_when: true
   failed_when: lan_result.rc != 0
