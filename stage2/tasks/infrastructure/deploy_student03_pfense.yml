@@ -1,0 +1,52 @@
+---
+- name: Create pfSense template for Group 3
+  hosts: proxmox_host
+  gather_facts: no
+  vars:
+    group_number: 3
+    base_pfsense_template_id: 9002  # Your Group 2 template ID
+    new_template_id: 9003  # Group 3 template ID
+    proxmox_storage: "local-lvm"  # Adjust to your storage
+  
+  tasks:
+    - name: Clone pfSense template from Group 2
+      community.general.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        clone: "{{ base_pfsense_template_id }}"
+        vmid: "{{ new_template_id }}"
+        name: "pfsense-group{{ group_number }}-template"
+        full: yes
+        storage: "{{ proxmox_storage }}"
+        format: qcow2
+      register: clone_result
+      
+    - name: Wait for clone operation to complete
+      ansible.builtin.pause:
+        seconds: 5
+        
+    - name: Update WAN bridge (net0)
+      ansible.builtin.command:
+        cmd: >
+          qm set {{ new_template_id }}
+          --net0 virtio,bridge=vmbr{{ '%03d' | format(group_number) }}000
+      
+    - name: Update LAN bridge (net1)
+      ansible.builtin.command:
+        cmd: >
+          qm set {{ new_template_id }}
+          --net1 virtio,bridge=vmbr{{ '%03d' | format(group_number) }}100
+          
+    - name: Convert VM to template
+      ansible.builtin.command:
+        cmd: qm template {{ new_template_id }}
+      
+    - name: Display template information
+      ansible.builtin.debug:
+        msg: >
+          Group {{ group_number }} pfSense template created successfully!
+          Template ID: {{ new_template_id }}
+          WAN Bridge: vmbr{{ '%03d' | format(group_number) }}000
+          LAN Bridge: {{ '%03d' | format(group_number) }}100
