@@ -26,7 +26,8 @@
 # ============================================================================
 
 - name: Create Group 3 pfSense Template
-  hosts: proxmox_host
+  hosts: localhost
+  connection: local
   gather_facts: no
   
   tasks:
