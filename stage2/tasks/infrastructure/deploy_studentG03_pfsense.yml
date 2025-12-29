@@ -1,52 +1,120 @@
 ---
-- name: "Display Experiment Start"
-  hosts: localhost
-  gather_facts: no
-  vars:
-    group_number: 3
-    base_pfsense_template_id: 8002  # Your Group 2 template ID
-    new_template_id: 8005  # Group 3 template ID
-    proxmox_storage: "local-lvm"  # Adjust to your storage
-  
-  tasks:
-    - name: Clone pfSense template from Group 2
-      community.general.proxmox_kvm:
-        api_host: "{{ proxmox_api_host }}"
-        api_user: "{{ proxmox_api_user }}"
-        api_token_id: "{{ proxmox_api_token_id }}"
-        api_token_secret: "{{ proxmox_api_token_secret }}"
-        clone: "{{ base_pfsense_template_id }}"
-        vmid: "{{ new_template_id }}"
-        name: "pfsense-group{{ group_number }}-template"
-        full: yes
-        storage: "{{ proxmox_storage }}"
-        format: qcow2
-      register: clone_result
-      
-    - name: Wait for clone operation to complete
-      ansible.builtin.pause:
-        seconds: 5
-        
-    - name: Update WAN bridge (net0)
-      ansible.builtin.command:
-        cmd: >
-          qm set {{ new_template_id }}
-          --net0 virtio,bridge=vmbr{{ '%03d' | format(group_number) }}000
-      
-    - name: Update LAN bridge (net1)
-      ansible.builtin.command:
-        cmd: >
-          qm set {{ new_template_id }}
-          --net1 virtio,bridge=vmbr{{ '%03d' | format(group_number) }}100
-          
-    - name: Convert VM to template
-      ansible.builtin.command:
-        cmd: qm template {{ new_template_id }}
-      
-    - name: Display template information
-      ansible.builtin.debug:
-        msg: >
-          Group {{ group_number }} pfSense template created successfully!
-          Template ID: {{ new_template_id }}
-          WAN Bridge: vmbr{{ '%03d' | format(group_number) }}000
-          LAN Bridge: {{ '%03d' | format(group_number) }}100
+# ============================================================================
+# Task: Deploy Group 3 pfSense from Template
+# ============================================================================
+# Purpose: Deploy Group 3 pfSense gateway from pre-configured template
+#
+# Called by: deploy_student_group.yml (when group_id == 3)
+#
+# This task file:
+#   1. Clones Group 3 pfSense from its dedicated template
+#   2. Starts the VM
+#   3. Waits for pfSense to boot
+#
+# Template Requirements:
+#   - Template VM must have all hardware pre-configured (memory, CPU, BIOS, etc.)
+#   - Template VM must have network interfaces configured with correct bridges:
+#       * net0: vmbr255003 (WAN to Instructor pfSense OPT3)
+#       * net1: vmbr003000 (Group 3 LAN)
+#   - pfSense setup wizard must be completed in template
+#   - All pfSense configurations (interfaces, firewall rules, etc.) must be complete
+#
+# VM Configuration:
+#   - VM ID: 302 (vm_ids.group3_pfsense)
+#   - Template: Group 3 pfSense template VM
+#   - Storage: raid-lvm
+#
+# Network Interfaces:
+#   - net0: vmbr255003 (WAN to Instructor)
+#   - net1: vmbr003000 (Group 3 LAN)
+#
+# Author: Emily Miller
+# Last Updated: December 28, 2025
+# ============================================================================
+
+- name: Display Group 3 pfSense deployment notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Deploying Group 3 pfSense (VM {{ group_pfsense_id }})
+      ========================================
+      Template: VM {{ templates.group3_pfsense_template_id }}
+      Storage: {{ storage }}
+      Networks (pre-configured in template):
+        - net0: vmbr255003 (WAN to Instructor)
+        - net1: vmbr003000 (Group 3 LAN)
+      ========================================
+
+# ========================================
+# Clone from Template
+# ========================================
+
+- name: Display clone notice
+  ansible.builtin.debug:
+    msg: "Cloning VM {{ templates.group3_pfsense_template_id }} → VM {{ group_pfsense_id }}"
+
+- name: Clone Group 3 pfSense from template
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm clone {{ templates.group3_pfsense_template_id }} {{ group_pfsense_id }}
+      --name student-group03-pfsense --full"
+  register: clone_result
+  changed_when: true
+  failed_when: clone_result.rc != 0
+
+- name: Display clone status
+  ansible.builtin.debug:
+    msg: "✓ Group 3 pfSense cloned from template (VM {{ group_pfsense_id }})"
+
+# ========================================
+# Start VM
+# ========================================
+
+- name: Display VM start notice
+  ansible.builtin.debug:
+    msg: "Starting Group 3 pfSense VM {{ group_pfsense_id }}"
+
+- name: Start Group 3 pfSense VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm start {{ group_pfsense_id }}"
+  register: start_result
+  changed_when: true
+  failed_when: start_result.rc != 0
+
+- name: Display VM start status
+  ansible.builtin.debug:
+    msg: "✓ Group 3 pfSense VM started (VM {{ group_pfsense_id }})"
+
+# ========================================
+# Wait for pfSense to Boot
+# ========================================
+
+- name: Wait for Group 3 pfSense to boot
+  ansible.builtin.pause:
+    seconds: "{{ automation.pfsense_boot_wait_seconds }}"
+    prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for Group 3 pfSense to boot..."
+
+- name: Verify VM is running
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm status {{ group_pfsense_id }}"
+  register: vm_status
+  changed_when: false
+  failed_when: "'running' not in vm_status.stdout"
+
+- name: Display deployment completion
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ Group 3 pfSense Deployment Complete
+      ========================================
+      Group: 3
+      VM ID: {{ group_pfsense_id }}
+      Status: {{ vm_status.stdout }}
+      WAN: vmbr255003 (net0)
+      LAN: vmbr003000 (net1)
+      ========================================
