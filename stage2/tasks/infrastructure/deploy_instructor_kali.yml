@@ -114,7 +114,7 @@
 - name: Assign Instructor LAN interface (net0)
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_kali }} --net0 virtio,bridge={{ bridges.instructor_lan }},firewall=1"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_kali }} --net0 virtio,bridge={{ bridges.vlan_lan }},tag={{ vlan_scheme.instructor_vlan }},firewall=1"
   register: net0_result
   changed_when: true
   failed_when: net0_result.rc != 0

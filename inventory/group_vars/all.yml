@@ -89,7 +89,7 @@ bridges:
 vlan_scheme:
   instructor_vlan: 255 # VLAN tag for instructor LAN
   multiplier: 10
-  
+
   # ==========================================
   # VM Templates (OVF Files)
   # ==========================================
@@ -102,8 +102,8 @@ templates:
   group1_pfsense_template_id: 8001
   group2_pfsense_template_id: 8002
   spark_pfsense_template_id: 8003
-  vlan_instructor_pfsense_template_id: 8004
   vlan_student_pfsense_template_id: 8005
+  vlan_instructor_pfsense_template_id: 8006
   kali: "/mnt/pve/ovfstore/TEMPLATE-kali-20241124-Experiment.ovf"
   ms3_ubuntu: "/mnt/pve/ovfstore/TEMPLATE-ms3ub1404-20250621-Experiment.ovf"
   ms3_windows: "/mnt/pve/ovfstore/imports/virtualbox/box.ovf"
