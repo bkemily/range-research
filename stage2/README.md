@@ -17,7 +17,7 @@ Stage 2 orchestrates complete cyber range campaigns by deploying infrastructure,
 
 - Stage 0 completed (Proxmox network bridges configured)
 - Stage 1 completed (Security Onion deployed and configured)
-- pfSense template (VM 9000) configured with pre-loaded XML configs
+- pfSense templates configured with pre-loaded XML configs
 - Kali, MS3 Ubuntu, and MS3 Windows OVF templates available
 - SSH access to Proxmox and Security Onion
 - Ansible 2.9+ installed on Security Onion
@@ -25,20 +25,20 @@ Stage 2 orchestrates complete cyber range campaigns by deploying infrastructure,
 ## Architecture
 
 ### Infrastructure VMs
-| VM ID | Name | Purpose | Network |
-|-------|------|---------|---------|
-| 50 | Spark pfSense | Internet gateway | vmbr0.68 (WAN), vmbr51 (LAN) |
-| 100 | Instructor pfSense | Multi-group router | vmbr51 (WAN), vmbr255000 (LAN), vmbr255001-015 (OPT) |
-| 101 | Instructor Kali | Instructor workstation | vmbr255000 (143.88.255.10) |
+| VM ID | Name | Purpose |
+|-------|------|---------|
+| 50 | Spark pfSense | Internet gateway |
+| 100 | Instructor pfSense | Multi-group router |
+| 101 | Instructor Kali | Instructor workstation |
 
 ### Student Group VMs (per group, repeated 1-15 times)
-| VM ID Pattern | Name | Purpose | Network |
-|---------------|------|---------|---------|
-| X01 | Group pfSense | Group router | vmbr255XXX (WAN), vmbrXXX000 (LAN) |
-| X02 | Kali 1 | Attack platform | vmbrXXX000 (143.88.X.10) |
-| X03 | Kali 2 | Attack platform | vmbrXXX000 (143.88.X.11) |
-| X04 | MS3 Ubuntu | Vulnerable target | vmbrXXX000 (143.88.X.13) |
-| X05 | MS3 Windows | Vulnerable target | vmbrXXX000 (143.88.X.14) |
+| VM ID Pattern | Name | Purpose |
+|---------------|------|---------|
+| X01 | Group pfSense | Group router |
+| X02 | Kali 1 | Attack platform |
+| X03 | Kali 2 | Attack platform |
+| X04 | MS3 Ubuntu | Vulnerable target |
+| X05 | MS3 Windows | Vulnerable target |
 
 VM ID Calculation:
 - Base ID = 200 + (group_number - 1) × 100
@@ -52,7 +52,7 @@ VM ID Calculation:
 - Security Onion: 143.88.255.9
 
 #### Student Group X Networks:
-- WAN (point-to-point /30): 143.88.0.(X×4-2)/30
+- WAN: 143.88.0.(X×4-2)/30
   - Gateway (Instructor OPT): 143.88.0.(X×4-3)
   - Student pfSense WAN: 143.88.0.(X×4-2)
 - LAN (/24): 143.88.X.0/24
@@ -108,7 +108,7 @@ stage2/
 
 ### Phase 2.1: Deploy Infrastructure
 1. Validates prerequisites (SSH, templates, no VM conflicts)
-2. Deploys Spark pfSense (VM 50)
+2. Deploys Spark pfSense
 3. Deploys Instructor infrastructure (pfSense, Kali)
 4. Deploys Student groups (loops 1-max_student_groups)
 5. Waits for VMs to boot (pfSense only - clients wait for config)
@@ -143,37 +143,6 @@ stage2/
 
 ## Usage
 
-### One-Time Setup: Generate pfSense Configurations
-
-Before first campaign, generate all pfSense XML configs:
-
-```bash
-cd /mnt/ovfstore/cyber-range-automation/stage2
-ansible-playbook generate_pfsense_configs.yml
-```
-
-This creates 16 XML files in `pfsense_configs/generated/`:
-- `instructor.xml`
-- `Group1.xml` through `Group15.xml`
-
-Copy these to the pfSense template (VM 9000):
-
-```bash
-# Start template VM
-ssh root@192.168.68.89
-qm set 9000 --template 0
-qm start 9000
-
-# Wait for boot, then copy configs
-cd /mnt/ovfstore/cyber-range-automation/stage2/pfsense_configs/generated
-scp Group*.xml instructor.xml admin@143.88.1.1:/backups/
-
-# Shutdown and reconvert to template
-ssh root@192.168.68.89
-qm shutdown 9000
-qm template 9000
-```
-
 ### Run a Complete Campaign
 
 ```bash
@@ -181,29 +150,18 @@ cd /mnt/ovfstore/cyber-range-automation
 ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml --ask-vault-pass
 ```
 
-With custom parameters:
-
-```bash
-ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml --ask-vault-pass \
-  -e max_student_groups=10 \
-  -e campaign_duration_hours=6 \
-  -e campaign_id=exp-2025-001
-```
-
 ### Run Individual Phases
 
 Deploy infrastructure only:
 
 ```bash
-ansible-playbook -i inventory/hosts.yml stage2/deploy_infrastructure.yml --ask-vault-pass \
-  -e max_student_groups=5
+ansible-playbook -i inventory/hosts.yml stage2/deploy_infrastructure.yml --ask-vault-pass
 ```
 
 Configure network only (requires infrastructure deployed):
 
 ```bash
-ansible-playbook -i inventory/hosts.yml stage2/configure_network.yml --ask-vault-pass \
-  -e max_student_groups=5
+ansible-playbook -i inventory/hosts.yml stage2/configure_network.yml --ask-vault-pass
 ```
 
 ### Teardown Campaign
@@ -211,55 +169,8 @@ ansible-playbook -i inventory/hosts.yml stage2/configure_network.yml --ask-vault
 Destroy all VMs and clean up:
 
 ```bash
-ansible-playbook -i inventory/hosts.yml stage2/teardown.yml --ask-vault-pass \
-  -e max_student_groups=10
+ansible-playbook -i inventory/hosts.yml stage2/teardown.yml --ask-vault-pass
 ```
-
-## What the Orchestrator Actually Does
-
-1. **Campaign Setup**
-   - Displays campaign overview (ID, groups, duration)
-   - Records campaign start timestamp
-
-2. **Phase 2.1: Deploy Infrastructure**
-   - Tests SSH connectivity to Proxmox
-   - Verifies templates exist
-   - Checks for VM ID conflicts
-   - Clones pfSense VMs from template (VM 9000)
-   - Imports Kali and MS3 VMs from OVF
-   - Configures VM hardware (CPU, memory, network interfaces)
-   - Starts pfSense VMs only (clients wait)
-   - Displays deployment summary
-
-3. **Phase 2.2: Configure Network**
-   - SSH to each pfSense at default IP (143.88.1.1)
-   - Runs `/root/config.sh` with group number
-   - Script copies appropriate XML from `/backups/GroupXX.xml`
-   - Reboots pfSense to apply configuration
-   - Waits for network convergence
-   - Starts all client VMs (Kali, MS3)
-   - Waits for DHCP assignments
-   - Verifies connectivity
-
-4. **Phase 2.3: Activate Attacks**
-   - 
-   - 
-   - 
-
-5. **Phase 2.4: Monitor Campaign**
-   - 
-   - 
-   - 
-
-6. **Phase 2.5: Collect Data**
-   - 
-   - 
-   - 
-
-7. **Campaign Completion**
-   - Records end timestamp
-   - Displays summary statistics
-   - Outputs data collection paths
 
 ## Verification
 
@@ -268,14 +179,13 @@ ansible-playbook -i inventory/hosts.yml stage2/teardown.yml --ask-vault-pass \
 ```bash
 # On Proxmox
 ssh root@192.168.68.89
-qm list | grep -E "50|100|101|201|202|203|204|205"
+qm list | grep -E "151|152|101|201|202|203|204|205"
 ```
 
 Expected output for 1 group:
 ```
-50   spark-pfsense               running
-100  instructor-pfsense          running
-101  instructor-kali             running
+151  instructor-pfsense          running
+152  instructor-kali             running
 201  student-group01-pfsense     running
 202  student-group01-kali1       running
 203  student-group01-kali2       running
@@ -320,62 +230,6 @@ ip addr show  # Should have 143.88.1.10
 - **Graceful teardown**: Stops VMs before destroying them
 - **Idempotent phases**: Safe to re-run individual phases
 - **Template preservation**: Teardown excludes template VMs
-
-## Troubleshooting
-
-### Problem: pfSense stuck at interface assignment wizard
-
-**Cause:** Template VM 9000 doesn't have interfaces pre-configured
-
-**Solution:**
-1. Convert template to VM: `qm set 9000 --template 0`
-2. Start VM: `qm start 9000`
-3. Access console: `qm terminal 9000`
-4. Configure: Answer n, vtnet0, vtnet1, [Enter], y
-5. Enable SSH: Option 14
-6. Shutdown: Option 6
-7. Reconvert: `qm template 9000`
-
-### Problem: SSH timeout when configuring pfSense
-
-**Cause:** pfSense hasn't finished booting or network isn't ready
-
-**Solution:**
-- Increase `automation.pfsense_boot_wait_seconds` in all.yml
-- Check pfSense console for errors
-- Verify bridges exist: `ip link show | grep vmbr`
-
-### Problem: Client VMs not getting DHCP
-
-**Cause:** pfSense not fully configured or clients started too early
-
-**Solution:**
-- Verify pfSense configuration: `ssh admin@143.88.1.1`
-- Check DHCP is enabled: Status > DHCP Leases
-- Restart client VMs after pfSense is ready
-- Check MAC addresses match static leases
-
-### Problem: VMs fail to deploy - "already exists"
-
-**Cause:** Previous campaign not cleaned up
-
-**Solution:**
-```bash
-ansible-playbook -i inventory/hosts.yml stage2/teardown.yml --ask-vault-pass
-```
-
-### Problem: Attack scripts not starting
-
-
-### Problem: No data collected
-
-**Cause:** Security Onion not capturing traffic or wrong interfaces
-
-**Solution:**
-- Check Security Onion status: `sudo so-status`
-- Verify monitoring interfaces: `sudo so-zeek-logs`
-- Check network taps are on correct bridges
-- Restart capture: `sudo so-restart`
 
 ## Output Data Structure
 
