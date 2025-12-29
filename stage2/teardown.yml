@@ -47,7 +47,6 @@
 
   - name: Combine all VM IDs to destroy
     ansible.builtin.set_fact:
-      #all_vm_ids: "{{ [vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
       all_vm_ids: "{{ [vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali, vm_ids.security_onion, vm_ids.car] + student_vm_ids }}"
 
   - name: Display teardown notice
