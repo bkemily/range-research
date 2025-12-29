@@ -1,6 +1,6 @@
 ---
-- name: Create pfSense template for Group 3
-  hosts: proxmox_host
+- name: "Display Experiment Start"
+  hosts: localhost
   gather_facts: no
   vars:
     group_number: 3
