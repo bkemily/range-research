@@ -141,34 +141,13 @@ ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.y
 # Stage 2: Deploy infrastructure (currently implemented)
 ansible-playbook -i inventory/hosts.yml stage2/run_full_campaign.yml --ask-vault-pass
 ```
-### Detailed Execution Instructions
-
-For comprehensive guidance on running different experiment configurations, troubleshooting, and understanding playbook options, see the **[Experiment Execution Guide](https://github.com/bkemily/range-research/blob/main/EXPERIMENT_EXECUTION_GUIDE.md)**.
-
-The execution guide provides detailed instructions for:
-
-**Configuration & Parameters:**
-- All configurable parameters (`campaign_id`, `max_student_groups`, `scenario_type`, `campaign_duration_hours`)
-- Default values and override methods using `-e` flags
-- Attack distribution patterns (uniform, clustered, random)
-
-**Monitoring & Troubleshooting:**
-- Real-time progress monitoring via Ansible output and Proxmox GUI
-- Security Onion status checks and data validation
-- Error handling procedures and recovery steps
-
-**Best Practices:**
-- Starting with small-scale tests before full deployments
-- Using descriptive campaign IDs for dataset organization
-- Verifying data collection after campaign completion
-- Pre-flight checklists for infrastructure validation
 
 ## Notes & Current Behavior
 ### Stage 0: Network Topology Configuration
 **Status:** Fully implemented and operational
 
 Creates the foundational network infrastructure:
-- Configures Proxmox network bridges (vmbr0.68, vmbr51, vmbr255000 series)
+- Configures Proxmox network bridges
 - Validates VM templates in `/mnt/pve/ovfstore/`
 - Sets up VLAN tagging and network segmentation
 
@@ -187,20 +166,18 @@ Deploys centralized monitoring infrastructure:
 #### Currently Working:
 - **Instructor Group Deployment**
   - Deploys instructor pfSense VM
-  - Assigns network bridges (WAN: vmbr255000, LAN: vmbr51)
-  - Deploys instructor Kali Linux VM with vmbr51 connection
+  - Deploys instructor Kali Linux VM
+  - Assigns network bridges to both VMs
   
 - **Student Group Deployment** (dynamic based on `max_student_groups`)
   - Deploys student pfSense VMs for each group (Group 1 through N)
-  - Assigns hierarchical network bridges:
-    - WAN: vmbr51 (connects to instructor pfSense)
-    - LAN: vmbr255001, vmbr255002, ... vmbr25500N
-  - Deploys student Kali Linux VMs (connected to group LAN bridges)
-  - Deploys Metasploitable3 target VMs (connected to group LAN bridges)
+  - Deploys student Kali Linux VMs
+  - Deploys Metasploitable3 target VMs
+  - Assigns network bridges to all VMs
 
 #### In Progress:
 - **Phase 2.2:** Network Configuration
-  - Automated pfSense configuration via SSH
+  - Automated pfSense configuration
 
 #### Pending Implementation:
 - **Phase 2.3:** Attack Activation
@@ -222,15 +199,3 @@ Future stages will include:
 - Seeded randomization for reproducible datasets
 - Multi-modal data collection (PCAP, Zeek logs, Suricata alerts)
 - Automated labeling and metadata generation
-
-## Known Issues & Workarounds
-
-### pfSense Console Setup Wizard
-**Issue:** pfSense VMs boot into initial setup wizard despite template pre-configuration  
-**Impact:** Blocks automated SSH access and network configuration  
-**Current Workaround:** Manual console interaction required to assign interfaces (vtnet0→WAN, vtnet1→LAN)  
-**Future Solution:** Investigating pre-seed configuration methods or API-based initial setup
-
-### Security Onion Interface Bonding
-**Issue:** Bonded interfaces conflict with Zeek worker requirements  
-**Resolution:** Use individual promiscuous mode interfaces instead of bonds
