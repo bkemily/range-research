@@ -72,6 +72,23 @@
         - EFI disk created
         - Main disk attached as sata0
 
+- name: Remove unused scsi0 disk
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} -delete scsi0"
+  register: delete_scsi_result
+  changed_when: true
+  failed_when: false
+
+- name: Display disk configuration status
+  ansible.builtin.debug:
+    msg: |
+      ✓ Disk configuration complete:
+        - EFI disk created
+        - Main disk attached as sata0
+        - Unused scsi0 disk removed
+
 # ========================================
 # Configure VM Settings
 # ========================================
