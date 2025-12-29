@@ -80,6 +80,7 @@ bridges:
   spark_lan: "vmbr0"
   instructor_wan: "vmbr51"
   instructor_lan: "vmbr255000"
+  instructor_vlan: 255 # VLAN tag for instructor LAN
   vlan_wan: "vmbr255"
   vlan_lan: "vmbr100"
   # Student bridge naming patterns (for dynamic generation)
