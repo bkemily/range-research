@@ -42,6 +42,37 @@
     msg: "✓ CAR OVF imported successfully (VM {{ vm_ids.car }})"
 
 # ========================================
+# Configure Disk and UEFI
+# ========================================
+# The importovf creates a disk (e.g., vm-110-disk-0) but doesn't attach it
+# We need to attach it as sata0 and create EFI disk
+
+- name: Create EFI vars disk (no Secure Boot)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} -efidisk0 {{ storage }}:0"
+  register: efi_result
+  changed_when: true
+  failed_when: efi_result.rc != 0
+
+- name: Attach imported disk as sata0
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm set {{ vm_ids.car }} -sata0 {{ storage }}:vm-{{ vm_ids.car }}-disk-0"
+  register: sata_result
+  changed_when: true
+  failed_when: sata_result.rc != 0
+
+- name: Display disk configuration status
+  ansible.builtin.debug:
+    msg: |
+      ✓ Disk configuration complete:
+        - EFI disk created
+        - Main disk attached as sata0
+
+# ========================================
 # Configure VM Settings
 # ========================================
 
