@@ -36,7 +36,7 @@ proxmox_node: "hm-hcr-08"
 proxmox_api_host: "192.168.68.89"
 proxmox_api_user: "root@pam"
 proxmox_api_token_id: "ansible-token"
-proxmox_api_token_secret: "{{ vault_proxmox_api_token }}"
+proxmox_api_token: "{{ vault_proxmox_api_token }}"
 proxmox_verify_ssl: false
 
 # ==========================================
