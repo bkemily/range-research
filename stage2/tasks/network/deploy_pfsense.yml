@@ -1,0 +1,124 @@
+---
+# ============================================================================
+# Playbook: Deploy VMs from pfSense Templates for Groups 3-15
+# ============================================================================
+# Purpose: Deploy actual VMs from the pfSense templates
+#
+# This playbook:
+#   1. Loops through groups 3-15
+#   2. Clones each group's template to create a VM
+#   3. Starts each VM
+#
+# Template ID Calculation:
+#   Template ID = 8002 + group_id
+#   Example: Group 3 → 8005, Group 4 → 8006
+#
+# VM ID Calculation:
+#   VM ID = student_base + ((group_id - 1) * student_block_size) + 1
+#   Example: Group 3 → 200 + (2 * 100) + 1 = 301
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml \
+#     stage2/tasks/infrastructure/deploy_vms_from_templates.yml \
+#     --ask-vault-pass
+#
+# Author: Emily Miller
+# Last Updated: December 28, 2025
+# ============================================================================
+
+- name: Deploy VMs from pfSense Templates for Groups 3-15
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+    - name: Display deployment notice
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Deploying VMs from pfSense Templates
+          ========================================
+          Groups: 3-15 (13 total)
+          Template ID Formula: 8002 + group_id
+          VM ID Formula: {{ vm_ids.student_base }} + ((group_id - 1) × {{ vm_ids.student_block_size }}) + 1
+          ========================================
+
+    - name: Pause for confirmation
+      ansible.builtin.pause:
+        prompt: "Press ENTER to continue with VM deployment, or Ctrl+C to abort"
+
+    # ========================================
+    # Deploy Student pfSense VMs (Groups 3-15)
+    # ========================================
+
+    - name: Deploy pfSense VM for Group {{ item }}
+      block:
+        - name: Set VM IDs for Group {{ item }}
+          ansible.builtin.set_fact:
+            group_pfsense_id: "{{ vm_ids.student_base + ((item - 1) * vm_ids.student_block_size) + 1 }}"
+            group_pfsense_template_id: "{{ 8002 + item }}"
+
+        - name: Clone VM from template for Group {{ item }}
+          ansible.builtin.command:
+            cmd: >
+              ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+              "qm clone {{ group_pfsense_template_id }} {{ group_pfsense_id }}
+              --name student-group{{ '%02d' | format(item) }}-pfsense --full"
+          register: clone_result
+          changed_when: true
+          failed_when: clone_result.rc != 0
+
+        - name: Display clone status
+          ansible.builtin.debug:
+            msg: "✓ Group {{ item }} pfSense cloned (Template {{ group_pfsense_template_id }} → VM {{ group_pfsense_id }})"
+
+        - name: Start VM for Group {{ item }}
+          ansible.builtin.command:
+            cmd: >
+              ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+              "qm start {{ group_pfsense_id }}"
+          register: start_result
+          changed_when: true
+          failed_when: start_result.rc != 0
+
+        - name: Display start status
+          ansible.builtin.debug:
+            msg: "✓ Group {{ item }} pfSense started (VM {{ group_pfsense_id }})"
+
+      loop: "{{ range(3, max_student_groups + 1) | list }}"
+      loop_control:
+        label: "Group {{ item }}"
+
+    # ========================================
+    # Wait for VMs to Boot
+    # ========================================
+
+    - name: Wait for pfSense VMs to boot
+      ansible.builtin.pause:
+        seconds: "{{ automation.pfsense_boot_wait_seconds }}"
+        prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for pfSense VMs to boot..."
+
+    # ========================================
+    # Verify VMs are Running
+    # ========================================
+
+    - name: Verify VMs are running
+      ansible.builtin.command:
+        cmd: >
+          ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+          "qm status {{ vm_ids.student_base + ((item - 1) * vm_ids.student_block_size) + 1 }}"
+      loop: "{{ range(3, max_student_groups + 1) | list }}"
+      register: vm_status
+      changed_when: false
+      failed_when: "'running' not in vm_status.stdout"
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          ✓ VM Deployment Complete
+          ========================================
+          Deployed and Started: Groups 3-{{ max_student_groups }} ({{ max_student_groups - 2 }} total)
+          All VMs verified running
+          Templates remain unchanged
+          ========================================
