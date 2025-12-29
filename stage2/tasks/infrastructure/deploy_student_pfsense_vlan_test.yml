@@ -24,7 +24,7 @@
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm clone {{ templates.vlan_pfsense_test }} {{ group_pfsense_id }}
+      "qm clone {{ templates.vlan_student_pfsense_template_id }} {{ group_pfsense_id }}
       --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
   register: clone_result
   changed_when: true

@@ -29,7 +29,7 @@
       ========================================
       Deploying Instructor pfSense (VM {{ vm_ids.instructor_pfsense }})
       ========================================
-      Template: VM {{ templates.vlan_pfsense_test }}
+      Template: VM {{ templates.vlan_instructor_pfsense_template_id }}
       Method: VLAN template (matches student approach)
       ========================================
 
@@ -41,7 +41,7 @@
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm clone {{ templates.vlan_pfsense_test }} {{ vm_ids.instructor_pfsense }}
+      "qm clone {{ templates.vlan_instructor_pfsense_template_id }} {{ vm_ids.instructor_pfsense }}
       --name instructor-pfsense --full"
   register: clone_result
   changed_when: true
