@@ -170,6 +170,24 @@
               bridge-fd 0
               bridge-vlan-aware yes
               bridge-vids 2-4094
+
+          #VLAN WAN
+          auto vmbr255
+          iface vmbr255 inet static
+              bridge-ports none
+              bridge-stp off
+              bridge-fd 0
+              bridge-vlan-aware yes
+              bridge-vids 1-4094
+            
+          #VLAN LAN
+          auto vmbr100
+          iface vmbr100 inet static
+              bridge-ports none
+              bridge-stp off
+              bridge-fd 0
+              bridge-vlan-aware yes
+              bridge-vids 1-4094
           
           #instructor LAN
           auto vmbr255000
