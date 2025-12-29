@@ -1,172 +1,44 @@
----
 # ============================================================================
-# Playbook: Deploy Student pfSense with VLAN Architecture
+# Task: Deploy Student pfSense (VLAN Template)
 # ============================================================================
-# Purpose: Deploy student pfSense using VLANs instead of separate bridges
+# Purpose: Deploy student pfSense by cloning from VLAN template
 #
-# This approach mirrors the working vSphere architecture where:
-#   - All student pfSense VMs connect to the same bridges
-#   - VLAN tags differentiate traffic per group
-#   - No bridge changes = no hardware detection = no setup wizard
+# Called by: deploy_student_group.yml
 #
-# Network Architecture:
-#   - Student WAN: vmbr255 with VLAN tag = group_id
-#   - Student LAN: vmbr100 with VLAN tag = group_id
+# This task simply clones from the VLAN template without any modifications.
+# The template should already have the correct VLAN configuration.
 #
-# Usage:
-#   ansible-playbook -i inventory/hosts.yml deploy_student_pfsense_vlan.yml \
-#     -e "group_id=2" --ask-vault-pass
-#
-# Prerequisites:
-#   1. Proxmox bridges must be VLAN-aware:
-#      - vmbr255 (student WAN interconnect)
-#      - vmbr100 (student LANs)
-#   2. Group 1 pfSense template must be configured with:
-#      - net0: vmbr255, tag 1 (WAN)
-#      - net1: vmbr100, tag 1 (LAN)
-#   3. Instructor pfSense must have OPT interfaces on vmbr255 with VLAN tags
+# Required variables (from deploy_student_group.yml):
+#   - group_id: Student group number
+#   - group_pfsense_id: Calculated VM ID for this pfSense
 #
 # Author: Emily Miller
 # Last Updated: December 28, 2025
 # ============================================================================
 
-- name: Deploy Student pfSense with VLAN Architecture
-  hosts: localhost
-  gather_facts: false
-  
-  tasks:
+- name: Display pfSense deployment for Group {{ group_id }}
+  ansible.builtin.debug:
+    msg: "Deploying Group {{ group_id }} pfSense (VM {{ group_pfsense_id }}) from VLAN template"
 
-  # ========================================
-  # Calculate VM IDs
-  # ========================================
+- name: Clone pfSense from VLAN template
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm clone {{ templates.vlan_pfsense_test }} {{ group_pfsense_id }}
+      --name student-group{{ '%02d' | format(group_id) }}-pfsense --full"
+  register: clone_result
+  changed_when: true
+  failed_when: clone_result.rc != 0
 
-  - name: Convert group_id to integer
-    ansible.builtin.set_fact:
-      group_id: "{{ group_id | int }}"
+- name: Start pfSense VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+      "qm start {{ group_pfsense_id }}"
+  register: start_result
+  changed_when: true
+  failed_when: start_result.rc != 0
 
-  - name: Calculate VM ID for Group {{ group_id }}
-    ansible.builtin.set_fact:
-      group_pfsense_id: "{{ (vm_ids.student_base | int) + (((group_id | int) - 1) * (vm_ids.student_block_size | int)) + 1 }}"
-
-  - name: Display Student pfSense deployment notice for Group {{ group_id }}
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        Deploying Group {{ group_id }} pfSense (VM {{ group_pfsense_id }})
-        ========================================
-        Template: VM {{ templates.vlan_pfsense_test }}
-        Method: VLAN-based (mirrors vSphere architecture)
-        
-        Network Configuration:
-          WAN: vmbr255, VLAN {{ group_id }} (to Instructor pfSense OPT{{ group_id }})
-          LAN: vmbr100, VLAN {{ group_id }} (Student Group {{ group_id }} network)
-        
-        ========================================
-
-  # ========================================
-  # Clone from Template
-  # ========================================
-
-  - name: Clone Group {{ group_id }} pfSense from Group 1 template
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm clone {{ templates.vlan_pfsense_test }} {{ group_pfsense_id }}
-        --name student-group{{ '%02d' | format(group_id | int) }}-pfsense --full"
-    register: clone_result
-    changed_when: true
-    failed_when: clone_result.rc != 0
-
-  - name: Display clone status
-    ansible.builtin.debug:
-      msg: "✓ Group {{ group_id }} pfSense cloned from template (VM {{ group_pfsense_id }})"
-
-  # ========================================
-  # Start VM
-  # ========================================
-
-  - name: Start Group {{ group_id }} pfSense VM
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm start {{ group_pfsense_id }}"
-    register: start_result
-    changed_when: true
-    failed_when: start_result.rc != 0
-
-  - name: Display VM start status
-    ansible.builtin.debug:
-      msg: "✓ Group {{ group_id }} pfSense VM started (VM {{ group_pfsense_id }})"
-
-  # ========================================
-  # Wait and Verify
-  # ========================================
-
-  - name: Wait for pfSense to boot
-    ansible.builtin.pause:
-      seconds: "{{ automation.pfsense_boot_wait_seconds }}"
-      prompt: "Waiting {{ automation.pfsense_boot_wait_seconds }} seconds for pfSense to boot..."
-
-  - name: Verify VM is running
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm status {{ group_pfsense_id }}"
-    register: vm_status
-    changed_when: false
-
-  # ========================================
-  # Display Results
-  # ========================================
-
-  - name: Display deployment completion
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        ✓ Group {{ group_id }} pfSense Deployment Complete
-        ========================================
-        VM ID: {{ group_pfsense_id }}
-        Status: {{ vm_status.stdout }}
-        
-        Network Configuration (VLAN-based):
-          WAN: vmbr255, VLAN {{ group_id }} (vtnet0)
-          LAN: vmbr100, VLAN {{ group_id }} (vtnet1)
-        
-        CRITICAL TEST: Check pfSense console
-          - Expected: Boot to normal pfSense menu (no setup wizard)
-          - If setup wizard appears: VLAN approach failed
-          - If normal menu: VLAN approach SUCCESS!
-        
-        Next Steps:
-          1. Check VM {{ group_pfsense_id }} console in Proxmox
-          2. Verify it boots to normal pfSense menu (not setup wizard)
-          3. If successful, VLANs work and this approach can replace bridges
-          4. If failed, proceed with multiple template approach
-        ========================================
-
-  - name: Display testing instructions
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        TESTING INSTRUCTIONS
-        ========================================
-        
-        1. Open Proxmox web UI
-        2. Navigate to VM {{ group_pfsense_id }}
-        3. Click "Console"
-        4. Observe boot behavior:
-        
-           SUCCESS INDICATORS:
-           - Boots to pfSense menu (option 1-15)
-           - No "Do you want to set up VLANs" prompt
-           - No interface assignment wizard
-           - Interfaces show as configured (vtnet0=WAN, vtnet1=LAN)
-        
-           FAILURE INDICATORS:
-           - "Do you want to set up VLANs now?" appears
-           - Interface assignment wizard appears
-           - "Network interface mismatch" warning
-        
-        If SUCCESS: VLAN approach works! Can use single template for all groups
-        If FAILURE: VLANs don't work in this environment, use multiple templates
-        ========================================
+- name: Display pfSense deployment completion
+  ansible.builtin.debug:
+    msg: "✓ Group {{ group_id }} pfSense deployed (VM {{ group_pfsense_id }})"
