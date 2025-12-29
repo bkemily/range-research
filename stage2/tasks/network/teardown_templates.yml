@@ -18,7 +18,7 @@
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml \
-#     stage2/tasks/infrastructure/destroy_student_pfsense_templates.yml \
+#     stage2/tasks/network/teardown_templates.yml \
 #     --ask-vault-pass
 #
 # Author: Emily Miller
@@ -31,56 +31,54 @@
   gather_facts: no
 
   tasks:
-  - name: Display destruction warning
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        WARNING: Destroying pfSense Templates
-        ========================================
-        Templates to Destroy: Groups 3-15 (13 total)
-        Template IDs: 8005-8017
-        This action CANNOT be undone!
-        ========================================
+    - name: Display destruction warning
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          WARNING: Destroying pfSense Templates
+          ========================================
+          Templates to Destroy: Groups 3-15 (13 total)
+          Template IDs: 8005-8017
+          This action CANNOT be undone!
+          ========================================
 
-  - name: Pause for confirmation
-    ansible.builtin.pause:
-      prompt: "Press ENTER to continue with template destruction, or Ctrl+C to abort"
+    - name: Pause for confirmation
+      ansible.builtin.pause:
+        prompt: "Press ENTER to continue with template destruction, or Ctrl+C to abort"
 
-  # ========================================
-  # Loop Through Groups 3-15
-  # ========================================
+    # ========================================
+    # Loop Through Groups 3-15
+    # ========================================
 
-  - name: Destroy pfSense templates for groups 3-15
-    block:
     - name: Set template ID for Group {{ item }}
       ansible.builtin.set_fact:
         current_template_id: "{{ 8002 + item }}"
-
-    - name: Display destruction notice for Group {{ item }}
-      ansible.builtin.debug:
-        msg: "Destroying Group {{ item }} pfSense template (VM {{ current_template_id }})"
+      loop: "{{ range(3, 16) | list }}"
+      register: template_ids
 
     - name: Destroy template for Group {{ item }}
       ansible.builtin.command:
         cmd: >
-          ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm destroy {{ current_template_id }}"
-      register: destroy_result
+          ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+          "qm destroy {{ 8002 + item }}"
+      loop: "{{ range(3, 16) | list }}"
+      register: destroy_results
       changed_when: true
       failed_when: false
-      # Note: failed_when: false allows the playbook to continue even if a template doesn't exist
 
-    - name: Display destruction status for Group {{ item }}
+    - name: Display destruction results
       ansible.builtin.debug:
-        msg: "{{ '✓' if destroy_result.rc == 0 else '✗' }} Group {{ item }} template {{ 'destroyed' if destroy_result.rc == 0 else 'not found or error' }} (VM {{ current_template_id }})"
+        msg: "{{ '✓' if item.rc == 0 else '✗' }} Group {{ item.item }} template {{ 'destroyed' if item.rc == 0 else 'not found or error' }} (VM {{ 8002 + item.item }})"
+      loop: "{{ destroy_results.results }}"
+      loop_control:
+        label: "Group {{ item.item }}"
 
-    loop: "{{ range(3, 16) | list }}"
-
-  - name: Display batch destruction summary
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        ✓ Template Destruction Complete
-        ========================================
-        Attempted to destroy: Groups 3-15 (13 total)
-        Template IDs: 8005-8017
-        ========================================
+    - name: Display batch destruction summary
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          ✓ Template Destruction Complete
+          ========================================
+          Attempted to destroy: Groups 3-15 (13 total)
+          Template IDs: 8005-8017
+          ========================================
