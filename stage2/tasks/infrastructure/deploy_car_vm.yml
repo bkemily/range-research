@@ -21,7 +21,7 @@
       ========================================
       VM ID: {{ vm_ids.car }}
       Storage: {{ storage }}
-      OVF Location: {{ templates.car }}/car.ovf
+      OVF Location: {{ templates.car }}.ovf
       Network: vmbr50 (SPARK WAN), vmbr255000 (Instructor LAN)
       ========================================
 
@@ -33,7 +33,7 @@
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm importovf {{ vm_ids.car }} {{ templates.car }}/car.ovf {{ storage }}"
+      "qm importovf {{ vm_ids.car }} {{ templates.car }}.ovf {{ storage }}"
   register: import_result
   changed_when: true
   failed_when: import_result.rc != 0
