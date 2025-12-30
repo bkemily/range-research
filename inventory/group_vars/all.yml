@@ -117,48 +117,48 @@ isos:
 # ==========================================
 # VM ID Allocation Scheme
 # ==========================================
-# VMs are allocated in blocks of 10 per group for organization
+# VMs are allocated in blocks of 100 per group for organization
 #
 # Infrastructure (IDs 50-199):
-#   50:  Spark pfSense (Internet gateway)
-#   151: Instructor pfSense
-#   152: Instructor Kali
-#   159: Security Onion
+#   2011:  Spark pfSense (Internet gateway)
+#   2000: Instructor pfSense
+#   2001: Instructor Kali
+#   2009: Security Onion
 #
-# Student Groups (IDs 200+):
-#   Group 1: 201-210
+# Student Groups (IDs 100+):
+#   Group 1: 101-110
+#     101: pfSense
+#     102: Kali 1
+#     103: Kali 2
+#     104: Ubuntu
+#     105: Windows
+#
+#   Group 2: 201-220
 #     201: pfSense
 #     202: Kali 1
 #     203: Kali 2
 #     204: Ubuntu
 #     205: Windows
 #
-#   Group 2: 301-320
-#     301: pfSense
-#     302: Kali 1
-#     303: Kali 2
-#     304: Ubuntu
-#     305: Windows
-#
-#   Group N: (200 + (N-1)*100 + 1) through (200 + N*100)
+#   Group N: (100 + (N-1)*100 + 1) through (100 + N*100)
 #
 # VM ID Formulas:
-#   Student pfSense:  200 + ((group_id - 1) * 100) + 1
-#   Student Kali 1:   200 + ((group_id - 1) * 100) + 2
-#   Student Kali 2:   200 + ((group_id - 1) * 100) + 3
-#   Student Ubuntu:   200 + ((group_id - 1) * 100) + 4
-#   Student Windows:  200 + ((group_id - 1) * 100) + 5
-
+#   Student pfSense:  100 + ((group_id - 1) * 100) + 1
+#   Student Kali 1:   100 + ((group_id - 1) * 100) + 2
+#   Student Kali 2:   100 + ((group_id - 1) * 100) + 3
+#   Student Ubuntu:   100 + ((group_id - 1) * 100) + 4
+#   Student Windows:  100 + ((group_id - 1) * 100) + 5
+#
 vm_ids:
   # Infrastructure VMs (fixed IDs)
-  car: 110
-  spark_pfsense: 111
-  instructor_pfsense: 151
-  instructor_kali: 152
-  security_onion: 159
+  car: 2010
+  spark_pfsense: 2011
+  instructor_pfsense: 2000
+  instructor_kali: 2001
+  security_onion: 2009
 
   # Student VM base ID (formulas calculated in Stage 2+)
-  student_base: 200
+  student_base: 100
   student_block_size: 100
 
 # ==========================================
