@@ -78,19 +78,12 @@
             - vmbr50 (Internet)
             - vmbr51 (Closed network, VLAN-aware)
           
-          VLAN Bridges:
-            - {{ bridges.vlan_wan }} (VLAN WAN)
-            - {{ bridges.vlan_lan }} (VLAN LAN, VLAN-aware)
+          VLAN Architecture (2-bridge design):
+            - {{ bridges.vlan_wan }} (VLAN WAN - handles all WAN VLANs)
+            - {{ bridges.vlan_lan }} (VLAN LAN - handles all LAN VLANs, VLAN-aware)
           
-          Instructor:
-            - vmbr255000 (Instructor LAN)
-          
-          Student Groups ({{ max_student_groups }} groups):
-            - vmbr255001, vmbr001000 (Group 1 WAN/LAN)
-            - vmbr255002, vmbr002000 (Group 2 WAN/LAN)
-            {% if max_student_groups > 2 %}
-            - ... up to Group {{ max_student_groups }}
-            {% endif %}
+          Note: Instructor and student networks use VLANs on these bridges
+          Student Groups ({{ max_student_groups }} groups) will use VLAN tags
         ========================================
 
   - name: Test SSH connection to Proxmox
@@ -228,17 +221,19 @@
       seconds: 10
     when: interfaces_updated.changed
 
-  - name: Set promisc mode on all bridges
+  - name: Set promisc mode on VLAN bridges
     ansible.builtin.command:
       cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link set {{ item }} promisc on"
-    loop: "{{ student_group_bridges }}"
+    loop:
+      - "{{ bridges.vlan_wan }}"
+      - "{{ bridges.vlan_lan }}"
     changed_when: true
 
   - name: Display confirmation of promisc mode
     ansible.builtin.debug:
       msg: |
-        ✓ Promiscuous mode enabled on student group bridges
-        Bridges: {{ student_group_bridges | join(', ') }}
+        ✓ Promiscuous mode enabled on VLAN bridges
+        Bridges: {{ bridges.vlan_wan }}, {{ bridges.vlan_lan }}
 
   # =========================================================================
   # STAGE 0.6: Verify Changes and Connectivity
