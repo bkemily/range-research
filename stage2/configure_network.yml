@@ -85,14 +85,14 @@
         ========================================
 
   # Start Instructor Kali
-  - name: Start Instructor Kali
-    ansible.builtin.command:
-      cmd: >
-        ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-        "qm start {{ vm_ids.instructor_kali }}"
-    register: start_instructor_kali
-    changed_when: true
-    failed_when: start_instructor_kali.rc != 0
+  #- name: Start Instructor Kali
+    #ansible.builtin.command:
+      #cmd: >
+        #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
+        #"qm start {{ vm_ids.instructor_kali }}"
+    #register: start_instructor_kali
+    #changed_when: true
+    #failed_when: start_instructor_kali.rc != 0
 
   - name: Display Instructor Kali start status
     ansible.builtin.debug:
