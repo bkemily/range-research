@@ -39,10 +39,6 @@
         - Kali 2:         VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 3 }}
         - MS3 Ubuntu:     VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 4 }}
         - MS3 Windows:    VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 5 }}
-
-      Network:
-        - WAN: vmbr255{{ '%03d' | format(group_id) }}
-        - LAN: vmbr{{ '%03d' | format(group_id) }}000
       ========================================
 
 # ========================================
