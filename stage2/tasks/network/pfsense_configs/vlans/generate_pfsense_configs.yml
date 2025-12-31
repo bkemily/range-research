@@ -20,7 +20,7 @@
   gather_facts: yes
 
   vars:
-    max_student_groups: 40
+    max_student_groups: 15
 
   tasks:
   - name: Create configs output directory
@@ -32,7 +32,7 @@
     ansible.builtin.template:
       src: "{{ playbook_dir }}/student-group-XX.xml.j2"
       dest: "{{ playbook_dir }}/generated/group{{ '%02d' | format(item) }}.xml"
-    loop: "{{ range(1, 16) | list }}"
+    loop: "{{ range(1, 41) | list }}"
     vars:
       group_id: "{{ item }}"
       # WAN addressing - Group N uses 143.88.0.(N*2)
