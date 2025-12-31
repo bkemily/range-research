@@ -63,11 +63,11 @@ stage1/
    - Tests SSH connectivity to Proxmox
    - Generates dynamic bridge list
    - Verifies all required bridges exist (infrastructure + student groups)
-   - Checks if VM 159 already exists (prevents overwrites)
+   - Checks if VM 2009 already exists (prevents overwrites)
    - Verifies Security Onion ISO exists in ISO_Library
 
 3. **Create Security Onion VM**
-   - Creates VM 159 with proper hardware configuration
+   - Creates VM 2009 with proper hardware configuration
    - Allocates 32GB RAM, 8 CPU cores, q35 machine type
    - Uses OVMF (UEFI) BIOS instead of legacy SeaBIOS
 
@@ -108,7 +108,7 @@ ansible-playbook -i ../inventory/hosts.yml stage1_final.yml --ask-vault-pass
 
 ### Hardware Specifications
 ```yaml
-VM ID: 159
+VM ID: 2009
 Name: so-master
 Memory: 32000 MB (31.25 GiB)
 CPUs: 8 cores (1 socket)
@@ -138,19 +138,19 @@ ISO: ISO_Library:iso/securityonion-2.4.180-20250916.iso
 
 ```bash
 # Check VM exists and is running
-ssh root@192.168.68.89 "qm status 159"
+ssh root@192.168.68.89 "qm status 2009"
 # Expected: status: running
 
 # View VM configuration
-ssh root@192.168.68.89 "qm config 159"
+ssh root@192.168.68.89 "qm config 2009"
 
 # Check network interfaces
-ssh root@192.168.68.89 "qm config 159 | grep net"
+ssh root@192.168.68.89 "qm config 2009 | grep net"
 ```
 
 ## Safety Features
 
-- **VM Existence Check:** Prevents overwriting existing VM 159
+- **VM Existence Check:** Prevents overwriting existing VM 2009
 - **Bridge Verification:** Ensures all required bridges exist before deployment
 - **ISO Verification:** Checks ISO availability (non-fatal warning if check fails)
 - **Idempotent:** Safe to re-run after destroying VM
@@ -162,8 +162,8 @@ If you need to start over:
 
 ```bash
 # Stop and destroy the VM
-ssh root@192.168.68.89 "qm stop 159"
-ssh root@192.168.68.89 "qm destroy 159"
+ssh root@192.168.68.89 "qm stop 2009"
+ssh root@192.168.68.89 "qm destroy 2009"
 
 # Re-run Stage 1
 cd /opt/cyber-range-automation/stage1
@@ -244,14 +244,14 @@ ssh root@192.168.68.89 "pvesm status"
 **Solution:**
 ```bash
 # Check VM configuration
-ssh root@192.168.68.89 "qm config 159"
+ssh root@192.168.68.89 "qm config 2009"
 
 # Check VM status and logs
-ssh root@192.168.68.89 "qm status 159"
-ssh root@192.168.68.89 "qm showcmd 159"
+ssh root@192.168.68.89 "qm status 2009"
+ssh root@192.168.68.89 "qm showcmd 2009"
 
 # Try starting manually
-ssh root@192.168.68.89 "qm start 159"
+ssh root@192.168.68.89 "qm start 2009"
 
 # Check Proxmox logs
 ssh root@192.168.68.89 "journalctl -xe | grep 'qemu\|kvm'"
@@ -264,7 +264,7 @@ ssh root@192.168.68.89 "journalctl -xe | grep 'qemu\|kvm'"
 **Solution:**
 ```bash
 # Check from Proxmox console if VM has correct IP
-# Access Proxmox UI -> VM 159 -> Console
+# Access Proxmox UI -> VM 2009 -> Console
 # Login and check: ip addr show
 
 # Verify IP is 143.88.255.9
@@ -280,13 +280,13 @@ ssh analyst@143.88.255.9
 
 After Stage 1 automation completes:
 
-- [ ] VM 159 exists (`qm status 159` shows running)
-- [ ] VM has 32GB RAM (`qm config 159 | grep memory`)
-- [ ] VM has 8 CPU cores (`qm config 159 | grep cores`)
-- [ ] VM has 2TB disk (`qm config 159 | grep scsi0`)
-- [ ] VM has correct number of network interfaces (`qm config 159 | grep -c net`)
-- [ ] ISO is attached (`qm config 159 | grep ide2`)
-- [ ] EFI disk exists (`qm config 159 | grep efidisk0`)
+- [ ] VM 2009 exists (`qm status 2009` shows running)
+- [ ] VM has 32GB RAM (`qm config 2009 | grep memory`)
+- [ ] VM has 8 CPU cores (`qm config 2009 | grep cores`)
+- [ ] VM has 2TB disk (`qm config 2009 | grep scsi0`)
+- [ ] VM has correct number of network interfaces (`qm config 2009 | grep -c net`)
+- [ ] ISO is attached (`qm config 2009 | grep ide2`)
+- [ ] EFI disk exists (`qm config 2009 | grep efidisk0`)
 - [ ] VM is running and accessible via console
 - [ ] VM boots from ISO and shows Security Onion installer
 

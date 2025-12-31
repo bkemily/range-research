@@ -89,7 +89,6 @@ bridges:
 vlan_scheme:
   instructor_vlan: 255 # VLAN tag for instructor LAN
   multiplier: 10
-
   # ==========================================
   # VM Templates (OVF Files)
   # ==========================================
@@ -170,7 +169,7 @@ vm_ids:
 # Will need to change exact location and boot configs later
 
 security_onion:
-  vmid: 159
+  vmid: 2009
   name: "so-master"
 
   # ISO-based installation (not OVF)
