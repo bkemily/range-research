@@ -12,6 +12,8 @@
 #   3. Starts Kali 2
 #   4. Starts MS3 Ubuntu
 #   5. Starts MS3 Windows
+#   6. Waits for VMs to boot
+#   7. Logs into each VM to trigger DHCP IP assignment
 #
 # Input Variables:
 #   - group_id: Student group number (1-15)
@@ -21,6 +23,10 @@
 #   - Kali 2:   200 + ((group_id - 1) * 100) + 3  (e.g., Group 1 = 203, Group 2 = 303)
 #   - Ubuntu:   200 + ((group_id - 1) * 100) + 4  (e.g., Group 1 = 204, Group 2 = 304)
 #   - Windows:  200 + ((group_id - 1) * 100) + 5  (e.g., Group 1 = 205, Group 2 = 305)
+#
+# Default Credentials:
+#   - Kali VMs: kali/kali
+#   - MS3 VMs:  vagrant/vagrant
 #
 # Author: Emily Miller
 # Last Updated: December 31, 2025
@@ -49,6 +55,10 @@
     group_kali2_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 3 }}"
     group_ubuntu_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 4 }}"
     group_windows_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 5 }}"
+    expected_kali1_ip: "143.88.{{ group_id }}.100"
+    expected_kali2_ip: "143.88.{{ group_id }}.101"
+    expected_ubuntu_ip: "143.88.{{ group_id }}.102"
+    expected_windows_ip: "143.88.{{ group_id }}.103"
 
 - name: Display Group {{ group_id }} VM IDs
   ansible.builtin.debug:
@@ -96,6 +106,51 @@
   failed_when: start_windows.rc != 0
 
 # ========================================
+# Wait for VMs to Boot
+# ========================================
+
+- name: Wait for Group {{ group_id }} VMs to boot (60 seconds)
+  ansible.builtin.pause:
+    seconds: 60
+    prompt: "Waiting for Group {{ group_id }} VMs to complete boot sequence..."
+
+# ========================================
+# Trigger DHCP via SSH Login
+# ========================================
+
+- name: Trigger DHCP for Group {{ group_id }} Kali 1 via SSH login
+  ansible.builtin.shell: |
+    sshpass -p 'kali' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    -o ConnectTimeout=10 kali@{{ expected_kali1_ip }} 'ip addr show' || true
+  register: kali1_dhcp
+  changed_when: false
+  failed_when: false
+
+- name: Trigger DHCP for Group {{ group_id }} Kali 2 via SSH login
+  ansible.builtin.shell: |
+    sshpass -p 'kali' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    -o ConnectTimeout=10 kali@{{ expected_kali2_ip }} 'ip addr show' || true
+  register: kali2_dhcp
+  changed_when: false
+  failed_when: false
+
+- name: Trigger DHCP for Group {{ group_id }} MS3 Ubuntu via SSH login
+  ansible.builtin.shell: |
+    sshpass -p 'vagrant' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    -o ConnectTimeout=10 vagrant@{{ expected_ubuntu_ip }} 'ip addr show' || true
+  register: ubuntu_dhcp
+  changed_when: false
+  failed_when: false
+
+- name: Trigger DHCP for Group {{ group_id }} MS3 Windows via SSH login
+  ansible.builtin.shell: |
+    sshpass -p 'vagrant' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    -o ConnectTimeout=10 vagrant@{{ expected_windows_ip }} 'ipconfig /all' || true
+  register: windows_dhcp
+  changed_when: false
+  failed_when: false
+
+# ========================================
 # Display Completion
 # ========================================
 
@@ -106,8 +161,14 @@
       ✓ Group {{ group_id }} Client VMs Started
       ========================================
       VMs:
-        - Kali 1:         VM {{ group_kali1_id }} (will get 143.88.{{ group_id }}.10)
-        - Kali 2:         VM {{ group_kali2_id }} (will get 143.88.{{ group_id }}.11)
-        - MS3 Ubuntu:     VM {{ group_ubuntu_id }} (will get 143.88.{{ group_id }}.13)
-        - MS3 Windows:    VM {{ group_windows_id }} (will get 143.88.{{ group_id }}.14)
+        - Kali 1:         VM {{ group_kali1_id }} ({{ expected_kali1_ip }})
+        - Kali 2:         VM {{ group_kali2_id }} ({{ expected_kali2_ip }})
+        - MS3 Ubuntu:     VM {{ group_ubuntu_id }} ({{ expected_ubuntu_ip }})
+        - MS3 Windows:    VM {{ group_windows_id }} ({{ expected_windows_ip }})
+
+      DHCP Trigger Status:
+        - Kali 1:   {{ 'SUCCESS' if kali1_dhcp.rc == 0 else 'FAILED (may still be booting)' }}
+        - Kali 2:   {{ 'SUCCESS' if kali2_dhcp.rc == 0 else 'FAILED (may still be booting)' }}
+        - Ubuntu:   {{ 'SUCCESS' if ubuntu_dhcp.rc == 0 else 'FAILED (may still be booting)' }}
+        - Windows:  {{ 'SUCCESS' if windows_dhcp.rc == 0 else 'FAILED (may still be booting)' }}
       ========================================
