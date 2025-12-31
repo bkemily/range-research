@@ -15,12 +15,11 @@
 #   - Template should have VLAN-based network configuration
 #
 # VM Configuration:
-#   - VM ID: 151 (vm_ids.instructor_pfsense)
 #   - Template: VLAN pfSense template
 #   - Storage: raid-lvm
 #
 # Author: Emily Miller
-# Last Updated: December 28, 2025
+# Last Updated: December 30, 2025
 # ============================================================================
 
 - name: Display Instructor pfSense deployment notice
@@ -40,9 +39,7 @@
 - name: Clone Instructor pfSense from VLAN template
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm clone {{ templates.vlan_instructor_pfsense_template_id }} {{ vm_ids.instructor_pfsense }}
-      --name instructor-pfsense --full"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm clone {{ templates.vlan_instructor_pfsense_template_id }} {{ vm_ids.instructor_pfsense }} --name instructor-pfsense --full"
   register: clone_result
   changed_when: true
   failed_when: clone_result.rc != 0
@@ -58,8 +55,7 @@
 - name: Start Instructor pfSense VM
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm start {{ vm_ids.instructor_pfsense }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ vm_ids.instructor_pfsense }}"
   register: start_result
   changed_when: true
   failed_when: start_result.rc != 0
@@ -80,8 +76,7 @@
 - name: Verify VM is running
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm status {{ vm_ids.instructor_pfsense }}"
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ vm_ids.instructor_pfsense }}"
   register: vm_status
   changed_when: false
   failed_when: "'running' not in vm_status.stdout"

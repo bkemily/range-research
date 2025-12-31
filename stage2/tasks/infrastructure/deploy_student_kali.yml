@@ -17,7 +17,7 @@
 #   - group_lan_bridge: LAN bridge name (vmbr00X000)
 #
 # Author: Emily Miller
-# Last Updated: December 16, 2025
+# Last Updated: December 30, 2025
 # ============================================================================
 
 - name: Display Student Kali VMs deployment notice
@@ -78,17 +78,16 @@
   register: kali1_boot
   changed_when: true
   failed_when: kali1_boot.rc != 0
-
-#without vlans
-#- name: Assign Kali 1 network interface
+  #without vlans
+  #- name: Assign Kali 1 network interface
   #ansible.builtin.command:
-    #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali1_id }} --net0 virtio,bridge={{ group_lan_bridge }}, firewall=1"
+  #cmd: >
+  #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali1_id }} --net0 virtio,bridge={{ group_lan_bridge }}, firewall=1"
   #register: kali1_net
   #changed_when: true
   #failed_when: kali1_net.rc != 0
 
-#with vlans
+  #with vlans
 - name: Assign Kali 1 network interface
   ansible.builtin.command:
     cmd: >
@@ -149,14 +148,14 @@
   changed_when: true
   failed_when: kali2_boot.rc != 0
 
-#without vlans
-#- name: Assign Kali 2 network interface
-  #ansible.builtin.command:
+    #without vlans
+    #- name: Assign Kali 2 network interface
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
-  #register: kali2_net
-  #changed_when: true
-  #failed_when: kali2_net.rc != 0
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
+    #register: kali2_net
+    #changed_when: true
+    #failed_when: kali2_net.rc != 0
 
 #with vlans
 - name: Assign Kali 2 network interface

@@ -2,13 +2,13 @@
 
 ## Overview
 
-Stage 0 configures the Proxmox VE network infrastructure by creating all required bridge interfaces. This is a **one-time setup** that must be completed before deploying any VMs.
+Stage 0 configures the Proxmox VE network infrastructure by creating required infrastructure and VLAN bridge interfaces. This is a **one-time setup** that must be completed before deploying any VMs.
 
 ## Purpose
 
-- Create Linux bridge interfaces for network isolation
-- Configure bridges for instructor and student groups
-- Establish network topology for Cyber War Gaming class
+- Create Linux bridge interfaces for infrastructure and VLAN networks
+- Configure bridges for Proxmox management and internet connectivity
+- Establish foundational network topology for cyber range
 - Ensure safe rollback through automatic timestamped backups
 - Prepare Proxmox for Security Onion deployment
 
@@ -29,25 +29,18 @@ Stage 0 configures the Proxmox VE network infrastructure by creating all require
 | `vmbr50` | Internet (Spark WAN) |
 | `vmbr51` | Closed network (VLAN-aware) |
 
-### **Instructor Bridges**
+### **VLAN Bridges**
 | Bridge | Purpose |
 |--------|---------|
-| `vmbr255000` | Instructor LAN (143.88.255.0/24) |
-
-### **Student Group Bridges** (max_student_groups)
-The playbook dynamically generates these:
-
-| Purpose | Format | Example (Group 1) |
-|---------|--------|-------------------|
-| Group WAN | `vmbr255GGG` | `vmbr255001` |
-| Group LAN | `vmbrGGG000` | `vmbr001000` |
+| `vmbr255` | VLAN WAN (configurable via `bridges.vlan_wan`) |
+| `vmbr100` | VLAN LAN, VLAN-aware (configurable via `bridges.vlan_lan`) |
 
 ## Files
 
 ```
 stage0/
 ├── stage0_final.yml   # Main playbook
-└── README.md                              # This file
+└── README.md          # This file
 ```
 
 ## What the Playbook Actually Does
@@ -55,15 +48,15 @@ stage0/
 1. Displays stage information and bridge plan  
 2. Tests SSH connectivity to Proxmox  
 3. Creates timestamped backup of `/etc/network/interfaces`  
-4. Generates a full replacement configuration including all bridges  
+4. Generates network configuration for infrastructure and VLAN bridges only  
 5. Writes config to `/tmp/interfaces.new` locally  
 6. Transfers it to Proxmox with SCP  
-7. **Skips dry-run validation** (Proxmox doesn’t support `ifreload -i`)  
-8. Applies new configuration  
-9. Runs `ifreload -a` to apply changes  
-10. Waits 10 seconds for stabilization  
+7. Applies new configuration  
+8. Runs `ifreload -a` to apply changes  
+9. Waits 10 seconds for stabilization  
+10. Enables promiscuous mode on student group bridges (from variable)
 11. Verifies Proxmox is reachable via SSH  
-12. Verifies each required bridge exists and is active  
+12. Verifies each required infrastructure bridge exists and is active  
 13. Removes temporary files locally and on Proxmox  
 14. Prints a completion summary and next steps  
 
@@ -98,13 +91,7 @@ git pull
 
 ```bash
 cd /opt/cyber-range-automation/stage0
-ansible-playbook stage0_final.yml
-```
-
-Specify a custom number of groups:
-
-```bash
-ansible-playbook stage0_final.yml -e max_student_groups=5
+ansible-playbook -i inventory/hosts.yml stage0_final.yml
 ```
 
 ## Generated Configuration Summary
@@ -115,9 +102,8 @@ The playbook creates:
 - `vmbr0.68` — management VLAN  
 - `vmbr50` — internet  
 - `vmbr51` — closed network  
-- `vmbr255000` — instructor LAN  
-- `vmbr255GGG` — per-group WAN  
-- `vmbrGGG000` — per-group LAN  
+- `vmbr255` — VLAN WAN (configurable)
+- `vmbr100` — VLAN LAN (configurable)
 
 A preview of the generated file is displayed during execution.
 
@@ -136,28 +122,23 @@ ip link show | grep vmbr
 After applying configuration, the following are checked:
 
 - SSH connectivity still works  
-- All bridges are active  
-- Bridges match the expected list for the configured number of groups  
+- All infrastructure bridges are active  
+- Bridges match the expected list (infrastructure and VLAN bridges only)
 
-Example bridges for 2 groups:
+Example bridges verified:
 
 ```
 vmbr0
 vmbr0.68
 vmbr50
 vmbr51
-vmbr255000
-vmbr255001
-vmbr001000
-vmbr255002
-vmbr002000
+vmbr255
+vmbr100
 ```
 
 ## Safety Features
 
 - **Automatic backup**: Original `/etc/network/interfaces` saved with timestamp
-- **Dry-run validation**: Configuration tested before applying
-- **Confirmation prompt**: Gives you a chance to review before changes
 - **API health check**: Verifies Proxmox is still running after network reload
 - **Idempotent**: Safe to run multiple times
 
@@ -207,7 +188,7 @@ sudo ifreload -a
 ip link show | grep vmbr
 
 # Bring up specific bridge
-sudo ip link set vmbr15001 up
+sudo ip link set vmbr255 up
 ```
 
 ### Problem: Lost connectivity to Proxmox
@@ -216,37 +197,27 @@ sudo ip link set vmbr15001 up
 1. Access Proxmox console directly (via vSphere if nested)
 2. Restore from backup:
    ```bash
-   cp /etc/network/interfaces.backups/interfaces.LATEST /etc/network/interfaces
+   cp /etc/network/interfaces.bak.LATEST /etc/network/interfaces
    ifreload -a
    ```
-
-### Problem: Wrong number of bridges created
-
-**Solution:**
-```bash
-# Re-run with correct number
-sudo ansible-playbook -i ../inventory/hosts.yml stage0_final.yml \
-  -e max_student_groups=2 \
-  -e auto_confirm=true
-```
 
 ## Verification Checklist
 
 After Stage 0 completes:
 
-- [ ] All required bridges are present (`ip link show | grep vmbr | wc -l`)
+- [ ] All infrastructure bridges are present (`ip link show | grep vmbr`)
 - [ ] Proxmox web interface is accessible (https://192.168.68.89:8006)
 - [ ] No network errors in logs (`journalctl -xe`)
-- [ ] Backup file exists in `/etc/network/interfaces.backups/`
+- [ ] Backup file exists (`/etc/network/interfaces.bak.*`)
 - [ ] Management network still works (can SSH to Proxmox)
 
-Expected bridge count formula: `2 + (max_student_groups * 2)`
-- For 2 groups: 6 bridges (vmbr51, vmbr10255, vmbr15001, vmbr15002, vmbr10001, vmbr10002)
-- For 5 groups: 12 bridges
+Expected infrastructure bridge count: 6 bridges
+- `vmbr0`, `vmbr0.68`, `vmbr50`, `vmbr51`, `vmbr255`, `vmbr100`
 
 ## Next Steps
 
 Once Stage 0 completes successfully:
 
-1. Verify all bridges are active
-2. Proceed to Stage 1 (Security Onion Bootstrap)
+1. Verify all infrastructure bridges are active
+2. Add student group bridges manually if needed
+3. Proceed to Stage 1 (Security Onion Bootstrap)

@@ -17,7 +17,7 @@
 #   - group_lan_bridge: LAN bridge name (vmbr00X000)
 #
 # Author: Emily Miller
-# Last Updated: December 16, 2025
+# Last Updated: December 30, 2025
 # ============================================================================
 
 - name: Display MS3 VMs deployment notice
@@ -78,17 +78,16 @@
   register: ubuntu_boot
   changed_when: true
   failed_when: ubuntu_boot.rc != 0
-
-#without vlans
-#- name: Assign MS3 Ubuntu network interface
+  #without vlans
+  #- name: Assign MS3 Ubuntu network interface
   #ansible.builtin.command:
-    #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_ubuntu_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
+  #cmd: >
+  #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_ubuntu_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
   #register: ubuntu_net
   #changed_when: true
   #failed_when: ubuntu_net.rc != 0
 
-#with vlans
+  #with vlans
 - name: Assign MS3 Ubuntu network interface
   ansible.builtin.command:
     cmd: >
@@ -171,17 +170,16 @@
 - name: Display Windows ISO attachment status
   ansible.builtin.debug:
     msg: "✓ Windows Server 2008 ISO attached"
-
-#without vlans
-#- name: Assign MS3 Windows network interface
-  #ansible.builtin.command:
+    #without vlans
+    #- name: Assign MS3 Windows network interface
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_windows_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
-  #register: windows_net
-  #changed_when: true
-  #failed_when: windows_net.rc != 0
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_windows_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
+    #register: windows_net
+    #changed_when: true
+    #failed_when: windows_net.rc != 0
 
-#with vlans
+    #with vlans
 - name: Assign MS3 Windows network interface
   ansible.builtin.command:
     cmd: >

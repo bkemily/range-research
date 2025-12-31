@@ -33,7 +33,7 @@
 # through the Proxmox console (takes 30-60 minutes).
 #
 # Author: Emily Miller
-# Last Updated: December 1, 2025
+# Last Updated: December 31, 2025
 # ============================================================================
 
 - name: Stage 1 - Deploy Security Onion VM

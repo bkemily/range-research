@@ -24,10 +24,6 @@
 #   - interfaces_file, interfaces_backup
 #   - max_student_groups
 #
-# Bridge Naming Schema:
-#   vmbrXXXYYY where:
-#     XXX = Group ID (255 = instructor, 001-015 = students)
-#     YYY = Network type (000 = LAN, specific number for WAN)
 #
 #   Infrastructure:
 #     vmbr0      - Management bridge (VLAN-aware, existing)
@@ -39,12 +35,6 @@
 #     {{ bridges.vlan_wan }} - VLAN WAN (default: vmbr255)
 #     {{ bridges.vlan_lan }} - VLAN LAN (default: vmbr100, VLAN-aware)
 #
-#   Instructor:
-#     vmbr255000 - Instructor LAN (143.88.255.0/24)
-#
-#   Student Groups (per group):
-#     vmbr255GGG - Instructor ↔ Group GGG WAN (point-to-point /30)
-#     vmbrGGG000 - Group GGG LAN (/24 subnet)
 #
 # Safety Features:
 #   - Timestamped backups prevent data loss
@@ -53,7 +43,7 @@
 #   - Verifies connectivity after changes
 #
 # Author: Emily Miller
-# Last Update: December 1, 2025
+# Last Update: December 31, 2025
 # ============================================================================
 
 - name: Stage 0 - Configure Proxmox Network Bridges

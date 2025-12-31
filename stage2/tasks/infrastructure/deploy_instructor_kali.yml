@@ -17,10 +17,9 @@
 #   - VM ID: (vm_ids.instructor_kali)
 #   - Template: TEMPLATE-kali-20241124-Experiment.ovf
 #   - Storage: raid-lvm
-#   - Network: vmbr255000 (Instructor LAN)
 #
 # Author: Emily Miller
-# Last Updated: December 15, 2025
+# Last Updated: December 30, 2025
 # ============================================================================
 
 - name: Display Instructor Kali deployment notice
@@ -97,20 +96,19 @@
 - name: Display boot order status
   ansible.builtin.debug:
     msg: "✓ Boot order configured (scsi0)"
-
-# ========================================
-# Configure Network Interface
-# ========================================
-#no vlans
-#- name: Assign Instructor LAN interface (net0)
-  #ansible.builtin.command:
+    # ========================================
+    # Configure Network Interface
+    # ========================================
+    #no vlans
+    #- name: Assign Instructor LAN interface (net0)
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_kali }} --net0 virtio,bridge={{ bridges.instructor_lan }},firewall=1"
-  #register: net0_result
-  #changed_when: true
-  #failed_when: net0_result.rc != 0
-  
-#with vlans
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ vm_ids.instructor_kali }} --net0 virtio,bridge={{ bridges.instructor_lan }},firewall=1"
+    #register: net0_result
+    #changed_when: true
+    #failed_when: net0_result.rc != 0
+
+    #with vlans
 - name: Assign Instructor LAN interface (net0)
   ansible.builtin.command:
     cmd: >

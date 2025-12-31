@@ -17,7 +17,7 @@
 # Note: Security Onion (VM 159) already deployed in Stage 1
 #
 # Author: Emily Miller
-# Last Updated: December 15, 2025
+# Last Updated: December 30, 2025
 # ============================================================================
 
 - name: Display Instructor Group deployment notice
