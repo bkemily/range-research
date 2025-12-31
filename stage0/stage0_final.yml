@@ -315,7 +315,7 @@
         Configuration file: {{ interfaces_file }}
 
         Next step: Run Stage 1 bootstrap
-          ansible-playbook -i inventory/hosts.yml stage1_bootstrap_security_onion.yml
+          ansible-playbook -i inventory/hosts.yml stage1_fianl.yml
         ========================================
 
 # =============================================================================

@@ -45,7 +45,7 @@ Security Onion is connected to all network segments for comprehensive monitoring
 
 ```
 stage1/
-├── stage1_bootstrap_security_onion.yml   # Main playbook
+├── stage1_final.yml   # Main playbook
 ├── files/
 │   ├── auto_runner.sh                    # Auto-runner script (future use)
 │   ├── start_campaign.sh                 # Manual campaign script (future use)
@@ -101,7 +101,7 @@ stage1/
 
 ```bash
 cd /opt/cyber-range-automation/stage1
-ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml --ask-vault-pass
+ansible-playbook -i ../inventory/hosts.yml stage1_final.yml --ask-vault-pass
 ```
 
 ## VM Configuration
@@ -167,7 +167,7 @@ ssh root@192.168.68.89 "qm destroy 159"
 
 # Re-run Stage 1
 cd /opt/cyber-range-automation/stage1
-ansible-playbook -i ../inventory/hosts.yml stage1_bootstrap_security_onion.yml --ask-vault-pass
+ansible-playbook -i ../inventory/hosts.yml stage1_final.yml --ask-vault-pass
 ```
 
 **Note:** Destroying the VM removes all disks. You will need to reinstall Security Onion.
