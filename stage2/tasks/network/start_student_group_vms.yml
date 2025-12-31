@@ -107,7 +107,7 @@
 
 - name: Wait for Group {{ group_id }} VMs to boot (90 seconds)
   ansible.builtin.pause:
-    seconds: 60
+    seconds: 90
     prompt: "Waiting for Group {{ group_id }} VMs to complete boot sequence..."
 
 # ========================================
@@ -122,6 +122,14 @@
   changed_when: false
   failed_when: false
 
+- name: Display Kali 1 DHCP result
+  ansible.builtin.debug:
+    msg: |
+      Kali 1 DHCP Trigger Result:
+        Return Code: {{ kali1_dhcp.rc }}
+        STDOUT: {{ kali1_dhcp.stdout }}
+        STDERR: {{ kali1_dhcp.stderr }}
+
 - name: Trigger DHCP for Group {{ group_id }} Kali 2 via guest agent
   ansible.builtin.command:
     cmd: >
@@ -129,6 +137,14 @@
   register: kali2_dhcp
   changed_when: false
   failed_when: false
+
+- name: Display Kali 2 DHCP result
+  ansible.builtin.debug:
+    msg: |
+      Kali 2 DHCP Trigger Result:
+        Return Code: {{ kali2_dhcp.rc }}
+        STDOUT: {{ kali2_dhcp.stdout }}
+        STDERR: {{ kali2_dhcp.stderr }}
 
 - name: Trigger DHCP for Group {{ group_id }} MS3 Ubuntu via guest agent
   ansible.builtin.command:
@@ -138,11 +154,63 @@
   changed_when: false
   failed_when: false
 
+- name: Display MS3 Ubuntu DHCP result
+  ansible.builtin.debug:
+    msg: |
+      MS3 Ubuntu DHCP Trigger Result:
+        Return Code: {{ ubuntu_dhcp.rc }}
+        STDOUT: {{ ubuntu_dhcp.stdout }}
+        STDERR: {{ ubuntu_dhcp.stderr }}
+
 - name: Trigger DHCP for Group {{ group_id }} MS3 Windows via guest agent
   ansible.builtin.command:
     cmd: >
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm guest exec {{ group_windows_id }} -- cmd.exe /c 'ipconfig /renew'"
   register: windows_dhcp
+  changed_when: false
+  failed_when: false
+
+- name: Display MS3 Windows DHCP result
+  ansible.builtin.debug:
+    msg: |
+      MS3 Windows DHCP Trigger Result:
+        Return Code: {{ windows_dhcp.rc }}
+        STDOUT: {{ windows_dhcp.stdout }}
+        STDERR: {{ windows_dhcp.stderr }}
+
+# ========================================
+# Verify IP Assignment
+# ========================================
+
+- name: Get Kali 1 IP address via guest agent
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm guest exec {{ group_kali1_id }} -- ip -4 addr show"
+  register: kali1_ip_check
+  changed_when: false
+  failed_when: false
+
+- name: Get Kali 2 IP address via guest agent
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm guest exec {{ group_kali2_id }} -- ip -4 addr show"
+  register: kali2_ip_check
+  changed_when: false
+  failed_when: false
+
+- name: Get MS3 Ubuntu IP address via guest agent
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm guest exec {{ group_ubuntu_id }} -- ip -4 addr show"
+  register: ubuntu_ip_check
+  changed_when: false
+  failed_when: false
+
+- name: Get MS3 Windows IP address via guest agent
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm guest exec {{ group_windows_id }} -- ipconfig"
+  register: windows_ip_check
   changed_when: false
   failed_when: false
 
@@ -157,14 +225,40 @@
       ✓ Group {{ group_id }} Client VMs Started
       ========================================
       VMs:
-        - Kali 1:         VM {{ group_kali1_id }} (should have {{ expected_kali1_ip }})
-        - Kali 2:         VM {{ group_kali2_id }} (should have {{ expected_kali2_ip }})
-        - MS3 Ubuntu:     VM {{ group_ubuntu_id }} (should have {{ expected_ubuntu_ip }})
-        - MS3 Windows:    VM {{ group_windows_id }} (should have {{ expected_windows_ip }})
+        - Kali 1:         VM {{ group_kali1_id }} (expected {{ expected_kali1_ip }})
+        - Kali 2:         VM {{ group_kali2_id }} (expected {{ expected_kali2_ip }})
+        - MS3 Ubuntu:     VM {{ group_ubuntu_id }} (expected {{ expected_ubuntu_ip }})
+        - MS3 Windows:    VM {{ group_windows_id }} (expected {{ expected_windows_ip }})
 
       DHCP Trigger Status:
-        - Kali 1:   {{ 'SUCCESS' if kali1_dhcp.rc == 0 else 'FAILED - guest agent may not be available' }}
-        - Kali 2:   {{ 'SUCCESS' if kali2_dhcp.rc == 0 else 'FAILED - guest agent may not be available' }}
-        - Ubuntu:   {{ 'SUCCESS' if ubuntu_dhcp.rc == 0 else 'FAILED - guest agent may not be available' }}
-        - Windows:  {{ 'SUCCESS' if windows_dhcp.rc == 0 else 'FAILED - guest agent may not be available' }}
+        - Kali 1:   RC={{ kali1_dhcp.rc }}
+        - Kali 2:   RC={{ kali2_dhcp.rc }}
+        - Ubuntu:   RC={{ ubuntu_dhcp.rc }}
+        - Windows:  RC={{ windows_dhcp.rc }}
+
+      IP Verification:
+        - Kali 1:   {{ 'Got IPs' if kali1_ip_check.rc == 0 else 'Failed to check' }}
+        - Kali 2:   {{ 'Got IPs' if kali2_ip_check.rc == 0 else 'Failed to check' }}
+        - Ubuntu:   {{ 'Got IPs' if ubuntu_ip_check.rc == 0 else 'Failed to check' }}
+        - Windows:  {{ 'Got IPs' if windows_ip_check.rc == 0 else 'Failed to check' }}
       ========================================
+
+- name: Display Kali 1 IP information
+  ansible.builtin.debug:
+    var: kali1_ip_check.stdout_lines
+  when: kali1_ip_check.rc == 0
+
+- name: Display Kali 2 IP information
+  ansible.builtin.debug:
+    var: kali2_ip_check.stdout_lines
+  when: kali2_ip_check.rc == 0
+
+- name: Display Ubuntu IP information
+  ansible.builtin.debug:
+    var: ubuntu_ip_check.stdout_lines
+  when: ubuntu_ip_check.rc == 0
+
+- name: Display Windows IP information
+  ansible.builtin.debug:
+    var: windows_ip_check.stdout_lines
+  when: windows_ip_check.rc == 0
