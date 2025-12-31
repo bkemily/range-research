@@ -13,7 +13,7 @@
 #   4. Verifies network connectivity
 #
 # Author: Emily Miller
-# Last Updated: December 15, 2025
+# Last Updated: December 31, 2025
 # ============================================================================
 
 - name: Phase 2.2 - Configure Network
@@ -27,78 +27,6 @@
 
   tasks:
   # ========================================
-  # Initialize pfSense Consoles (First Boot)
-  # ========================================
-
-  - name: Display console initialization notice
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        Initializing pfSense Consoles
-        ========================================
-        Automating interface assignment for all pfSense VMs
-        This will take approximately 2-3 minutes per pfSense
-        ========================================
-
-  - name: Initialize Instructor pfSense
-    ansible.builtin.include_tasks: tasks/network/initialize_pfsense_console.yml
-    vars:
-      vm_name: "Instructor pfSense"
-      pfsense_vm_id: "{{ vm_ids.instructor_pfsense }}"
-
-  - name: Initialize Student pfSense VMs
-    ansible.builtin.include_tasks: tasks/network/initialize_pfsense_console.yml
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
-    loop_control:
-      loop_var: group_id
-      label: "Group {{ group_id }}"
-    vars:
-      vm_name: "Student Group {{ group_id }} pfSense"
-      pfsense_vm_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 1 }}"
-
-  - name: Display initialization completion
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        ✓ All pfSense VMs Initialized
-        ========================================
-        pfSense instances now have interfaces assigned
-        Default LAN IPs: 192.168.1.1
-        Ready for XML configuration
-        ========================================
-        
-  # ========================================
-  # Configure Spark pfSense
-  # ========================================
-
-  - name: Display Spark pfSense configuration notice
-    ansible.builtin.debug:
-      msg: |
-        ========================================
-        Configuring Spark pfSense
-        ========================================
-
-  #- name: Configure Spark pfSense
-    #ansible.builtin.include_tasks: tasks/network/configure_pfsense.yml
-    #vars:
-      #vm_name: "Spark pfSense"
-      #pfsense_ip: "192.168.68.50" # Temporary IP on management network
-      #pfsense_user: "{{ pfsense_default_user }}"
-      #pfsense_password: "{{ pfsense_default_password }}"
-      #config_file: "{{ playbook_dir }}/pfsense_configs/spark-config.xml"
-
-  # ========================================
-  # Configure Instructor pfSense
-  # ========================================
-
-  # Configure Instructor pfSense
-  - name: Configure Instructor pfSense
-    ansible.builtin.include_tasks: tasks/network/configure_pfsense.yml
-    vars:
-      vm_name: "Instructor pfSense"
-      group_number: "255"  # Using 255 for Instructor group
-
-  # ========================================
   # Configure Student pfSense Instances
   # ========================================
 
@@ -109,24 +37,7 @@
         Configuring {{ max_student_groups }} Student pfSense Instances
         ========================================
 
-  - name: Generate Student pfSense configuration from template
-    ansible.builtin.template:
-      src: "{{ playbook_dir }}/pfsense_configs/student-group.xml.j2"
-      dest: "{{ playbook_dir }}/pfsense_configs/generated/student-group-{{ '%02d' | format(item) }}.xml"
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
-    vars:
-      group_id: "{{ item }}"
-
   # Configure Student pfSense instances
-  - name: Configure Student pfSense instances
-    ansible.builtin.include_tasks: tasks/network/configure_pfsense.yml
-    loop: "{{ range(1, max_student_groups + 1) | list }}"
-    loop_control:
-      loop_var: group_id
-      label: "Group {{ group_id }}"
-    vars:
-      vm_name: "Student Group {{ group_id }} pfSense"
-      group_number: "{{ group_id }}"  # Just the number: 1, 2, 3, etc.
 
   # ========================================
   # Verify Network Connectivity
@@ -139,8 +50,8 @@
         Verifying Network Connectivity
         ========================================
 
-  - name: Verify connectivity
-    ansible.builtin.include_tasks: tasks/network/verify_network_connectivity.yml
+  #- name: Verify connectivity
+    #ansible.builtin.include_tasks: tasks/network/verify_network_connectivity.yml
 
   - name: Display Phase 2.2 completion
     ansible.builtin.debug:
@@ -197,7 +108,7 @@
 
   - name: Wait for client VMs to boot and acquire DHCP
     ansible.builtin.pause:
-      seconds: 90
+      seconds: 30
       prompt: "Waiting 90 seconds for client VMs to boot and receive DHCP leases from pfSense..."
 
   - name: Display client VM startup completion
