@@ -88,7 +88,7 @@ ansible group1 -i inventory/hosts.yml -m ping
 
 ```bash
 # Use the inventory with any playbook
-ansible-playbook -i inventory/hosts.yml stage0/stage0_configure_proxmox_network.yml --ask-vault-pass
+ansible-playbook -i inventory/hosts.yml stage0/stage0_final.yml --ask-vault-pass
 ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml --ask-vault-pass
 ```
 

@@ -46,7 +46,7 @@ The playbook dynamically generates these:
 
 ```
 stage0/
-├── stage0_configure_proxmox_network.yml   # Main playbook
+├── stage0_final.yml   # Main playbook
 └── README.md                              # This file
 ```
 
@@ -98,13 +98,13 @@ git pull
 
 ```bash
 cd /opt/cyber-range-automation/stage0
-ansible-playbook stage0_configure_proxmox_network.yml
+ansible-playbook stage0_final.yml
 ```
 
 Specify a custom number of groups:
 
 ```bash
-ansible-playbook stage0_configure_proxmox_network.yml -e max_student_groups=5
+ansible-playbook stage0_final.yml -e max_student_groups=5
 ```
 
 ## Generated Configuration Summary
@@ -225,7 +225,7 @@ sudo ip link set vmbr15001 up
 **Solution:**
 ```bash
 # Re-run with correct number
-sudo ansible-playbook -i ../inventory/hosts.yml stage0_configure_proxmox_network.yml \
+sudo ansible-playbook -i ../inventory/hosts.yml stage0_final.yml \
   -e max_student_groups=2 \
   -e auto_confirm=true
 ```

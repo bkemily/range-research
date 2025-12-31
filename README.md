@@ -57,7 +57,7 @@ network_attack_scripts/
 ├── psexecExploit.sh
 └── smbExploit.sh
 stage0/
-├── stage0_configure_proxmox_network.yml  # Main Stage 0 playbook
+├── stage0_final.yml  # Main Stage 0 playbook
 └── README.md                             # Stage 0 Documentation
 stage1/
 ├── stage1_bootstrap_security_onion.yml   # Main Stage 1 playbook
@@ -133,7 +133,7 @@ ansible-playbook -i inventory/hosts.yml run_full_experiment.yml --ask-vault-pass
 ### Individual Stages
 ```bash
 # Stage 0: Configure network topology
-ansible-playbook -i inventory/hosts.yml stage0/stage0_configure_proxmox_network.yml --ask-vault-pass
+ansible-playbook -i inventory/hosts.yml stage0/stage0_final.yml --ask-vault-pass
 
 # Stage 1: Deploy Security Onion monitoring
 ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml --ask-vault-pass

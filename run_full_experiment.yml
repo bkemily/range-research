@@ -46,7 +46,7 @@
       debug:
         msg: ">>> Starting Stage 0: Network Topology and Template Setup"
 
-- import_playbook: stage0/stage0_configure_proxmox_network.yml
+- import_playbook: stage0/stage0_final.yml
 
 - name: "Stage 0 Complete"
   hosts: localhost

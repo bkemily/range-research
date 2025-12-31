@@ -203,7 +203,7 @@ ssh root@192.168.68.89 "ip link show | grep -c vmbr"
 
 # Re-run Stage 0 if bridges missing
 cd /opt/cyber-range-automation/stage0
-ansible-playbook stage0_configure_proxmox_network.yml --ask-vault-pass
+ansible-playbook stage0_final.yml --ask-vault-pass
 ```
 
 ### Problem: ISO not found
