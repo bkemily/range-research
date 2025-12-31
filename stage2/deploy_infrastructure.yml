@@ -129,7 +129,7 @@
     ansible.builtin.debug:
       msg: |
         ========================================
-        Deploying {{ 3 + (max_student_groups * 5) }} VMs...
+        Deploying {{ 4 + (max_student_groups * 5) }} VMs...
         ========================================
 
   # Deploy Spark pfSense
@@ -158,9 +158,10 @@
         ========================================
         ✓ Infrastructure Deployment Complete
         ========================================
-        All {{ 3 + (max_student_groups * 5) }} VMs deployed and running
+        All {{ 4 + (max_student_groups * 5) }} VMs deployed and running
 
         Infrastructure VMs:
+          - CAR Ubuntu: VM {{ vm_ids.car }}
           - Spark pfSense: VM {{ vm_ids.spark_pfsense }}
           - Instructor pfSense: VM {{ vm_ids.instructor_pfsense }}
           - Instructor Kali: VM {{ vm_ids.instructor_kali }}
