@@ -18,9 +18,9 @@
 #   - SSH access to Proxmox host
 #
 # Usage:
-#   ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml --ask-vault-pass
-#   ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml --ask-vault-pass -e auto_confirm=true
-#   ansible-playbook -i inventory/hosts.yml stage1/stage1_bootstrap_security_onion.yml --ask-vault-pass -e max_student_groups=5
+#   ansible-playbook -i inventory/hosts.yml stage1/stage1_final.yml --ask-vault-pass
+#   ansible-playbook -i inventory/hosts.yml stage1/stage1_final.yml --ask-vault-pass -e auto_confirm=true
+#   ansible-playbook -i inventory/hosts.yml stage1/stage1_final.yml --ask-vault-pass -e max_student_groups=5
 #
 # Variables from inventory/group_vars/all.yml:
 #   - proxmox_host, proxmox_user, proxmox_node
@@ -59,7 +59,7 @@
           1. Verify all required bridges exist
           2. Create Security Onion VM from ISO
           3. Configure VM hardware
-          4. Assign {{ 2 + (max_student_groups * 2) }} network interfaces
+          4. Assign 2 network interfaces (Management + Monitor)
           5. Start the VM
           6. VM will boot from ISO for manual installation
 
@@ -71,14 +71,17 @@
           - CPUs: {{ security_onion.cores }} cores
           - Disk: {{ security_onion.disk_size }}
           - Storage: {{ security_onion.storage }}
-          - Management Bridge: {{ security_onion.management_bridge }}
+          - Management Bridge: {{ bridges.vlan_lan }} (vmbr100 - untagged)
 
-        Network Interfaces:
-          - net0: {{ security_onion.management_bridge }} (Management)
-          - net1: {{ bridges.spark_wan }} (Monitor Spark WAN)
-          - net2+: Student group monitoring ({{ max_student_groups }} groups)
+        Network Interfaces (Two-Bridge Architecture):
+          - net0: {{ bridges.vlan_lan }} (Management - Instructor network untagged)
+          - net1: {{ bridges.vlan_lan }} (Monitor - All student/instructor traffic in promiscuous mode)
 
-        Total Interfaces: {{ 2 + (max_student_groups * 2) }}
+        Total Interfaces: 2
+
+        Note: Both interfaces on vmbr100
+          - Management interface: Normal networking, gets IP 143.88.255.x
+          - Monitor interface: Promiscuous mode, sees all VLANs (101-115) + untagged traffic
 
         ========================================
 
@@ -102,44 +105,24 @@
       msg: "✓ SSH connection to Proxmox successful"
     when: ssh_test.rc == 0
 
-  # Generate dynamic list of student group bridges
-  # This loops through range(1, max_student_groups + 1) to create bridge names
-  # For max_student_groups=2, creates: vmbr255001, vmbr001000, vmbr255002, vmbr002000
-  # For max_student_groups=15, creates 30 bridge names (2 per group)
-  - name: Generate student group bridges list
+  # Verify required bridges exist for two-bridge architecture
+  # Only need to check vmbr255 (pfSense WAN) and vmbr100 (student/instructor LAN)
+  - name: Set required bridges for two-bridge architecture
     ansible.builtin.set_fact:
-      student_bridges: "{{ student_bridges | default([]) + [bridge_wan, bridge_lan] }}"
-    vars:
-      bridge_wan: "vmbr255{{ '%03d' | format(item) }}"  # WAN interconnect (e.g., vmbr255001)
-      bridge_lan: "vmbr{{ '%03d' | format(item) }}000"   # LAN segment (e.g., vmbr001000)
-    loop: "{{ range(1, max_student_groups + 1) | list }}"  # Loop from 1 to max_student_groups (inclusive)
-
-  # Combine infrastructure bridges with dynamically generated student bridges
-  # Creates complete list of all bridges Security Onion needs to monitor
-  - name: Combine infrastructure and student bridges
-    ansible.builtin.set_fact:
-      required_bridges: "{{ ['vmbr51', 'vmbr255000'] + student_bridges }}"
+      required_bridges:
+        - "{{ bridges.vlan_wan }}"   # vmbr255 - pfSense WAN interconnection
+        - "{{ bridges.vlan_lan }}"   # vmbr100 - Student/Instructor LAN with VLANs
 
   - name: Display bridges to verify
     ansible.builtin.debug:
-      msg: "Verifying {{ required_bridges | length }} bridges"
+      msg: "Verifying 2 bridges for two-bridge VLAN architecture"
 
-  - name: Display infrastructure bridges
+  - name: Display bridge configuration
     ansible.builtin.debug:
       msg: |
-        Infrastructure:
-          - vmbr51 (Spark WAN)
-          - vmbr255000 (Instructor LAN)
-
-  # Display student group bridges for operator confirmation
-  # Loops through each group to show WAN and LAN bridge names
-  - name: Display student group bridges
-    ansible.builtin.debug:
-      msg: |
-        Group {{ item }}:
-          - vmbr255{{ (item | string).zfill(3) }} (WAN)
-          - vmbr{{ (item | string).zfill(3) }}000 (LAN)
-    loop: "{{ range(1, max_student_groups + 1) | list }}"  # Loop through each student group
+        Two-Bridge Architecture:
+          - {{ bridges.vlan_wan }} (vmbr255): pfSense WAN interconnection network
+          - {{ bridges.vlan_lan }} (vmbr100): Student/Instructor LAN with VLAN tags 101-115
 
   # Verify every required bridge exists on Proxmox
   # This ensures Stage 0 completed successfully
@@ -331,107 +314,82 @@
   # net0 = Management (IP communication)
   # net1+ = Monitoring (promiscuous mode, no IP)
 
-  # Assign management interface (net0)
+  # Assign management interface (net0) - Instructor network (untagged)
   # This is the only interface Security Onion uses for IP communication
-  # Connected to instructor LAN for management access
+  # Connected to vmbr100 untagged for management access (143.88.255.x)
   - name: Assign management interface (net0)
     ansible.builtin.command:
       cmd: >
         ssh {{ proxmox_user }}@{{ proxmox_host }}
         "qm set {{ security_onion.vmid }} 
-        --net0 virtio,bridge={{ security_onion.management_bridge }}"
+        --net0 virtio,bridge={{ bridges.vlan_lan }}"
     register: net0_result
     changed_when: true
 
   - name: Display management interface assignment
     ansible.builtin.debug:
-      msg: "✓ net0 assigned: {{ security_onion.management_bridge }} (Management)"
+      msg: "✓ net0 assigned: {{ bridges.vlan_lan }} (Management - Instructor network untagged)"
 
-  # Assign Spark WAN monitoring interface (net1)
-  # Monitors traffic between internet gateway and instructor network
-  # This captures all external traffic entering the cyber range
-  - name: Assign Spark WAN monitoring interface (net1)
+  # Assign monitoring interface (net1) - Same bridge, promiscuous mode
+  # Monitors ALL traffic on vmbr100 including all VLANs (101-115) and untagged
+  # This captures all student-to-student traffic (intra and inter-group)
+  - name: Assign monitoring interface (net1)
     ansible.builtin.command:
       cmd: >
         ssh {{ proxmox_user }}@{{ proxmox_host }}
         "qm set {{ security_onion.vmid }} 
-        --net1 virtio,bridge={{ bridges.spark_wan }}"
+        --net1 virtio,bridge={{ bridges.vlan_lan }}"
     register: net1_result
     changed_when: true
 
-  - name: Display Spark WAN interface assignment
+  - name: Display monitoring interface assignment
     ansible.builtin.debug:
-      msg: "✓ net1 assigned: {{ bridges.spark_wan }} (Monitor Spark WAN)"
+      msg: "✓ net1 assigned: {{ bridges.vlan_lan }} (Monitor - Promiscuous mode, sees all VLANs)"
 
-  # Generate student group monitoring interface assignments
-  # This loops through ALL student groups (1 to max_student_groups)
-  # For each group, creates TWO interfaces: WAN monitoring and LAN monitoring
-  #
-  # Interface numbering formula:
-  #   WAN interface: net(2 + (group_id - 1) * 2)
-  #   LAN interface: net(2 + (group_id - 1) * 2 + 1)
-  #
-  # Example for max_student_groups=2:
-  #   Group 1: net2 (WAN), net3 (LAN)
-  #   Group 2: net4 (WAN), net5 (LAN)
-  #
-  # Example for max_student_groups=15:
-  #   Group 1: net2, net3
-  #   Group 2: net4, net5
-  #   ...
-  #   Group 15: net30, net31
-  - name: Generate student group monitoring interface assignments
-    ansible.builtin.set_fact:
-      monitoring_interfaces: "{{ monitoring_interfaces | default([]) + [wan_interface, lan_interface] }}"
-    vars:
-      wan_interface:
-        net_id: "net{{ 2 + ((item - 1) * 2) }}"            # Calculate WAN interface number
-        bridge: "vmbr255{{ '%03d' | format(item) }}"       # WAN interconnect bridge
-        description: "Group {{ item }} WAN"
-      lan_interface:
-        net_id: "net{{ 2 + ((item - 1) * 2) + 1 }}"        # Calculate LAN interface number
-        bridge: "vmbr{{ '%03d' | format(item) }}000"       # LAN segment bridge
-        description: "Group {{ item }} LAN"
-    loop: "{{ range(1, max_student_groups + 1) | list }}"  # Loop through EACH student group
-
-  # Assign all student group monitoring interfaces
-  # Loops through the monitoring_interfaces list created above
-  # Each iteration assigns one interface to Security Onion VM
-  - name: Assign student group monitoring interfaces
+  # Enable promiscuous mode on vmbr100 bridge
+  # This allows Security Onion's monitoring interface to see all traffic
+  - name: Enable promiscuous mode on monitoring bridge
     ansible.builtin.command:
-      cmd: >
-        ssh {{ proxmox_user }}@{{ proxmox_host }}
-        "qm set {{ security_onion.vmid }} 
-        --{{ item.net_id }} virtio,bridge={{ item.bridge }}"
-    loop: "{{ monitoring_interfaces }}"  # Loop through all generated monitoring interfaces
-    register: monitoring_result
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link set dev {{ bridges.vlan_lan }} promisc on"
+    register: promisc_result
     changed_when: true
 
-  # Display each monitoring interface assignment for confirmation
-  # Shows operator which interfaces were assigned to which bridges
-  - name: Display student monitoring interface assignments
+  - name: Display promiscuous mode status
     ansible.builtin.debug:
-      msg: "✓ {{ item.net_id }} assigned: {{ item.bridge }} ({{ item.description }})"
-    loop: "{{ monitoring_interfaces }}"  # Loop through all monitoring interfaces
+      msg: "✓ Promiscuous mode enabled on {{ bridges.vlan_lan }}"
+
+  # Verify promiscuous mode is active
+  - name: Verify promiscuous mode is enabled
+    ansible.builtin.shell:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link show {{ bridges.vlan_lan }} | grep PROMISC"
+    register: promisc_check
+    changed_when: false
+    failed_when: promisc_check.rc != 0
+
+  - name: Display promiscuous mode verification
+    ansible.builtin.debug:
+      msg: "✓ Verified: {{ bridges.vlan_lan }} is in promiscuous mode"
+    when: promisc_check.rc == 0
 
   # Display comprehensive network configuration summary
-  # Shows total interface count and complete interface mapping
   - name: Display network configuration summary
     ansible.builtin.debug:
       msg: |
         ========================================
         Network Interfaces Configured
         ========================================
-        Total: {{ 2 + (max_student_groups * 2) }} interfaces
+        Total: 2 interfaces
         
-        Infrastructure:
-          - net0: {{ security_onion.management_bridge }} (Management)
-          - net1: {{ bridges.spark_wan }} (Spark WAN)
+        Management:
+          - net0: {{ bridges.vlan_lan }} (Management - 143.88.255.x via DHCP)
         
-        Student Group Monitoring:
-        {% for interface in monitoring_interfaces %}
-          - {{ interface.net_id }}: {{ interface.bridge }} ({{ interface.description }})
-        {% endfor %}
+        Monitoring:
+          - net1: {{ bridges.vlan_lan }} (Monitor - Promiscuous, sees all VLAN traffic)
+        
+        Traffic Captured:
+          - All student traffic (VLANs 101-115)
+          - All instructor traffic (untagged)
+          - All inter-group routing through instructor pfSense
         ========================================
 
   # ========================================
@@ -549,8 +507,11 @@
         ========================================
         
         Installation will take 30-60 minutes depending on disk I/O.
-        All monitoring interfaces (net1+) will be configured
-        automatically by Security Onion during setup.
+        
+        Network Configuration:
+          - Management interface (net0): Will receive 143.88.255.9 via DHCP
+          - Monitoring interface (net1): Already set to promiscuous mode
+          - Bridge {{ bridges.vlan_lan }}: Promiscuous mode enabled ✓
         
         ========================================
 
