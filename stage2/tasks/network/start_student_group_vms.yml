@@ -105,9 +105,9 @@
 # Wait for VMs to Boot
 # ========================================
 
-- name: Wait for Group {{ group_id }} VMs to boot (90 seconds)
+- name: Wait for Group {{ group_id }} VMs to boot (30 seconds)
   ansible.builtin.pause:
-    seconds: 90
+    seconds: 30
     prompt: "Waiting for Group {{ group_id }} VMs to complete boot sequence..."
 
 # ========================================
