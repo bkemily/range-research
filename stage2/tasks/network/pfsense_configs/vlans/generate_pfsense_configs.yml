@@ -25,7 +25,7 @@
   tasks:
   - name: Create configs output directory
     ansible.builtin.file:
-      path: "{{ playbook_dir }}/pfsense_configs/generated"
+      path: "{{ playbook_dir }}/generated"
       state: directory
 
   - name: Generate Student Group configs (1-15)
@@ -57,7 +57,7 @@
         ========================================
         ✓ Configuration Files Generated
         ========================================
-        Location: {{ playbook_dir }}/pfsense_configs/generated/
+        Location: {{ playbook_dir }}/generated/
         
         Files created:
           - group01.xml through group15.xml
