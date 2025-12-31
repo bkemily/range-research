@@ -100,7 +100,7 @@
 
   # Start Student Group Client VMs
   - name: Start Student Group {{ group_id }} Client VMs
-    ansible.builtin.include_tasks: tasks/infrastructure/start_student_group_vms.yml
+    ansible.builtin.include_tasks: tasks/network/start_student_group_vms.yml
     loop: "{{ range(1, max_student_groups + 1) | list }}"
     loop_control:
       loop_var: group_id
