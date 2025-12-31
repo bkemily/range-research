@@ -1,0 +1,335 @@
+---
+# =============================================================================
+# Stage 0: Proxmox Network Configuration
+# =============================================================================
+# Purpose: Configure network bridges on Proxmox VE host for cyber range
+#
+# What this does:
+#   1. Backs up current /etc/network/interfaces with timestamp
+#   2. Generates new network configuration with all required bridges
+#   3. Applies configuration and reloads network
+#   4. Verifies all bridges are created and active
+#
+# Run from: Ubuntu VM (one-time setup)
+# Target: Proxmox host
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml stage0_configure_proxmox_network.yml --ask-vault-pass
+#   ansible-playbook -i inventory/hosts.yml stage0_configure_proxmox_network.yml --ask-vault-pass -e max_student_groups=5
+#
+# Variables from inventory/group_vars/all.yml:
+#   - proxmox_host, proxmox_user
+#   - physical_interface
+#   - management_ip, management_netmask, management_gateway
+#   - interfaces_file, interfaces_backup
+#   - max_student_groups
+#
+# Bridge Naming Schema:
+#   vmbrXXXYYY where:
+#     XXX = Group ID (255 = instructor, 001-015 = students)
+#     YYY = Network type (000 = LAN, specific number for WAN)
+#
+#   Infrastructure:
+#     vmbr0      - Management bridge (VLAN-aware, existing)
+#     vmbr0.68   - Management VLAN (192.168.68.89/24)
+#     vmbr50     - Internet (Spark WAN)
+#     vmbr51     - Closed network (Spark LAN / Instructor WAN, VLAN-aware)
+#
+#   VLAN Bridges (configurable via bridges.vlan_wan and bridges.vlan_lan):
+#     {{ bridges.vlan_wan }} - VLAN WAN (default: vmbr255)
+#     {{ bridges.vlan_lan }} - VLAN LAN (default: vmbr100, VLAN-aware)
+#
+#   Instructor:
+#     vmbr255000 - Instructor LAN (143.88.255.0/24)
+#
+#   Student Groups (per group):
+#     vmbr255GGG - Instructor ↔ Group GGG WAN (point-to-point /30)
+#     vmbrGGG000 - Group GGG LAN (/24 subnet)
+#
+# Safety Features:
+#   - Timestamped backups prevent data loss
+#   - Network reload is non-disruptive (only changes what's different)
+#   - Idempotent (safe to run multiple times)
+#   - Verifies connectivity after changes
+#
+# Author: Emily Miller
+# Last Update: December 1, 2025
+# ============================================================================
+
+- name: Stage 0 - Configure Proxmox Network Bridges
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  tasks:
+  # =========================================================================
+  # STAGE 0.1: Display Information and Test Connectivity
+  # =========================================================================
+
+  - name: Display stage information
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        STAGE 0: Proxmox Network Configuration
+        ========================================
+        This playbook will:
+          1. Backup /etc/network/interfaces
+          2. Create new configuration with all bridges
+          3. Reload network configuration
+
+        Target: {{ proxmox_host }}
+        Physical Interface: {{ physical_interface }}
+        Management IP: {{ management_ip }}/{{ management_netmask }}
+
+        Bridges to create:
+          Infrastructure:
+            - vmbr0 (Management, VLAN-aware)
+            - vmbr0.68 (Management VLAN)
+            - vmbr50 (Internet)
+            - vmbr51 (Closed network, VLAN-aware)
+          
+          VLAN Bridges:
+            - {{ bridges.vlan_wan }} (VLAN WAN)
+            - {{ bridges.vlan_lan }} (VLAN LAN, VLAN-aware)
+          
+          Instructor:
+            - vmbr255000 (Instructor LAN)
+          
+          Student Groups ({{ max_student_groups }} groups):
+            - vmbr255001, vmbr001000 (Group 1 WAN/LAN)
+            - vmbr255002, vmbr002000 (Group 2 WAN/LAN)
+            {% if max_student_groups > 2 %}
+            - ... up to Group {{ max_student_groups }}
+            {% endif %}
+        ========================================
+
+  - name: Test SSH connection to Proxmox
+    ansible.builtin.command:
+      cmd: ssh -o ConnectTimeout=5 {{ proxmox_user }}@{{ proxmox_host }} "echo 'Connection successful'"
+    register: ssh_test
+    changed_when: false
+    failed_when: ssh_test.rc != 0
+
+  - name: Display connection status
+    ansible.builtin.debug:
+      msg: "✓ SSH connection to Proxmox successful"
+
+  # =========================================================================
+  # STAGE 0.2: Backup Current Configuration
+  # =========================================================================
+
+  - name: Backup current interfaces file with timestamp
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "cp {{ interfaces_file }} {{ interfaces_backup }}"
+    register: backup_result
+    changed_when: true
+
+  - name: Verify backup was created
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "test -f {{ interfaces_backup }}"
+    changed_when: false
+
+  - name: Display backup confirmation
+    ansible.builtin.debug:
+      msg: "✓ Backup created: {{ interfaces_backup }}"
+
+  # =========================================================================
+  # STAGE 0.3: Generate New Network Configuration
+  # =========================================================================
+
+  - name: Generate new network interfaces configuration
+    ansible.builtin.set_fact:
+      new_interfaces_config: |
+        # Network configuration for Proxmox VE
+        # Generated by Ansible Stage 0 on {{ ansible_date_time.iso8601 }}
+        # Backup saved to: {{ interfaces_backup }}
+
+        auto lo
+        iface lo inet loopback
+
+        iface {{ physical_interface }} inet manual
+
+        auto vmbr0
+        iface vmbr0 inet manual
+            bridge-ports {{ physical_interface }}
+            bridge-stp off
+            bridge-fd 0
+            bridge-vlan-aware yes
+            bridge-vids 2-4094
+
+        auto vmbr0.68
+        iface vmbr0.68 inet static
+            address {{ management_ip }}/{{ management_netmask }}
+            gateway {{ management_gateway }}
+            #vlan-raw-device vmbr0
+
+        #internet
+        auto vmbr50
+        iface vmbr50 inet static
+            bridge-ports none
+            bridge-stp off
+            bridge-fd 0
+
+        #closed network
+        auto vmbr51
+        iface vmbr51 inet static
+            bridge-ports none
+            bridge-stp off
+            bridge-fd 0
+            bridge-vlan-aware yes
+            bridge-vids 2-4094
+
+        #VLAN WAN
+        auto {{ bridges.vlan_wan }}
+        iface {{ bridges.vlan_wan }} inet static
+            bridge-ports none
+            bridge-stp off
+            bridge-fd 0
+          
+        #VLAN LAN
+        auto {{ bridges.vlan_lan }}
+        iface {{ bridges.vlan_lan }} inet static
+            bridge-ports none
+            bridge-stp off
+            bridge-fd 0
+            bridge-vlan-aware yes
+            bridge-vids 2-4094
+
+  - name: Display generated configuration preview
+    ansible.builtin.debug:
+      msg: "{{ new_interfaces_config.split('
+
+        ')[:30] }}"
+
+  # =========================================================================
+  # STAGE 0.4: Transfer Configuration to Proxmox
+  # =========================================================================
+
+  - name: Write new configuration to temporary file
+    ansible.builtin.copy:
+      content: "{{ new_interfaces_config }}"
+      dest: "/tmp/interfaces.new"
+      mode: '0644'
+    delegate_to: localhost
+
+  - name: Copy new configuration to Proxmox
+    ansible.builtin.command:
+      cmd: scp /tmp/interfaces.new {{ proxmox_user }}@{{ proxmox_host }}:/tmp/interfaces.new
+    changed_when: true
+
+  # =========================================================================
+  # STAGE 0.5: Apply Configuration and Reload Network
+  # =========================================================================
+
+  - name: Apply new interfaces configuration
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "cp /tmp/interfaces.new {{ interfaces_file }}"
+    register: interfaces_updated
+    changed_when: true
+
+  - name: Reload network configuration
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ifreload -a"
+    when: interfaces_updated.changed
+    register: reload_result
+
+  - name: Wait for network to stabilize
+    ansible.builtin.pause:
+      seconds: 10
+    when: interfaces_updated.changed
+
+  - name: Set promisc mode on all bridges
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link set {{ item }} promisc on"
+    loop: "{{ student_group_bridges }}"
+    changed_when: true
+
+  - name: Display confirmation of promisc mode
+    ansible.builtin.debug:
+      msg: |
+        ✓ Promiscuous mode enabled on student group bridges
+        Bridges: {{ student_group_bridges | join(', ') }}
+
+  # =========================================================================
+  # STAGE 0.6: Verify Changes and Connectivity
+  # =========================================================================
+
+  - name: Verify Proxmox is still accessible
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "echo 'Network reload successful'"
+    register: connectivity_check
+    retries: 5
+    delay: 3
+    until: connectivity_check.rc == 0
+
+  - name: Get list of active bridges
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link show | grep -oE 'vmbr[0-9.]+' | sort -u"
+    register: active_bridges
+    changed_when: false
+
+  - name: Build list of required bridges
+    ansible.builtin.set_fact:
+      required_bridges:
+      - vmbr0
+      - vmbr0.68
+      - vmbr50
+      - vmbr51
+      - "{{ bridges.vlan_wan }}"
+      - "{{ bridges.vlan_lan }}"
+
+  - name: Verify required bridges exist
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link show {{ item }}"
+    loop: "{{ required_bridges }}"
+    register: bridge_verification
+    failed_when: bridge_verification.rc != 0
+    changed_when: false
+
+  # =========================================================================
+  # STAGE 0.7: Cleanup and Summary
+  # =========================================================================
+
+  - name: Clean up temporary file on Proxmox
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "rm -f /tmp/interfaces.new"
+    changed_when: false
+
+  - name: Clean up temporary file locally
+    ansible.builtin.file:
+      path: "/tmp/interfaces.new"
+      state: absent
+
+  - name: Display completion summary
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        Stage 0: Network Configuration Complete
+        ========================================
+
+        Active bridges:
+        {{ active_bridges.stdout_lines | join('\n') }}
+
+        Backup location: {{ interfaces_backup }}
+
+        Configuration file: {{ interfaces_file }}
+
+        Next step: Run Stage 1 bootstrap
+          ansible-playbook -i inventory/hosts.yml stage1_bootstrap_security_onion.yml
+        ========================================
+
+# =============================================================================
+# Rollback Instructions (if needed):
+# =============================================================================
+# If something goes wrong, you can restore from backup:
+#
+#   ssh root@192.168.68.89
+#   cp /etc/network/interfaces.bak.TIMESTAMP /etc/network/interfaces
+#   ifreload -a
+#
+# To list all backups:
+#   ssh root@192.168.68.89 "ls -lh /etc/network/interfaces.bak.*"
+#
+# To remove old backups (keep only 3 most recent):
+#   ssh root@192.168.68.89 "ls -t /etc/network/interfaces.bak.* | tail -n +4 | xargs rm -f"
+# =============================================================================
