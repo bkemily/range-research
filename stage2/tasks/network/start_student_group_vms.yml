@@ -4,7 +4,7 @@
 # ============================================================================
 # Purpose: Start all client VMs for a specific student group
 #
-# Called by: configure_network.yml (after pfSense configuration)
+# Called by: configure_network.yml (looped for each group)
 #
 # This task file:
 #   1. Calculates VM IDs for the group
@@ -13,12 +13,35 @@
 #   4. Starts MS3 Ubuntu
 #   5. Starts MS3 Windows
 #
-# Required Variables:
+# Input Variables:
 #   - group_id: Student group number (1-15)
 #
+# VM ID Calculation (per group):
+#   - Kali 1:   200 + ((group_id - 1) * 100) + 2  (e.g., Group 1 = 202, Group 2 = 302)
+#   - Kali 2:   200 + ((group_id - 1) * 100) + 3  (e.g., Group 1 = 203, Group 2 = 303)
+#   - Ubuntu:   200 + ((group_id - 1) * 100) + 4  (e.g., Group 1 = 204, Group 2 = 304)
+#   - Windows:  200 + ((group_id - 1) * 100) + 5  (e.g., Group 1 = 205, Group 2 = 305)
+#
 # Author: Emily Miller
-# Last Updated: December 16, 2025
+# Last Updated: December 31, 2025
 # ============================================================================
+
+- name: Display Student Group VM startup notice
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Starting Client VMs for Group {{ group_id }}
+      ========================================
+      VMs to start:
+        - Kali 1:         VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 2 }}
+        - Kali 2:         VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 3 }}
+        - MS3 Ubuntu:     VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 4 }}
+        - MS3 Windows:    VM {{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 5 }}
+      ========================================
+
+# ========================================
+# Calculate VM IDs for this Group
+# ========================================
 
 - name: Calculate VM IDs for Group {{ group_id }}
   ansible.builtin.set_fact:
@@ -26,6 +49,19 @@
     group_kali2_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 3 }}"
     group_ubuntu_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 4 }}"
     group_windows_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 5 }}"
+
+- name: Display Group {{ group_id }} VM IDs
+  ansible.builtin.debug:
+    msg: |
+      Group {{ group_id }} Configuration:
+        Kali 1:   {{ group_kali1_id }}
+        Kali 2:   {{ group_kali2_id }}
+        Ubuntu:   {{ group_ubuntu_id }}
+        Windows:  {{ group_windows_id }}
+
+# ========================================
+# Start Client VMs
+# ========================================
 
 - name: Start Group {{ group_id }} Kali 1 (VM {{ group_kali1_id }})
   ansible.builtin.command:
@@ -59,11 +95,19 @@
   changed_when: true
   failed_when: start_windows.rc != 0
 
-- name: Display Group {{ group_id }} startup status
+# ========================================
+# Display Completion
+# ========================================
+
+- name: Display Group {{ group_id }} startup completion
   ansible.builtin.debug:
     msg: |
-      ✓ Group {{ group_id }} client VMs started:
-        - Kali 1: VM {{ group_kali1_id }} (will get 143.88.{{ group_id }}.10)
-        - Kali 2: VM {{ group_kali2_id }} (will get 143.88.{{ group_id }}.11)
-        - MS3 Ubuntu: VM {{ group_ubuntu_id }} (will get 143.88.{{ group_id }}.13)
-        - MS3 Windows: VM {{ group_windows_id }} (will get 143.88.{{ group_id }}.14)
+      ========================================
+      ✓ Group {{ group_id }} Client VMs Started
+      ========================================
+      VMs:
+        - Kali 1:         VM {{ group_kali1_id }} (will get 143.88.{{ group_id }}.10)
+        - Kali 2:         VM {{ group_kali2_id }} (will get 143.88.{{ group_id }}.11)
+        - MS3 Ubuntu:     VM {{ group_ubuntu_id }} (will get 143.88.{{ group_id }}.13)
+        - MS3 Windows:    VM {{ group_windows_id }} (will get 143.88.{{ group_id }}.14)
+      ========================================
