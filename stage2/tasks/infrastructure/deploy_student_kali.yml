@@ -17,7 +17,7 @@
 #   - group_lan_bridge: LAN bridge name (vmbr00X000)
 #
 # Author: Emily Miller
-# Last Updated: December 16, 2025
+# Last Updated: December 30, 2025
 # ============================================================================
 
 - name: Display Student Kali VMs deployment notice
@@ -78,17 +78,16 @@
   register: kali1_boot
   changed_when: true
   failed_when: kali1_boot.rc != 0
-
-#without vlans
-#- name: Assign Kali 1 network interface
+  #without vlans
+  #- name: Assign Kali 1 network interface
   #ansible.builtin.command:
-    #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali1_id }} --net0 virtio,bridge={{ group_lan_bridge }}, firewall=1"
+  #cmd: >
+  #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali1_id }} --net0 virtio,bridge={{ group_lan_bridge }}, firewall=1"
   #register: kali1_net
   #changed_when: true
   #failed_when: kali1_net.rc != 0
 
-#with vlans
+  #with vlans
 - name: Assign Kali 1 network interface
   ansible.builtin.command:
     cmd: >
@@ -116,70 +115,70 @@
     # Deploy Kali 2
     # ========================================
 
-#- name: Import Kali 2 OVF for Group {{ group_id }}
-  #ansible.builtin.command:
+    #- name: Import Kali 2 OVF for Group {{ group_id }}
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_kali2_id }} {{ templates.kali }} {{ storage }}"
-  #register: kali2_import
-  #changed_when: true
-  #failed_when: kali2_import.rc != 0
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_kali2_id }} {{ templates.kali }} {{ storage }}"
+    #register: kali2_import
+    #changed_when: true
+    #failed_when: kali2_import.rc != 0
 
-#- name: Display Kali 2 import status
-  #ansible.builtin.debug:
+    #- name: Display Kali 2 import status
+    #ansible.builtin.debug:
     #msg: "✓ Kali 2 OVF imported (VM {{ group_kali2_id }})"
 
-#- name: Set name
-  #ansible.builtin.command:
+    #- name: Set name
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --name student-group{{ '%02d' | format(group_id) }}-kali2"
-  #register: name2_result
-  #changed_when: true
-  #failed_when: name2_result.rc != 0
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --name student-group{{ '%02d' | format(group_id) }}-kali2"
+    #register: name2_result
+    #changed_when: true
+    #failed_when: name2_result.rc != 0
 
-#- name: Configure Kali 2 SCSI controller and disk
-  #ansible.builtin.command:
+    #- name: Configure Kali 2 SCSI controller and disk
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ group_kali2_id }}-disk-0"
-  #register: kali2_scsi
-  #changed_when: true
-  #failed_when: kali2_scsi.rc != 0
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ group_kali2_id }}-disk-0"
+    #register: kali2_scsi
+    #changed_when: true
+    #failed_when: kali2_scsi.rc != 0
 
-#- name: Configure Kali 2 BIOS
-  #ansible.builtin.command:
+    #- name: Configure Kali 2 BIOS
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --bios seabios"
-  #register: kali2_bios
-  #changed_when: true
-  #failed_when: kali2_bios.rc != 0
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --bios seabios"
+    #register: kali2_bios
+    #changed_when: true
+    #failed_when: kali2_bios.rc != 0
 
-#- name: Configure Kali 2 boot order
-  #ansible.builtin.command:
+    #- name: Configure Kali 2 boot order
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --boot order=scsi0"
-  #register: kali2_boot
-  #changed_when: true
-  #failed_when: kali2_boot.rc != 0
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --boot order=scsi0"
+    #register: kali2_boot
+    #changed_when: true
+    #failed_when: kali2_boot.rc != 0
 
-#without vlans
-#- name: Assign Kali 2 network interface
-  #ansible.builtin.command:
+    #without vlans
+    #- name: Assign Kali 2 network interface
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
-  #register: kali2_net
-  #changed_when: true
-  #failed_when: kali2_net.rc != 0
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --net0 virtio,bridge={{ group_lan_bridge }},firewall=1"
+    #register: kali2_net
+    #changed_when: true
+    #failed_when: kali2_net.rc != 0
 
-#with vlans
-#- name: Assign Kali 2 network interface
-  #ansible.builtin.command:
+    #with vlans
+    #- name: Assign Kali 2 network interface
+    #ansible.builtin.command:
     #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --net0 virtio,bridge={{ bridges.vlan_lan }},tag={{ 100 + (group_id | int) }},firewall=1"
-  #register: kali2_net
-  #changed_when: true
-  #failed_when: kali2_net.rc != 0
+    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --net0 virtio,bridge={{ bridges.vlan_lan }},tag={{ 100 + (group_id | int) }},firewall=1"
+    #register: kali2_net
+    #changed_when: true
+    #failed_when: kali2_net.rc != 0
 
-#- name: Display Kali 2 configuration status
-  #ansible.builtin.debug:
+    #- name: Display Kali 2 configuration status
+    #ansible.builtin.debug:
     #msg: "✓ Kali 2 configured (VM {{ group_kali2_id }})"
     #- name: Start Kali 2 VM
     #ansible.builtin.command:

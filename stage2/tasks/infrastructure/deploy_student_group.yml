@@ -22,12 +22,9 @@
 #   - Ubuntu:   200 + ((group_id - 1) * 100) + 4  (e.g., Group 1 = 204, Group 2 = 304)
 #   - Windows:  200 + ((group_id - 1) * 100) + 5  (e.g., Group 1 = 205, Group 2 = 305)
 #
-# Network Bridges (per group):
-#   - WAN: vmbr255XXX (e.g., Group 1 = vmbr255001, Group 2 = vmbr255002)
-#   - LAN: vmbr00X000 (e.g., Group 1 = vmbr001000, Group 2 = vmbr002000)
 #
 # Author: Emily Miller
-# Last Updated: December 28, 2025
+# Last Updated: December 30, 2025
 # ============================================================================
 
 - name: Display Student Group deployment notice
@@ -82,7 +79,7 @@
 - name: Deploy Student pfSense for Group {{ group_id }} using VLAN template
   ansible.builtin.include_tasks: deploy_student_pfsense_vlan.yml
   when: group_id <= max_student_groups
-#- name: Deploy Student pfSense for Group {{ group_id }} using group-specific template
+  #- name: Deploy Student pfSense for Group {{ group_id }} using group-specific template
   #ansible.builtin.include_tasks: "deploy_studentG{{ '%02d' | format(group_id) }}_pfsense.yml"
   #when: group_id <= max_student_groups
   # ========================================
@@ -91,17 +88,16 @@
 
 - name: Deploy Student Kali VMs for Group {{ group_id }}
   ansible.builtin.include_tasks: deploy_student_kali.yml
+  # ========================================
+  # Deploy Student MS3 VMs
+  # ========================================
 
-# ========================================
-# Deploy Student MS3 VMs
-# ========================================
-
-#- name: Deploy Student MS3 VMs for Group {{ group_id }}
+  #- name: Deploy Student MS3 VMs for Group {{ group_id }}
   #ansible.builtin.include_tasks: deploy_student_ms3.yml
 
-# ========================================
-# Display Completion
-# ========================================
+  # ========================================
+  # Display Completion
+  # ========================================
 
 - name: Display Group {{ group_id }} deployment completion
   ansible.builtin.debug:
