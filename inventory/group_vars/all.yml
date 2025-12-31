@@ -19,7 +19,7 @@
 class_code: 1
 class_name: "cyber-war-gaming"
 course_prefix: "CNT4416"
-max_student_groups: 4
+max_student_groups: 15
 
 # Campaign execution settings (Stage 2+)
 campaign_duration_hours: 24
