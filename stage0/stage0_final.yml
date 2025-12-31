@@ -210,17 +210,6 @@
     register: interfaces_updated
     changed_when: true
 
-  - name: Reload network configuration
-    ansible.builtin.command:
-      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ifreload -a"
-    when: interfaces_updated.changed
-    register: reload_result
-
-  - name: Wait for network to stabilize
-    ansible.builtin.pause:
-      seconds: 10
-    when: interfaces_updated.changed
-
   - name: Set promisc mode on VLAN bridges
     ansible.builtin.command:
       cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ip link set {{ item }} promisc on"
@@ -234,6 +223,17 @@
       msg: |
         ✓ Promiscuous mode enabled on VLAN bridges
         Bridges: {{ bridges.vlan_wan }}, {{ bridges.vlan_lan }}
+
+  - name: Reload network configuration
+    ansible.builtin.command:
+      cmd: ssh {{ proxmox_user }}@{{ proxmox_host }} "ifreload -a"
+    when: interfaces_updated.changed
+    register: reload_result
+
+  - name: Wait for network to stabilize
+    ansible.builtin.pause:
+      seconds: 10
+    when: interfaces_updated.changed
 
   # =========================================================================
   # STAGE 0.6: Verify Changes and Connectivity
