@@ -100,65 +100,54 @@
 - name: Display Kali 1 configuration status
   ansible.builtin.debug:
     msg: "✓ Kali 1 configured (VM {{ group_kali1_id }})"
-    #- name: Start Kali 1 VM
-    #ansible.builtin.command:
-    #cmd: >
-    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_kali1_id }}"
-    #register: kali1_start
-    #changed_when: true
-    #failed_when: kali1_start.rc != 0
-
-    #- name: Display Kali 1 start status
-    #ansible.builtin.debug:
-    #msg: "✓ Kali 1 started (VM {{ group_kali1_id }})"
 
     # ========================================
     # Deploy Kali 2
     # ========================================
 
-#- name: Import Kali 2 OVF for Group {{ group_id }}
-  #ansible.builtin.command:
-    #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_kali2_id }} {{ templates.kali }} {{ storage }}"
-  #register: kali2_import
-  #changed_when: true
-  #failed_when: kali2_import.rc != 0
+- name: Import Kali 2 OVF for Group {{ group_id }}
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm importovf {{ group_kali2_id }} {{ templates.kali }} {{ storage }}"
+  register: kali2_import
+  changed_when: true
+  failed_when: kali2_import.rc != 0
 
-#- name: Display Kali 2 import status
-  #ansible.builtin.debug:
-    #msg: "✓ Kali 2 OVF imported (VM {{ group_kali2_id }})"
+- name: Display Kali 2 import status
+  ansible.builtin.debug:
+    msg: "✓ Kali 2 OVF imported (VM {{ group_kali2_id }})"
 
-#- name: Set name
-  #ansible.builtin.command:
-    #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --name student-group{{ '%02d' | format(group_id) }}-kali2"
-  #register: name2_result
-  #changed_when: true
-  #failed_when: name2_result.rc != 0
+- name: Set name
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --name student-group{{ '%02d' | format(group_id) }}-kali2"
+  register: name2_result
+  changed_when: true
+  failed_when: name2_result.rc != 0
 
-#- name: Configure Kali 2 SCSI controller and disk
-  #ansible.builtin.command:
-    #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ group_kali2_id }}-disk-0"
-  #register: kali2_scsi
-  #changed_when: true
-  #failed_when: kali2_scsi.rc != 0
+- name: Configure Kali 2 SCSI controller and disk
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --scsihw virtio-scsi-pci --scsi0 {{ storage }}:vm-{{ group_kali2_id }}-disk-0"
+  register: kali2_scsi
+  changed_when: true
+  failed_when: kali2_scsi.rc != 0
 
-#- name: Configure Kali 2 BIOS
-  #ansible.builtin.command:
-    #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --bios seabios"
-  #register: kali2_bios
-  #changed_when: true
-  #failed_when: kali2_bios.rc != 0
+- name: Configure Kali 2 BIOS
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --bios seabios"
+  register: kali2_bios
+  changed_when: true
+  failed_when: kali2_bios.rc != 0
 
-#- name: Configure Kali 2 boot order
-  #ansible.builtin.command:
-    #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --boot order=scsi0"
-  #register: kali2_boot
-  #changed_when: true
-  #failed_when: kali2_boot.rc != 0
+- name: Configure Kali 2 boot order
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --boot order=scsi0"
+  register: kali2_boot
+  changed_when: true
+  failed_when: kali2_boot.rc != 0
 
 #without vlans
 #- name: Assign Kali 2 network interface
@@ -170,28 +159,17 @@
   #failed_when: kali2_net.rc != 0
 
 #with vlans
-#- name: Assign Kali 2 network interface
-  #ansible.builtin.command:
-    #cmd: >
-      #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --net0 virtio,bridge={{ bridges.vlan_lan }},tag={{ 100 + (group_id | int) }},firewall=1"
-  #register: kali2_net
-  #changed_when: true
-  #failed_when: kali2_net.rc != 0
+- name: Assign Kali 2 network interface
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm set {{ group_kali2_id }} --net0 virtio,bridge={{ bridges.vlan_lan }},tag={{ 100 + (group_id | int) }},firewall=1"
+  register: kali2_net
+  changed_when: true
+  failed_when: kali2_net.rc != 0
 
-#- name: Display Kali 2 configuration status
-  #ansible.builtin.debug:
-    #msg: "✓ Kali 2 configured (VM {{ group_kali2_id }})"
-    #- name: Start Kali 2 VM
-    #ansible.builtin.command:
-    #cmd: >
-    #ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm start {{ group_kali2_id }}"
-    #register: kali2_start
-    #changed_when: true
-    #failed_when: kali2_start.rc != 0
-
-    #- name: Display Kali 2 start status
-    #ansible.builtin.debug:
-    #msg: "✓ Kali 2 started (VM {{ group_kali2_id }})"
+- name: Display Kali 2 configuration status
+  ansible.builtin.debug:
+    msg: "✓ Kali 2 configured (VM {{ group_kali2_id }})"
 
     # ========================================
     # Display Completion
