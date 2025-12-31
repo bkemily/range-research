@@ -1,0 +1,80 @@
+---
+# ============================================================================
+# Generate All Student pfSense Configuration XMLs
+# ============================================================================
+# Purpose: Generate static XML configs for all student pfSense instances
+#
+# Usage:
+#   ansible-playbook generate_pfsense_configs.yml
+#
+# This creates:
+#   - group01.xml through group15.xml (student configs)
+#
+# Author: Emily Miller
+# Last Updated: December 31, 2024
+# ============================================================================
+
+- name: Generate Student pfSense Configurations
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  vars:
+    max_student_groups: 15
+
+  tasks:
+  - name: Create configs output directory
+    ansible.builtin.file:
+      path: "{{ playbook_dir }}/pfsense_configs/generated"
+      state: directory
+
+  - name: Generate Student Group configs (1-15)
+    ansible.builtin.template:
+      src: "{{ playbook_dir }}/pfsense_configs/student-group-XX.xml.j2"
+      dest: "{{ playbook_dir }}/pfsense_configs/generated/group{{ '%02d' | format(item) }}.xml"
+    loop: "{{ range(1, 16) | list }}"
+    vars:
+      group_id: "{{ item }}"
+      # WAN addressing - Group N uses 143.88.0.(N*2)
+      # Group 1: 143.88.0.2, Group 2: 143.88.0.4, Group 15: 143.88.0.30
+      wan_ip: "143.88.0.{{ item * 2 }}"
+      wan_gateway: "143.88.0.1"
+      wan_subnet: "24"
+      # LAN subnet: 143.88.N.0/24, pfSense LAN IP: 143.88.N.1
+      lan_ip: "143.88.{{ item }}.1"
+      lan_subnet: "24"
+      # DHCP range: 143.88.N.10 to 143.88.N.245
+      dhcp_start: "143.88.{{ item }}.10"
+      dhcp_end: "143.88.{{ item }}.245"
+      # DNS server (Security Onion)
+      dns_server: "143.88.255.10"
+      # NTP server (upstream gateway)
+      ntp_server: "143.88.0.1"
+
+  - name: Display generation complete
+    ansible.builtin.debug:
+      msg: |
+        ========================================
+        ✓ Configuration Files Generated
+        ========================================
+        Location: {{ playbook_dir }}/pfsense_configs/generated/
+        
+        Files created:
+          - group01.xml through group15.xml
+        
+        IP Address Summary:
+        {% for g in range(1, 16) %}
+          Group {{ '%02d' | format(g) }}:
+            Hostname: {{ g }}-pfSense
+            Domain: group{{ g }}.uwf.edu
+            WAN: 143.88.0.{{ g * 2 }}/24 (GW: 143.88.0.1)
+            LAN: em1.{{ 100 + g }} → 143.88.{{ g }}.1/24
+            DHCP: 143.88.{{ g }}.10 - 143.88.{{ g }}.245
+            VLAN: {{ 100 + g }}
+        {% endfor %}
+        
+        Next steps:
+          1. Review the generated XMLs
+          2. Copy to pfSense template: /root/configs/
+          3. Create apply_config.sh script on template
+        ========================================
