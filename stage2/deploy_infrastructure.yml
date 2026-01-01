@@ -86,9 +86,9 @@
       - "{{ base_vmid | int + 5 }}" # MS3 Windows
     loop: "{{ range(1, max_student_groups + 1) | list }}"
 
-  #- name: Combine infrastructure and student VM IDs
-    #ansible.builtin.set_fact:
-      #vm_ids_to_check: "{{ [vm_ids.car, vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
+  - name: Combine infrastructure and student VM IDs
+    ansible.builtin.set_fact:
+      vm_ids_to_check: "{{ [vm_ids.car, vm_ids.spark_pfsense, vm_ids.instructor_pfsense, vm_ids.instructor_kali] + student_vm_ids }}"
 
   - name: Display VM IDs to check
     ansible.builtin.debug:
@@ -98,14 +98,14 @@
         Student Groups ({{ max_student_groups }} groups): {{ student_vm_ids | sort | join(', ') }}
 
   # Check for conflicts
-  #- name: Check for existing VMs that would conflict
-    #ansible.builtin.command:
-      #cmd: ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ item }}"
-    #loop: "{{ vm_ids_to_check }}"
-    #register: vm_conflicts
-    #changed_when: false
-    #failed_when: false
-  
+  - name: Check for existing VMs that would conflict
+    ansible.builtin.command:
+      cmd: ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm status {{ item }}"
+    loop: "{{ vm_ids_to_check }}"
+    register: vm_conflicts
+    changed_when: false
+    failed_when: false
+
   - name: Report any VM conflicts
     ansible.builtin.fail:
       msg: |
@@ -141,8 +141,8 @@
     #ansible.builtin.include_tasks: tasks/infrastructure/deploy_car_vm.yml
 
   # Deploy Instructor Group
-  #- name: Deploy Instructor Infrastructure
-    #ansible.builtin.include_tasks: tasks/infrastructure/deploy_instructor_group.yml
+  - name: Deploy Instructor Infrastructure
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_instructor_group.yml
 
   # Deploy Student Groups (Loop 1-max_student_groups)
   - name: Deploy Student Groups
