@@ -211,16 +211,35 @@
 			<statetype><![CDATA[keep state]]></statetype>
 			<os></os>
 			<source>
-				<any></any>
+				<network>lan</network>
 			</source>
 			<destination>
 				<any></any>
 			</destination>
 			<descr><![CDATA[Default allow LAN to any rule]]></descr>
-			<updated>
-				<time>1684759902</time>
-				<username><![CDATA[admin@{{ lan_ip }} (Local Database)]]></username>
-			</updated>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>0100000102</tracker>
+			<type>pass</type>
+			<interface>lan</interface>
+			<ipprotocol>inet6</ipprotocol>
+			<tag></tag>
+			<tagged></tagged>
+			<max></max>
+			<max-src-nodes></max-src-nodes>
+			<max-src-conn></max-src-conn>
+			<max-src-states></max-src-states>
+			<statetimeout></statetimeout>
+			<statetype><![CDATA[keep state]]></statetype>
+			<os></os>
+			<source>
+				<network>lan</network>
+			</source>
+			<destination>
+				<any></any>
+			</destination>
+			<descr><![CDATA[Default allow LAN IPv6 to any rule]]></descr>
 		</rule>
 		<separator>
 			<wan></wan>
@@ -331,13 +350,16 @@
 		<enable></enable>
 	</rrd>
 	<widgets>
-		<sequence>system_information:col1:show,disks:col1:show,netgate_services_and_support:col2:show,interfaces:col2:show</sequence>
+		<sequence>system_information:col1:show,interfaces:col2:show,gateways:col2:show,interface_list:col2:show</sequence>
 		<period>10</period>
 	</widgets>
 	<openvpn></openvpn>
-	<dnshaper></dnshaper>
+	<dnshaper>
+	</dnshaper>
 	<unbound>
+		<enable></enable>
 		<dnssec></dnssec>
+		<forwarding></forwarding>
 		<active_interface>all</active_interface>
 		<outgoing_interface>all</outgoing_interface>
 		<custom_options></custom_options>
@@ -351,8 +373,8 @@
 	</unbound>
 	<revision>
 		<time>1767188540</time>
-		<description><![CDATA[(system): wan IP configuration from console menu]]></description>
-		<username><![CDATA[(system)]]></username>
+		<description><![CDATA[Generated configuration for group {{ group_id }}]]></description>
+		<username><![CDATA[ansible-automation]]></username>
 	</revision>
 	<cert>
 		<refid>629daff99658d</refid>
