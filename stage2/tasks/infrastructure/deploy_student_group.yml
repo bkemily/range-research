@@ -82,6 +82,7 @@
 
 - name: Deploy Student Kali VMs for Group {{ group_id }}
   ansible.builtin.include_tasks: deploy_student_kali.yml
+  
   # ========================================
   # Deploy Student MS3 VMs
   # ========================================

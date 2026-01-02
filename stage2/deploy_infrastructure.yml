@@ -133,12 +133,12 @@
         ========================================
 
   # Deploy Spark pfSense
-  #- name: Deploy Spark pfSense
-    #ansible.builtin.include_tasks: tasks/infrastructure/deploy_spark_pfsense.yml
+  - name: Deploy Spark pfSense
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_spark_pfsense.yml
 
   # Deploy CAR Ubuntu
-  #- name: Deploy CAR Ubuntu
-    #ansible.builtin.include_tasks: tasks/infrastructure/deploy_car_vm.yml
+  - name: Deploy CAR Ubuntu
+    ansible.builtin.include_tasks: tasks/infrastructure/deploy_car_vm.yml
 
   # Deploy Instructor Group
   - name: Deploy Instructor Infrastructure
