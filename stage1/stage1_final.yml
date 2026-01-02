@@ -19,8 +19,6 @@
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml stage1/stage1_final.yml --ask-vault-pass
-#   ansible-playbook -i inventory/hosts.yml stage1/stage1_final.yml --ask-vault-pass -e auto_confirm=true
-#   ansible-playbook -i inventory/hosts.yml stage1/stage1_final.yml --ask-vault-pass -e max_student_groups=5
 #
 # Variables from inventory/group_vars/all.yml:
 #   - proxmox_host, proxmox_user, proxmox_node
