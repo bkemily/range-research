@@ -21,7 +21,7 @@
       VM ID: {{ vm_ids.car }}
       Storage: {{ storage }}
       OVF Location: {{ templates.car }}
-      Network: vmbr50 (SPARK WAN), vmbr255000 (Instructor LAN)
+      Network: vmbr50 (SPARK WAN), vmbr255 (WAN)
       ========================================
 
 # ========================================
@@ -106,7 +106,7 @@
       ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
       "qm set {{ vm_ids.car }} 
       --net0 e1000=BC:24:11:F4:E6:4D,bridge=vmbr50,firewall=1
-      --net1 e1000=BC:24:11:63:45:81,bridge=vmbr255000,firewall=1"
+      --net1 e1000=BC:24:11:63:45:81,bridge=vmbr255,firewall=1"
   changed_when: true
 
 - name: Set memory to 8GB
@@ -172,7 +172,7 @@
         - Memory: 8GB
         - CPU: 4 cores (1 socket)
         - BIOS: OVMF (UEFI)
-        - Network: e1000 on vmbr50 and vmbr255000
+        - Network: e1000 on vmbr50 and vmbr255
         - Boot: sata0
 
 # ========================================
@@ -233,7 +233,7 @@
       
       Network Configuration:
         net0: e1000, vmbr50 (SPARK WAN)
-        net1: e1000, vmbr255000 (Instructor LAN)
+        net1: e1000, vmbr255 (WAN)
       
       Storage:
         Hard Disk: sata0 (32GB)
