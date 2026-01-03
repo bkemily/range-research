@@ -1,5 +1,5 @@
 ---
-# playbooks/test_network_connectivity.yml
+# stage2/tasks/network/verify_network_connectivity.yml
 # Network Connectivity Validation Playbook
 # Tests routing, VLAN isolation, and inter-group connectivity across the cyber range
 
@@ -9,7 +9,7 @@
   vars:
     test_results: []
     test_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
-    results_dir: "../test_results"
+    results_dir: "{{ playbook_dir }}/test_results"
     
   tasks:
     - name: Load inventory variables
@@ -42,9 +42,9 @@
         state: directory
         mode: '0755'
 
-    - name: Initialize test results file
-      ansible.builtin.copy:
-        content: |
+    - name: Build test header content
+      ansible.builtin.set_fact:
+        test_header: |
           ================================================================================
           Network Connectivity Test Results
           ================================================================================
@@ -67,7 +67,10 @@
             - Management: {{ securityonion_mgmt_ip }}
           
           ================================================================================
-          
+
+    - name: Initialize test results file
+      ansible.builtin.copy:
+        content: "{{ test_header }}"
         dest: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
         mode: '0644'
 
@@ -263,122 +266,6 @@
           when: routing_table.rc == 0
 
     # ============================================================================
-    # Test 7: VLAN Isolation Verification
-    # ============================================================================
-    - name: Display VLAN isolation verification instructions
-      ansible.builtin.debug:
-        msg: |
-          
-          ================================================================================
-          VLAN ISOLATION VERIFICATION (Manual)
-          ================================================================================
-          
-          Layer 2 Isolation Test:
-          - VMs on different VLANs should NOT see each other's broadcasts
-          - ARP tables should only contain MAC addresses from same VLAN
-          
-          To verify from Kali VMs:
-          1. SSH into Group 1 Kali (on VLAN 101)
-          2. Check ARP table: arp -a
-          3. Should ONLY see: 
-             - Gateway: {{ student_groups[0].lan_ip }} (Group 1 pfSense)
-             - Other Group 1 VMs on {{ student_groups[0].lan_network }}
-          4. Should NOT see any Group 2+ devices
-          
-          Expected VLAN Configuration:
-          {% for group in student_groups %}
-          {{ group.group_name }}: VLAN {{ group.vlan_id }} on vmbr100
-          {% endfor %}
-          
-          ================================================================================
-
-    # ============================================================================
-    # Test 8: Manual Kali VM Connectivity Testing
-    # ============================================================================
-    - name: Display manual Kali testing instructions
-      ansible.builtin.debug:
-        msg: |
-          
-          ================================================================================
-          MANUAL KALI VM CONNECTIVITY TESTS
-          ================================================================================
-          
-          Intra-Group (Layer 2 - Same VLAN):
-          1. SSH into {{ student_groups[0].group_name }} Kali
-          2. ping {{ student_groups[0].lan_ip }}  # Local pfSense gateway
-          3. ping <other_group1_vm_ip>  # MS3 Ubuntu/Windows in same group
-          
-          Inter-Group (Layer 3 - Via Static Routes):
-          {% if student_groups | length > 1 %}
-          1. From {{ student_groups[0].group_name }} Kali
-          2. ping {{ student_groups[1].lan_ip }}  # {{ student_groups[1].group_name }} pfSense
-          3. Expected route: {{ student_groups[0].lan_ip }} → {{ student_groups[0].wan_ip }} → {{ instructor_pfsense_wan_ip }} → {{ student_groups[1].wan_ip }} → {{ student_groups[1].lan_ip }}
-          4. Verify with: traceroute {{ student_groups[1].lan_ip }}
-          {% endif %}
-          
-          Kali to Instructor Network:
-          1. From any student Kali
-          2. ping {{ instructor_pfsense_lan_ip }}  # Instructor pfSense LAN
-          3. ping {{ securityonion_mgmt_ip }}  # Security Onion
-          
-          Expected DHCP Ranges:
-          {% for group in student_groups %}
-          {{ group.group_name }}: {{ group.lan_network.split('/')[0].rsplit('.', 1)[0] }}.100-200
-          {% endfor %}
-          Instructor: 143.88.255.100-200
-          
-          ================================================================================
-
-    # ============================================================================
-    # Test 9: Internet Connectivity (if applicable)
-    # ============================================================================
-    - name: Test internet connectivity from student pfSense routers
-      block:
-        - name: Ping external DNS (8.8.8.8) from student pfSense
-          ansible.builtin.command:
-            cmd: >
-              sshpass -p '{{ vault_pfsense_password }}' 
-              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-              admin@{{ item.wan_ip }}
-              "ping -c 3 8.8.8.8"
-          loop: "{{ student_groups }}"
-          register: internet_connectivity
-          ignore_errors: true
-          changed_when: false
-
-        - name: Log internet connectivity results
-          ansible.builtin.lineinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            line: |
-              [INTERNET] {{ item.item.group_name }}: {{ 'PASS' if item.rc == 0 else 'FAIL (Expected in airgapped environment)' }}
-              {{ item.stdout if item.rc == 0 else 'Airgapped - no external connectivity' }}
-          loop: "{{ internet_connectivity.results }}"
-
-    # ============================================================================
-    # Test 10: Security Onion Monitoring Interface Connectivity
-    # ============================================================================
-    - name: Test Security Onion monitoring interfaces
-      block:
-        - name: Ping Security Onion management interface from instructor pfSense
-          ansible.builtin.command:
-            cmd: >
-              sshpass -p '{{ vault_pfsense_password }}' 
-              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-              admin@{{ instructor_pfsense_lan_ip }}
-              "ping -c 3 {{ securityonion_mgmt_ip }}"
-          register: so_mgmt_connectivity
-          ignore_errors: true
-          changed_when: false
-
-        - name: Log Security Onion connectivity results
-          ansible.builtin.lineinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            line: |
-              [SECURITY ONION MGMT] {{ 'PASS' if so_mgmt_connectivity.rc == 0 else 'FAIL' }}
-              Target: {{ securityonion_mgmt_ip }} (untagged on vmbr100)
-              {{ so_mgmt_connectivity.stdout if so_mgmt_connectivity.rc == 0 else so_mgmt_connectivity.stderr }}
-
-    # ============================================================================
     # Final Summary
     # ============================================================================
     - name: Generate test summary
@@ -420,17 +307,13 @@
               Success Rate: {{ ((passed_tests | int / total_tests | int) * 100) | round(2) }}%
               
               Test Categories:
-              ┌─────────────────────────────────────┬──────────┬────────┐
-              │ Test Category                       │ Passed   │ Total  │
-              ├─────────────────────────────────────┼──────────┼────────┤
-              │ Instructor → Student WAN (vmbr255)  │ {{ '%2d' | format(instr_to_student_wan_passed | int) }}       │ {{ '%2d' | format(instr_to_student_wan_total | int) }}     │
-              │ Instructor → Student LAN (routes)   │ {{ '%2d' | format(instr_to_student_lan_passed | int) }}       │ {{ '%2d' | format(instr_to_student_lan_total | int) }}     │
-              │ Student → Instructor                │ {{ '%2d' | format(student_to_instr_passed | int) }}       │ {{ '%2d' | format(student_to_instr_total | int) }}     │
-              │ Cross-Student WAN (broadcast)       │ {{ '%2d' | format(cross_student_wan_passed | int) }}       │ {{ '%2d' | format(cross_student_wan_total | int) }}     │
-              │ Cross-Student LAN (static routes)   │ {{ '%2d' | format(cross_student_lan_passed | int) }}       │ {{ '%2d' | format(cross_student_lan_total | int) }}     │
-              │ Internet Connectivity (airgapped)   │ {{ '%2d' | format(internet_passed | int) }}       │ {{ '%2d' | format(internet_total | int) }}     │
-              │ Security Onion Management           │ {{ '%2d' | format(so_passed | int) }}       │ {{ '%2d' | format(so_total | int) }}     │
-              └─────────────────────────────────────┴──────────┴────────┘
+              - Instructor → Student WAN (vmbr255): {{ instr_to_student_wan_passed }}/{{ instr_to_student_wan_total }}
+              - Instructor → Student LAN (routes):  {{ instr_to_student_lan_passed }}/{{ instr_to_student_lan_total }}
+              - Student → Instructor:               {{ student_to_instr_passed }}/{{ student_to_instr_total }}
+              - Cross-Student WAN (broadcast):      {{ cross_student_wan_passed }}/{{ cross_student_wan_total }}
+              - Cross-Student LAN (static routes):  {{ cross_student_lan_passed }}/{{ cross_student_lan_total }}
+              - Internet Connectivity (airgapped):  {{ internet_passed }}/{{ internet_total }}
+              - Security Onion Management:          {{ so_passed }}/{{ so_total }}
               
               Routing Validation:
               ✓ Static routes verified on instructor pfSense
