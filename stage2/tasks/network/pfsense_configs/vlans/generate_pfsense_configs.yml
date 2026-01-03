@@ -11,7 +11,7 @@
 #   - group01.xml through group15.xml (student configs)
 #
 # Author: Emily Miller
-# Last Updated: December 31, 2024
+# Last Updated: January 2, 2026
 # ============================================================================
 
 - name: Generate Student pfSense Configurations
@@ -28,28 +28,28 @@
       path: "{{ playbook_dir }}/generated"
       state: directory
 
-  - name: Generate Student Group configs (1-15)
+  - name: Generate Student Group configs
     ansible.builtin.template:
       src: "{{ playbook_dir }}/student-group-XX.xml.j2"
       dest: "{{ playbook_dir }}/generated/Group{{ '%02d' | format(item) }}.xml"
-    loop: "{{ range(1, 41) | list }}"
+    loop: "{{ range(1, max_student_groups + 1) | list }}"
     vars:
       group_id: "{{ item }}"
       # WAN addressing - Group N uses 143.88.0.(N*2)
       # Group 1: 143.88.0.2, Group 2: 143.88.0.4, Group 15: 143.88.0.30
       wan_ip: "143.88.0.{{ item * 2 }}"
-      wan_gateway: "143.88.0.1"
+      wan_gateway: "143.88.0.1"    # WANGW_2 - default gateway
       wan_subnet: "24"
       # LAN subnet: 143.88.N.0/24, pfSense LAN IP: 143.88.N.1
       lan_ip: "143.88.{{ item }}.1"
       lan_subnet: "24"
-      # DHCP range: 143.88.N.10 to 143.88.N.245
+      # DHCP range: 143.88.N.10 to 143.88.N.200
       dhcp_start: "143.88.{{ item }}.10"
-      dhcp_end: "143.88.{{ item }}.245"
-      # DNS server (Security Onion)
-      dns_server: "143.88.255.10"
-      # NTP server (upstream gateway)
-      ntp_server: "143.88.0.1"
+      dhcp_end: "143.88.{{ item }}.200"
+      # NTP server (instructor NTP)
+      ntp_server: "0-instructor.uwf.edu"
+      # Syslog server (Security Onion)
+      syslog_server: "143.88.255.9"
 
   - name: Display generation complete
     ansible.builtin.debug:
@@ -60,17 +60,20 @@
         Location: {{ playbook_dir }}/generated/
         
         Files created:
-          - group01.xml through group15.xml
+          - Group01.xml through Group{{ '%02d' | format(max_student_groups) }}.xml
         
         IP Address Summary:
-        {% for g in range(1, 16) %}
+        {% for g in range(1, max_student_groups + 1) %}
           Group {{ '%02d' | format(g) }}:
-            Hostname: {{ g }}-pfSense
+            Hostname: group{{ g }}-pfSense
             Domain: group{{ g }}.uwf.edu
-            WAN: 143.88.0.{{ g * 2 }}/24 (GW: 143.88.0.1)
+            WAN: 143.88.0.{{ g * 2 }}/24
+              Default GW: 143.88.0.1 (WANGW_2)
             LAN: em1.{{ 100 + g }} → 143.88.{{ g }}.1/24
-            DHCP: 143.88.{{ g }}.10 - 143.88.{{ g }}.245
+            DHCP: 143.88.{{ g }}.10 - 143.88.{{ g }}.200
             VLAN: {{ 100 + g }}
+            Syslog: 143.88.255.9:514
+            NTP: 0-instructor.uwf.edu
         {% endfor %}
         
         Next steps:

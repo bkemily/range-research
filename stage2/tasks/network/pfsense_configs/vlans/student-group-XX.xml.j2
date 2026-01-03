@@ -5,7 +5,7 @@
 	<s>
 		<optimization>normal</optimization>
 		<hostname>{{ group_id }}-pfSense</hostname>
-		<domain>{{ group_id }}.uwf.edu</domain>
+		<domain>group{{ group_id }}.uwf.edu</domain>
 		<group>
 			<n>all</n>
 			<description><![CDATA[All Users]]></description>
@@ -54,13 +54,11 @@
 		</bogons>
 		<hn_altq_enable></hn_altq_enable>
 		<already_run_config_upgrade></already_run_config_upgrade>
+		<ssh></ssh>
 		<language>en_US</language>
 		<timezone>Etc/UTC</timezone>
-		<dnsserver>{{ wan_gateway }}</dnsserver>
 		<dnsallowoverride></dnsallowoverride>
-		<ssh>
-			<enable>enabled</enable>
-		</ssh>
+		<dns1host></dns1host>
 	</s>
 	<interfaces>
 		<wan>
@@ -70,7 +68,7 @@
 			<spoofmac></spoofmac>
 			<ipaddr>{{ wan_ip }}</ipaddr>
 			<subnet>{{ wan_subnet }}</subnet>
-			<gateway>{{ wan_gateway }}</gateway>
+			<gateway>WANGW_2</gateway>
 			<ipaddrv6></ipaddrv6>
 			<subnetv6></subnetv6>
 			<gatewayv6></gatewayv6>
@@ -400,16 +398,7 @@
 	<gateways>
 		<gateway_item>
 			<interface>wan</interface>
-			<gateway>{{ wan_gateway_primary }}</gateway>
-			<n>WANGW</n>
-			<weight>1</weight>
-			<ipprotocol>inet</ipprotocol>
-			<interval></interval>
-			<descr><![CDATA[Interface wan Gateway]]></descr>
-		</gateway_item>
-		<gateway_item>
-			<interface>wan</interface>
-			<gateway>{{ wan_gateway_secondary }}</gateway>
+			<gateway>{{ wan_gateway }}</gateway>
 			<n>WANGW_2</n>
 			<weight>1</weight>
 			<ipprotocol>inet</ipprotocol>
