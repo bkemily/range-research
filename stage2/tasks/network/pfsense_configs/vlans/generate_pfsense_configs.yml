@@ -45,11 +45,11 @@
       lan_subnet: "24"
       # DHCP range: 143.88.N.10 to 143.88.N.200
       dhcp_start: "143.88.{{ item }}.10"
-      dhcp_end: "143.88.{{ item }}.200"
+      dhcp_end: "143.88.{{ item }}.245"
       # NTP server (instructor NTP)
       ntp_server: "0-instructor.uwf.edu"
-      # Syslog server (Security Onion)
-      syslog_server: "143.88.255.9"
+      # Syslog server
+      syslog_server: "143.88.255.1"
 
   - name: Display generation complete
     ansible.builtin.debug:

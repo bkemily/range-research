@@ -2,19 +2,19 @@
 <pfsense>
 	<version>23.3</version>
 	<lastchange></lastchange>
-	<system>
+	<s>
 		<optimization>normal</optimization>
 		<hostname>{{ group_id }}-pfSense</hostname>
 		<domain>group{{ group_id }}.uwf.edu</domain>
 		<group>
-			<name>all</name>
+			<n>all</n>
 			<description><![CDATA[All Users]]></description>
 			<scope>system</scope>
 			<gid>1998</gid>
 			<member>0</member>
 		</group>
 		<group>
-			<name>admins</name>
+			<n>admins</n>
 			<description><![CDATA[System Administrators]]></description>
 			<scope>system</scope>
 			<gid>1999</gid>
@@ -22,7 +22,7 @@
 			<priv>page-all</priv>
 		</group>
 		<user>
-			<name>admin</name>
+			<n>admin</n>
 			<descr><![CDATA[System Administrator]]></descr>
 			<scope>system</scope>
 			<groupname>admins</groupname>
@@ -32,7 +32,7 @@
 		</user>
 		<nextuid>2000</nextuid>
 		<nextgid>2000</nextgid>
-		<timeservers>0-instructor.uwf.edu</timeservers>
+		<timeservers>{{ ntp_server }}</timeservers>
 		<webgui>
 			<protocol>https</protocol>
 			<loginautocomplete></loginautocomplete>
@@ -59,7 +59,7 @@
 		<timezone>Etc/UTC</timezone>
 		<dnsallowoverride></dnsallowoverride>
 		<dns1host></dns1host>
-	</system>
+	</s>
 	<interfaces>
 		<wan>
 			<enable></enable>
@@ -100,7 +100,7 @@
 			<defaultleasetime></defaultleasetime>
 			<maxleasetime></maxleasetime>
 			<netmask></netmask>
-			<gateway></gateway>
+			<gateway>{{ lan_ip }}</gateway>
 			<domain></domain>
 			<domainsearchlist></domainsearchlist>
 			<ddnsdomain></ddnsdomain>
@@ -114,7 +114,7 @@
 			<mac_allow></mac_allow>
 			<mac_deny></mac_deny>
 			<ddnsclientupdates>allow</ddnsclientupdates>
-			<ntpserver>0-instructor.uwf.edu</ntpserver>
+			<ntpserver>{{ ntp_server }}</ntpserver>
 			<tftp></tftp>
 			<ldap></ldap>
 			<nextserver></nextserver>
@@ -223,7 +223,6 @@
 			<destination>
 				<any></any>
 			</destination>
-			<descr></descr>
 			<updated>
 				<time>1731541759</time>
 				<username><![CDATA[admin@{{ lan_ip }} (Local Database)]]></username>
@@ -399,17 +398,8 @@
 	<gateways>
 		<gateway_item>
 			<interface>wan</interface>
-			<gateway>143.88.0.5</gateway>
-			<name>WANGW</name>
-			<weight>1</weight>
-			<ipprotocol>inet</ipprotocol>
-			<interval></interval>
-			<descr><![CDATA[Interface wan Gateway]]></descr>
-		</gateway_item>
-		<gateway_item>
-			<interface>wan</interface>
-			<gateway>143.88.0.1</gateway>
-			<name>WANGW_2</name>
+			<gateway>{{ wan_gateway }}</gateway>
+			<n>WANGW_2</n>
 			<weight>1</weight>
 			<ipprotocol>inet</ipprotocol>
 			<interval></interval>
@@ -423,7 +413,7 @@
 	<ntpd>
 		<gps></gps>
 		<enable>enabled</enable>
-		<prefer>0-instructor.uwf.edu </prefer>
+		<prefer>{{ ntp_server }} </prefer>
 		<orphan></orphan>
 		<ntpminpoll></ntpminpoll>
 		<ntpmaxpoll></ntpmaxpoll>
@@ -439,7 +429,7 @@
 	<ppps></ppps>
 	<installedpackages>
 		<package>
-			<name>Open-VM-Tools</name>
+			<n>Open-VM-Tools</n>
 			<descr><![CDATA[VMware Tools is a suite of utilities that enhances the performance of the virtual machine&#039;s guest operating system and improves management of the virtual machine.]]></descr>
 			<website>http://open-vm-tools.sourceforge.net/</website>
 			<version>10.1.0_5,1</version>
@@ -451,13 +441,13 @@
 			<include_file>/usr/local/pkg/open-vm-tools.inc</include_file>
 		</package>
 		<service>
-			<name>vmware-guestd</name>
+			<n>vmware-guestd</n>
 			<rcfile>vmware-guestd.sh</rcfile>
 			<custom_php_service_status_command>mwexec(&quot;/usr/local/etc/rc.d/vmware-guestd status&quot;) == 0;</custom_php_service_status_command>
 			<description><![CDATA[VMware Guest Daemon]]></description>
 		</service>
 		<service>
-			<name>vmware-kmod</name>
+			<n>vmware-kmod</n>
 			<rcfile>vmware-kmod.sh</rcfile>
 			<custom_php_service_status_command>mwexec(&quot;/usr/local/etc/rc.d/vmware-kmod status&quot;) == 0;</custom_php_service_status_command>
 			<description><![CDATA[VMware Kernel Modules]]></description>
