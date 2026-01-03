@@ -65,10 +65,6 @@ interfaces_backup: "/etc/network/interfaces.bak.{{ ansible_date_time.epoch }}"
 # ==========================================
 # Bridge Configuration
 # ==========================================
-# Bridge naming convention: vmbrXXXYYY
-#   XXX = Group ID (255 = instructor, 001-015 = students)
-#   YYY = Network type (000 = LAN, specific number for WAN)
-#
 # Infrastructure bridges are created in Stage 0
 # Student bridges are dynamically generated based on max_student_groups
 
@@ -82,9 +78,6 @@ bridges:
   instructor_lan: "vmbr255000"
   vlan_wan: "vmbr255"
   vlan_lan: "vmbr100"
-  # Student bridge naming patterns (for dynamic generation)
-  # WAN interconnect: vmbr255{group:03d}  (e.g., vmbr255001, vmbr255002)
-  # LAN segment:      vmbr{group:03d}000  (e.g., vmbr001000, vmbr002000)
 
 vlan_scheme:
   instructor_vlan: 255 # VLAN tag for instructor LAN
@@ -187,7 +180,7 @@ security_onion:
   disk_size: "2000" # 2TB primary disk (size in GB)
 
   # Network configuration
-  management_bridge: "vmbr255000" # Instructor LAN
+  management_bridge: "vmbr255" # WAN
   # Note: management_ip will be set during Security Onion installation,
   # not by Ansible. Expected value: 143.88.255.9/24
 

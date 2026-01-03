@@ -53,8 +53,6 @@
     group_kali2_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 3 }}"
     group_ubuntu_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 4 }}"
     group_windows_id: "{{ vm_ids.student_base + ((group_id - 1) * vm_ids.student_block_size) + 5 }}"
-    group_wan_bridge: "vmbr255{{ '%03d' | format(group_id) }}"
-    group_lan_bridge: "vmbr{{ '%03d' | format(group_id) }}000"
 
 - name: Display Group {{ group_id }} VM IDs
   ansible.builtin.debug:
@@ -75,21 +73,18 @@
 - name: Deploy Student pfSense for Group {{ group_id }} using VLAN template
   ansible.builtin.include_tasks: deploy_student_pfsense_vlan.yml
   when: group_id <= max_student_groups
-  
   # ========================================
   # Deploy Student Kali VMs
   # ========================================
 
 - name: Deploy Student Kali VMs for Group {{ group_id }}
   ansible.builtin.include_tasks: deploy_student_kali.yml
-  
   # ========================================
   # Deploy Student MS3 VMs
   # ========================================
 
 - name: Deploy Student MS3 VMs for Group {{ group_id }}
   ansible.builtin.include_tasks: deploy_student_ms3.yml
-
   # ========================================
   # Display Completion
   # ========================================

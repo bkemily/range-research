@@ -14,7 +14,7 @@
 #   - group_id: Group number (1-15)
 #   - group_ubuntu_id: VM ID for MS3 Ubuntu
 #   - group_windows_id: VM ID for MS3 Windows
-#   - group_lan_bridge: LAN bridge name (vmbr00X000)
+#   - lan_bridge: vmbr100
 #
 # Author: Emily Miller
 # Last Updated: December 30, 2025
