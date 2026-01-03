@@ -28,14 +28,13 @@
 # Import OVF to Create VM
 # ========================================
 
-- name: Import CAR OVF to create VM
+- name: Clone CAR template to create VM
   ansible.builtin.command:
     cmd: >
-      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }}
-      "qm importovf {{ vm_ids.car }} {{ templates.car }} {{ storage }}"
-  register: import_result
+      ssh {{ ssh.common_args }} {{ proxmox_user }}@{{ proxmox_host }} "qm clone {{ templates.car_ubuntu_id }} {{ vm_ids.car }} --name car-ubuntu --full"
+  register: clone_result
   changed_when: true
-  failed_when: import_result.rc != 0
+  failed_when: clone_result.rc != 0
 
 - name: Display import status
   ansible.builtin.debug:
