@@ -20,7 +20,7 @@
   gather_facts: yes
 
   vars:
-    max_student_groups: 15
+    max_student_groups: 40
 
   tasks:
   - name: Create configs output directory
