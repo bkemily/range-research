@@ -399,6 +399,15 @@
 	<gateways>
 		<gateway_item>
 			<interface>wan</interface>
+			<gateway>143.88.0.5</gateway>
+			<name>WANGW</name>
+			<weight>1</weight>
+			<ipprotocol>inet</ipprotocol>
+			<interval></interval>
+			<descr><![CDATA[Interface wan Gateway]]></descr>
+		</gateway_item>
+		<gateway_item>
+			<interface>wan</interface>
 			<gateway>143.88.0.1</gateway>
 			<name>WANGW_2</name>
 			<weight>1</weight>
