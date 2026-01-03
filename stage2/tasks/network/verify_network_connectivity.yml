@@ -7,7 +7,9 @@
   gather_facts: false
   vars:
     test_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
-    results_dir: "{{ playbook_dir }}/test_results"
+    results_dir: "{{ playbook_dir }}/../../../test_results"
+    pfsense_user: "admin"
+    pfsense_pass: "pfsense"
     
   tasks:
     - name: Load inventory variables
@@ -43,8 +45,8 @@
 
     # Test 1: Instructor to Student WAN
     - name: Ping student WAN from instructor
-      ansible.builtin.command:
-        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ instructor_wan }} 'ping -c 3 {{ item.wan_ip }}'"
+      ansible.builtin.shell:
+        cmd: "sshpass -p '{{ pfsense_pass }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ pfsense_user }}@{{ instructor_wan }} 'ping -c 3 {{ item.wan_ip }}'"
       loop: "{{ student_groups }}"
       register: test1
       ignore_errors: true
@@ -53,13 +55,13 @@
     - name: Log test 1 results
       ansible.builtin.lineinfile:
         path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-        line: "[TEST1] Instructor->{{ item.item.group_name }} WAN: {{ 'PASS' if item.rc == 0 else 'FAIL' }}"
+        line: "[TEST1] Instructor->{{ item.item.group_name }} WAN ({{ item.item.wan_ip }}): {{ 'PASS' if item.rc == 0 else 'FAIL' }}"
       loop: "{{ test1.results }}"
 
     # Test 2: Instructor to Student LAN
     - name: Ping student LAN from instructor
-      ansible.builtin.command:
-        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ instructor_wan }} 'ping -c 3 {{ item.lan_ip }}'"
+      ansible.builtin.shell:
+        cmd: "sshpass -p '{{ pfsense_pass }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ pfsense_user }}@{{ instructor_wan }} 'ping -c 3 {{ item.lan_ip }}'"
       loop: "{{ student_groups }}"
       register: test2
       ignore_errors: true
@@ -68,13 +70,13 @@
     - name: Log test 2 results
       ansible.builtin.lineinfile:
         path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-        line: "[TEST2] Instructor->{{ item.item.group_name }} LAN: {{ 'PASS' if item.rc == 0 else 'FAIL' }}"
+        line: "[TEST2] Instructor->{{ item.item.group_name }} LAN ({{ item.item.lan_ip }}): {{ 'PASS' if item.rc == 0 else 'FAIL' }}"
       loop: "{{ test2.results }}"
 
     # Test 3: Student to Instructor
     - name: Ping instructor from student
-      ansible.builtin.command:
-        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ item.wan_ip }} 'ping -c 3 {{ instructor_wan }}'"
+      ansible.builtin.shell:
+        cmd: "sshpass -p '{{ pfsense_pass }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ pfsense_user }}@{{ item.wan_ip }} 'ping -c 3 {{ instructor_wan }}'"
       loop: "{{ student_groups }}"
       register: test3
       ignore_errors: true
@@ -88,8 +90,8 @@
 
     # Test 4: Cross-student WAN
     - name: Ping cross-student WAN
-      ansible.builtin.command:
-        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ item.0.wan_ip }} 'ping -c 3 {{ item.1.wan_ip }}'"
+      ansible.builtin.shell:
+        cmd: "sshpass -p '{{ pfsense_pass }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ pfsense_user }}@{{ item.0.wan_ip }} 'ping -c 3 {{ item.1.wan_ip }}'"
       loop: "{{ student_groups | product(student_groups) | list }}"
       when: item.0.group_id != item.1.group_id
       register: test4
@@ -105,8 +107,8 @@
 
     # Test 5: Cross-student LAN
     - name: Ping cross-student LAN
-      ansible.builtin.command:
-        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ item.0.wan_ip }} 'ping -c 3 {{ item.1.lan_ip }}'"
+      ansible.builtin.shell:
+        cmd: "sshpass -p '{{ pfsense_pass }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ pfsense_user }}@{{ item.0.wan_ip }} 'ping -c 3 {{ item.1.lan_ip }}'"
       loop: "{{ student_groups | product(student_groups) | list }}"
       when: item.0.group_id != item.1.group_id
       register: test5
@@ -122,8 +124,8 @@
 
     # Test 6: Security Onion
     - name: Ping Security Onion
-      ansible.builtin.command:
-        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ instructor_wan }} 'ping -c 3 {{ so_ip }}'"
+      ansible.builtin.shell:
+        cmd: "sshpass -p '{{ pfsense_pass }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ pfsense_user }}@{{ instructor_wan }} 'ping -c 3 {{ so_ip }}'"
       register: test6
       ignore_errors: true
       changed_when: false
@@ -131,7 +133,7 @@
     - name: Log test 6 results
       ansible.builtin.lineinfile:
         path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-        line: "[TEST6] Instructor->SecurityOnion: {{ 'PASS' if test6.rc == 0 else 'FAIL' }}"
+        line: "[TEST6] Instructor->SecurityOnion ({{ so_ip }}): {{ 'PASS' if test6.rc == 0 else 'FAIL' }}"
 
     # Summary
     - name: Calculate summary
@@ -148,14 +150,32 @@
         t5_total: "{{ test5.results | rejectattr('skipped', 'defined') | list | length }}"
         t6_pass: "{{ 1 if test6.rc == 0 else 0 }}"
 
+    - name: Write summary to file
+      ansible.builtin.lineinfile:
+        path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
+        line: |
+          
+          ========================================
+          SUMMARY
+          ========================================
+          Instructor->Student WAN: {{ t1_pass }}/{{ t1_total }}
+          Instructor->Student LAN: {{ t2_pass }}/{{ t2_total }}
+          Student->Instructor: {{ t3_pass }}/{{ t3_total }}
+          Cross-Student WAN: {{ t4_pass }}/{{ t4_total }}
+          Cross-Student LAN: {{ t5_pass }}/{{ t5_total }}
+          Security Onion: {{ t6_pass }}/1
+
     - name: Display summary
       ansible.builtin.debug:
         msg:
-          - "Test Results:"
+          - "========================================="
+          - "CONNECTIVITY TEST RESULTS"
+          - "========================================="
           - "Instructor->Student WAN: {{ t1_pass }}/{{ t1_total }}"
           - "Instructor->Student LAN: {{ t2_pass }}/{{ t2_total }}"
           - "Student->Instructor: {{ t3_pass }}/{{ t3_total }}"
           - "Cross-Student WAN: {{ t4_pass }}/{{ t4_total }}"
           - "Cross-Student LAN: {{ t5_pass }}/{{ t5_total }}"
           - "Security Onion: {{ t6_pass }}/1"
+          - "========================================="
           - "Results: {{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
