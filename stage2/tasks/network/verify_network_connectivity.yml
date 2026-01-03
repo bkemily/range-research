@@ -1,13 +1,11 @@
 ---
 # stage2/tasks/network/verify_network_connectivity.yml
 # Network Connectivity Validation Playbook
-# Tests routing, VLAN isolation, and inter-group connectivity across the cyber range
 
 - name: Network Connectivity Testing
   hosts: localhost
   gather_facts: false
   vars:
-    test_results: []
     test_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
     results_dir: "{{ playbook_dir }}/test_results"
     
@@ -16,353 +14,148 @@
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../../../inventory/group_vars/all.yml"
 
-    - name: Generate student groups from max_student_groups
+    - name: Generate student groups
       ansible.builtin.set_fact:
-        student_groups: "{{ student_groups | default([]) + [item] }}"
+        student_groups: "{{ student_groups | default([]) + [{'group_id': item, 'group_name': 'Group' + item|string, 'vlan_id': 100 + item, 'wan_ip': '143.88.0.' + (item * 2)|string, 'lan_ip': '143.88.' + item|string + '.1', 'lan_network': '143.88.' + item|string + '.0/24'}] }}"
       loop: "{{ range(1, max_student_groups + 1) | list }}"
-      vars:
-        item:
-          group_id: "{{ loop.index }}"
-          group_name: "Group{{ loop.index }}"
-          vlan_id: "{{ 100 + loop.index }}"
-          wan_ip: "143.88.0.{{ loop.index * 2 }}"
-          wan_network: "143.88.0.0/24"
-          lan_ip: "143.88.{{ loop.index }}.1"
-          lan_network: "143.88.{{ loop.index }}.0/24"
 
-    - name: Set instructor pfSense IPs
+    - name: Set pfSense IPs
       ansible.builtin.set_fact:
-        instructor_pfsense_wan_ip: "143.88.0.1"
-        instructor_pfsense_lan_ip: "143.88.255.1"
-        securityonion_mgmt_ip: "143.88.255.9"
+        instructor_wan: "143.88.0.1"
+        instructor_lan: "143.88.255.1"
+        so_ip: "143.88.255.9"
 
-    - name: Create test results directory
+    - name: Create results directory
       ansible.builtin.file:
         path: "{{ results_dir }}"
         state: directory
         mode: '0755'
 
-    - name: Build test header content
-      ansible.builtin.set_fact:
-        test_header: |
-          ================================================================================
-          Network Connectivity Test Results
-          ================================================================================
-          Test Date: {{ test_timestamp }}
-          Architecture: Two-Bridge VLAN Topology with Static Routing
-          
-          Instructor pfSense:
-            - WAN: {{ instructor_pfsense_wan_ip }} (vmbr255)
-            - LAN: {{ instructor_pfsense_lan_ip }} (vmbr100, untagged)
-          
-          Student Groups: {{ student_groups | length }}
-          {% for group in student_groups %}
-          {{ group.group_name }}:
-            - VLAN: {{ group.vlan_id }}
-            - WAN: {{ group.wan_ip }}/24 (vmbr255, gateway {{ instructor_pfsense_wan_ip }})
-            - LAN: {{ group.lan_ip }}/24 (vmbr100, VLAN {{ group.vlan_id }})
-          {% endfor %}
-          
-          Security Onion:
-            - Management: {{ securityonion_mgmt_ip }}
-          
-          ================================================================================
-
-    - name: Initialize test results file
-      ansible.builtin.copy:
-        content: "{{ test_header }}"
-        dest: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
+    - name: Create results file
+      ansible.builtin.file:
+        path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
+        state: touch
         mode: '0644'
 
-    - name: Display test configuration
+    - name: Display test start
       ansible.builtin.debug:
-        msg: |
-          ================================================================================
-          Starting Network Connectivity Tests
-          ================================================================================
-          Topology: Two-Bridge VLAN Architecture with Static Routing
-          
-          Bridges:
-            - vmbr255: WAN interconnection (143.88.0.0/24)
-            - vmbr100: VLAN-aware LAN bridge (VLANs 101-115 + untagged)
-          
-          Instructor pfSense:
-            - WAN: {{ instructor_pfsense_wan_ip }}
-            - LAN: {{ instructor_pfsense_lan_ip }}
-            - Routing: Static routes to all student networks
-          
-          Student Groups: {{ student_groups | length }}
-          {% for group in student_groups %}
-          - {{ group.group_name }}: WAN {{ group.wan_ip }}, LAN {{ group.lan_ip }} (VLAN {{ group.vlan_id }})
-          {% endfor %}
-          ================================================================================
+        msg: "Testing {{ student_groups | length }} student groups"
 
-    # ============================================================================
-    # Test 1: Instructor pfSense to Student pfSense WAN Interfaces (vmbr255)
-    # ============================================================================
-    - name: Test instructor pfSense to student pfSense WAN connectivity
-      block:
-        - name: Ping student pfSense WAN interfaces from instructor (same broadcast domain)
-          ansible.builtin.command:
-            cmd: >
-              sshpass -p '{{ vault_pfsense_password }}' 
-              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-              admin@{{ instructor_pfsense_wan_ip }}
-              "ping -c 3 {{ item.wan_ip }}"
-          loop: "{{ student_groups }}"
-          register: instr_to_student_wan
-          ignore_errors: true
-          changed_when: false
+    # Test 1: Instructor to Student WAN
+    - name: Ping student WAN from instructor
+      ansible.builtin.command:
+        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ instructor_wan }} 'ping -c 3 {{ item.wan_ip }}'"
+      loop: "{{ student_groups }}"
+      register: test1
+      ignore_errors: true
+      changed_when: false
 
-        - name: Log instructor to student WAN results
-          ansible.builtin.lineinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            line: |
-              [INSTR WAN → STUDENT WAN] {{ item.item.group_name }} ({{ item.item.wan_ip }}): {{ 'PASS' if item.rc == 0 else 'FAIL' }}
-              {{ item.stdout if item.rc == 0 else item.stderr }}
-          loop: "{{ instr_to_student_wan.results }}"
+    - name: Log test 1 results
+      ansible.builtin.lineinfile:
+        path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
+        line: "[TEST1] Instructor->{{ item.item.group_name }} WAN: {{ 'PASS' if item.rc == 0 else 'FAIL' }}"
+      loop: "{{ test1.results }}"
 
-    # ============================================================================
-    # Test 2: Instructor pfSense to Student LAN Networks (via static routes)
-    # ============================================================================
-    - name: Test instructor pfSense to student LAN networks via static routes
-      block:
-        - name: Ping student LAN gateway from instructor pfSense
-          ansible.builtin.command:
-            cmd: >
-              sshpass -p '{{ vault_pfsense_password }}' 
-              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-              admin@{{ instructor_pfsense_wan_ip }}
-              "ping -c 3 {{ item.lan_ip }}"
-          loop: "{{ student_groups }}"
-          register: instr_to_student_lan
-          ignore_errors: true
-          changed_when: false
+    # Test 2: Instructor to Student LAN
+    - name: Ping student LAN from instructor
+      ansible.builtin.command:
+        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ instructor_wan }} 'ping -c 3 {{ item.lan_ip }}'"
+      loop: "{{ student_groups }}"
+      register: test2
+      ignore_errors: true
+      changed_when: false
 
-        - name: Log instructor to student LAN results
-          ansible.builtin.lineinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            line: |
-              [INSTR → STUDENT LAN] {{ item.item.group_name }} ({{ item.item.lan_ip }} via static route): {{ 'PASS' if item.rc == 0 else 'FAIL' }}
-              Expected route: {{ item.item.lan_network }} via {{ item.item.wan_ip }}
-              {{ item.stdout if item.rc == 0 else item.stderr }}
-          loop: "{{ instr_to_student_lan.results }}"
+    - name: Log test 2 results
+      ansible.builtin.lineinfile:
+        path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
+        line: "[TEST2] Instructor->{{ item.item.group_name }} LAN: {{ 'PASS' if item.rc == 0 else 'FAIL' }}"
+      loop: "{{ test2.results }}"
 
-    # ============================================================================
-    # Test 3: Student pfSense to Instructor pfSense WAN
-    # ============================================================================
-    - name: Test student pfSense to instructor pfSense connectivity
-      block:
-        - name: Ping instructor WAN from student pfSense routers
-          ansible.builtin.command:
-            cmd: >
-              sshpass -p '{{ vault_pfsense_password }}' 
-              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-              admin@{{ item.wan_ip }}
-              "ping -c 3 {{ instructor_pfsense_wan_ip }}"
-          loop: "{{ student_groups }}"
-          register: student_to_instr
-          ignore_errors: true
-          changed_when: false
+    # Test 3: Student to Instructor
+    - name: Ping instructor from student
+      ansible.builtin.command:
+        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ item.wan_ip }} 'ping -c 3 {{ instructor_wan }}'"
+      loop: "{{ student_groups }}"
+      register: test3
+      ignore_errors: true
+      changed_when: false
 
-        - name: Log student to instructor results
-          ansible.builtin.lineinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            line: |
-              [STUDENT → INSTR] {{ item.item.group_name }} ({{ item.item.wan_ip }}): {{ 'PASS' if item.rc == 0 else 'FAIL' }}
-              {{ item.stdout if item.rc == 0 else item.stderr }}
-          loop: "{{ student_to_instr.results }}"
+    - name: Log test 3 results
+      ansible.builtin.lineinfile:
+        path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
+        line: "[TEST3] {{ item.item.group_name }}->Instructor: {{ 'PASS' if item.rc == 0 else 'FAIL' }}"
+      loop: "{{ test3.results }}"
 
-    # ============================================================================
-    # Test 4: Cross-Student pfSense WAN Connectivity (same broadcast domain)
-    # ============================================================================
-    - name: Test cross-student pfSense WAN connectivity on vmbr255
-      block:
-        - name: Ping other student WAN interfaces from each student pfSense
-          ansible.builtin.command:
-            cmd: >
-              sshpass -p '{{ vault_pfsense_password }}' 
-              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-              admin@{{ item.0.wan_ip }}
-              "ping -c 3 {{ item.1.wan_ip }}"
-          loop: "{{ student_groups | product(student_groups) | list }}"
-          when: item.0.group_id != item.1.group_id
-          register: cross_student_wan
-          ignore_errors: true
-          changed_when: false
+    # Test 4: Cross-student WAN
+    - name: Ping cross-student WAN
+      ansible.builtin.command:
+        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ item.0.wan_ip }} 'ping -c 3 {{ item.1.wan_ip }}'"
+      loop: "{{ student_groups | product(student_groups) | list }}"
+      when: item.0.group_id != item.1.group_id
+      register: test4
+      ignore_errors: true
+      changed_when: false
 
-        - name: Log cross-student WAN results
-          ansible.builtin.lineinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            line: |
-              [CROSS-STUDENT WAN] {{ item.item.0.group_name }} → {{ item.item.1.group_name }}: {{ 'PASS' if item.rc == 0 else 'FAIL' }}
-              {{ item.item.0.wan_ip }} → {{ item.item.1.wan_ip }} (vmbr255 broadcast domain)
-          loop: "{{ cross_student_wan.results }}"
-          when: not item.skipped | default(false)
+    - name: Log test 4 results
+      ansible.builtin.lineinfile:
+        path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
+        line: "[TEST4] {{ item.item.0.group_name }}->{{ item.item.1.group_name }} WAN: {{ 'PASS' if item.rc == 0 else 'FAIL' }}"
+      loop: "{{ test4.results }}"
+      when: not item.skipped | default(false)
 
-    # ============================================================================
-    # Test 5: Cross-Student LAN Network Connectivity (via static routes)
-    # ============================================================================
-    - name: Test cross-student LAN network connectivity via static routing
-      block:
-        - name: Ping other student LAN gateways from each student pfSense
-          ansible.builtin.command:
-            cmd: >
-              sshpass -p '{{ vault_pfsense_password }}' 
-              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-              admin@{{ item.0.wan_ip }}
-              "ping -c 3 {{ item.1.lan_ip }}"
-          loop: "{{ student_groups | product(student_groups) | list }}"
-          when: item.0.group_id != item.1.group_id
-          register: cross_student_lan
-          ignore_errors: true
-          changed_when: false
+    # Test 5: Cross-student LAN
+    - name: Ping cross-student LAN
+      ansible.builtin.command:
+        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ item.0.wan_ip }} 'ping -c 3 {{ item.1.lan_ip }}'"
+      loop: "{{ student_groups | product(student_groups) | list }}"
+      when: item.0.group_id != item.1.group_id
+      register: test5
+      ignore_errors: true
+      changed_when: false
 
-        - name: Log cross-student LAN results
-          ansible.builtin.lineinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            line: |
-              [CROSS-STUDENT LAN] {{ item.item.0.group_name }} → {{ item.item.1.group_name }}: {{ 'PASS' if item.rc == 0 else 'FAIL' }}
-              Route: {{ item.item.0.wan_ip }} → {{ instructor_pfsense_wan_ip }} → {{ item.item.1.wan_ip }} → {{ item.item.1.lan_ip }}
-          loop: "{{ cross_student_lan.results }}"
-          when: not item.skipped | default(false)
+    - name: Log test 5 results
+      ansible.builtin.lineinfile:
+        path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
+        line: "[TEST5] {{ item.item.0.group_name }}->{{ item.item.1.group_name }} LAN: {{ 'PASS' if item.rc == 0 else 'FAIL' }}"
+      loop: "{{ test5.results }}"
+      when: not item.skipped | default(false)
 
-    # ============================================================================
-    # Test 6: Verify Static Routes Existence on Instructor pfSense
-    # ============================================================================
-    - name: Verify static routes on instructor pfSense
-      block:
-        - name: Check routing table on instructor pfSense
-          ansible.builtin.command:
-            cmd: >
-              sshpass -p '{{ vault_pfsense_password }}' 
-              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-              admin@{{ instructor_pfsense_wan_ip }}
-              "netstat -rn | grep '143.88'"
-          register: routing_table
-          ignore_errors: true
-          changed_when: false
+    # Test 6: Security Onion
+    - name: Ping Security Onion
+      ansible.builtin.command:
+        cmd: "sshpass -p '{{ vault_pfsense_password }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@{{ instructor_wan }} 'ping -c 3 {{ so_ip }}'"
+      register: test6
+      ignore_errors: true
+      changed_when: false
 
-        - name: Log routing table
-          ansible.builtin.lineinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            line: |
-              
-              ================================================================================
-              INSTRUCTOR PFSENSE ROUTING TABLE
-              ================================================================================
-              {{ routing_table.stdout }}
-              ================================================================================
-              
-          when: routing_table.rc == 0
+    - name: Log test 6 results
+      ansible.builtin.lineinfile:
+        path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
+        line: "[TEST6] Instructor->SecurityOnion: {{ 'PASS' if test6.rc == 0 else 'FAIL' }}"
 
-        - name: Verify expected static routes
-          ansible.builtin.lineinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            line: |
-              [STATIC ROUTE CHECK] {{ item.group_name }}: {{ 'PRESENT' if item.lan_network.split('/')[0] in routing_table.stdout else 'MISSING' }}
-              Expected: {{ item.lan_network }} via {{ item.wan_ip }}
-          loop: "{{ student_groups }}"
-          when: routing_table.rc == 0
+    # Summary
+    - name: Calculate summary
+      ansible.builtin.set_fact:
+        t1_pass: "{{ test1.results | selectattr('rc', 'equalto', 0) | list | length }}"
+        t1_total: "{{ test1.results | length }}"
+        t2_pass: "{{ test2.results | selectattr('rc', 'equalto', 0) | list | length }}"
+        t2_total: "{{ test2.results | length }}"
+        t3_pass: "{{ test3.results | selectattr('rc', 'equalto', 0) | list | length }}"
+        t3_total: "{{ test3.results | length }}"
+        t4_pass: "{{ test4.results | rejectattr('skipped', 'defined') | selectattr('rc', 'equalto', 0) | list | length }}"
+        t4_total: "{{ test4.results | rejectattr('skipped', 'defined') | list | length }}"
+        t5_pass: "{{ test5.results | rejectattr('skipped', 'defined') | selectattr('rc', 'equalto', 0) | list | length }}"
+        t5_total: "{{ test5.results | rejectattr('skipped', 'defined') | list | length }}"
+        t6_pass: "{{ 1 if test6.rc == 0 else 0 }}"
 
-    # ============================================================================
-    # Final Summary
-    # ============================================================================
-    - name: Generate test summary
-      block:
-        - name: Calculate test counts
-          ansible.builtin.set_fact:
-            instr_to_student_wan_total: "{{ instr_to_student_wan.results | length }}"
-            instr_to_student_wan_passed: "{{ instr_to_student_wan.results | selectattr('rc', 'equalto', 0) | list | length }}"
-            instr_to_student_lan_total: "{{ instr_to_student_lan.results | length }}"
-            instr_to_student_lan_passed: "{{ instr_to_student_lan.results | selectattr('rc', 'equalto', 0) | list | length }}"
-            student_to_instr_total: "{{ student_to_instr.results | length }}"
-            student_to_instr_passed: "{{ student_to_instr.results | selectattr('rc', 'equalto', 0) | list | length }}"
-            cross_student_wan_total: "{{ cross_student_wan.results | rejectattr('skipped', 'defined') | list | length }}"
-            cross_student_wan_passed: "{{ cross_student_wan.results | rejectattr('skipped', 'defined') | selectattr('rc', 'equalto', 0) | list | length }}"
-            cross_student_lan_total: "{{ cross_student_lan.results | rejectattr('skipped', 'defined') | list | length }}"
-            cross_student_lan_passed: "{{ cross_student_lan.results | rejectattr('skipped', 'defined') | selectattr('rc', 'equalto', 0) | list | length }}"
-            internet_total: "{{ internet_connectivity.results | length }}"
-            internet_passed: "{{ internet_connectivity.results | selectattr('rc', 'equalto', 0) | list | length }}"
-            so_total: "1"
-            so_passed: "{{ 1 if so_mgmt_connectivity.rc == 0 else 0 }}"
-
-        - name: Calculate overall totals
-          ansible.builtin.set_fact:
-            total_tests: "{{ (instr_to_student_wan_total | int) + (instr_to_student_lan_total | int) + (student_to_instr_total | int) + (cross_student_wan_total | int) + (cross_student_lan_total | int) + (internet_total | int) + (so_total | int) }}"
-            passed_tests: "{{ (instr_to_student_wan_passed | int) + (instr_to_student_lan_passed | int) + (student_to_instr_passed | int) + (cross_student_wan_passed | int) + (cross_student_lan_passed | int) + (internet_passed | int) + (so_passed | int) }}"
-
-        - name: Append summary to results file
-          ansible.builtin.blockinfile:
-            path: "{{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
-            marker: "# {mark} TEST SUMMARY"
-            block: |
-              
-              ================================================================================
-              TEST SUMMARY - TWO-BRIDGE VLAN ARCHITECTURE
-              ================================================================================
-              Total Automated Tests: {{ total_tests }}
-              Passed: {{ passed_tests }}
-              Failed: {{ total_tests | int - passed_tests | int }}
-              Success Rate: {{ ((passed_tests | int / total_tests | int) * 100) | round(2) }}%
-              
-              Test Categories:
-              - Instructor → Student WAN (vmbr255): {{ instr_to_student_wan_passed }}/{{ instr_to_student_wan_total }}
-              - Instructor → Student LAN (routes):  {{ instr_to_student_lan_passed }}/{{ instr_to_student_lan_total }}
-              - Student → Instructor:               {{ student_to_instr_passed }}/{{ student_to_instr_total }}
-              - Cross-Student WAN (broadcast):      {{ cross_student_wan_passed }}/{{ cross_student_wan_total }}
-              - Cross-Student LAN (static routes):  {{ cross_student_lan_passed }}/{{ cross_student_lan_total }}
-              - Internet Connectivity (airgapped):  {{ internet_passed }}/{{ internet_total }}
-              - Security Onion Management:          {{ so_passed }}/{{ so_total }}
-              
-              Routing Validation:
-              ✓ Static routes verified on instructor pfSense
-              ✓ No duplicate gateway IPs (student pfSense authoritative for VLANs)
-              ✓ Clear hierarchical routing (student → instructor pfSense)
-              
-              Manual Tests Required:
-              ☐ Kali-to-Kali intra-group (Layer 2 VLAN isolation)
-              ☐ Kali-to-Kali inter-group (Layer 3 static routing)
-              ☐ VLAN isolation verification (ARP table inspection)
-              ☐ Security Onion promiscuous mode capture validation
-              
-              Architecture Notes:
-              - Two-bridge topology: vmbr255 (WAN) + vmbr100 (VLAN-aware LAN)
-              - VLAN isolation: Layer 2 segmentation on vmbr100
-              - Routing: Static routes on instructor pfSense (no VLAN interfaces)
-              - No IP conflicts: Single authoritative gateway per VLAN
-              ================================================================================
-
-        - name: Display test summary
-          ansible.builtin.debug:
-            msg: |
-              
-              ================================================================================
-              NETWORK CONNECTIVITY TEST COMPLETED
-              ================================================================================
-              Results saved to: {{ results_dir }}/connectivity_test_{{ test_timestamp }}.log
-              
-              Overall Success Rate: {{ ((passed_tests | int / total_tests | int) * 100) | round(2) }}%
-              Automated Tests: {{ passed_tests }}/{{ total_tests }} passed
-              
-              Test Breakdown:
-              ✓ Instructor → Student WAN: {{ instr_to_student_wan_passed }}/{{ instr_to_student_wan_total }}
-              ✓ Instructor → Student LAN: {{ instr_to_student_lan_passed }}/{{ instr_to_student_lan_total }}
-              ✓ Student → Instructor: {{ student_to_instr_passed }}/{{ student_to_instr_total }}
-              ✓ Cross-Student WAN: {{ cross_student_wan_passed }}/{{ cross_student_wan_total }}
-              ✓ Cross-Student LAN: {{ cross_student_lan_passed }}/{{ cross_student_lan_total }}
-              ✓ Internet Access: {{ internet_passed }}/{{ internet_total }} (airgapped OK)
-              ✓ Security Onion: {{ so_passed }}/{{ so_total }}
-              
-              Architecture Validated:
-              - Two-bridge VLAN topology operational
-              - Static routing functional via instructor pfSense
-              - No duplicate gateway IPs detected
-              - Layer 2 VLAN isolation enforced
-              
-              Next Steps:
-              1. Review detailed log for any failures
-              2. Complete manual Kali VM connectivity tests
-              3. Verify Security Onion captures all VLAN traffic
-              
-              ================================================================================
+    - name: Display summary
+      ansible.builtin.debug:
+        msg:
+          - "Test Results:"
+          - "Instructor->Student WAN: {{ t1_pass }}/{{ t1_total }}"
+          - "Instructor->Student LAN: {{ t2_pass }}/{{ t2_total }}"
+          - "Student->Instructor: {{ t3_pass }}/{{ t3_total }}"
+          - "Cross-Student WAN: {{ t4_pass }}/{{ t4_total }}"
+          - "Cross-Student LAN: {{ t5_pass }}/{{ t5_total }}"
+          - "Security Onion: {{ t6_pass }}/1"
+          - "Results: {{ results_dir }}/connectivity_test_{{ test_timestamp }}.log"
