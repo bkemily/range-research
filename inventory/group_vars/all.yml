@@ -102,7 +102,7 @@ templates:
   group2_pfsense_template_id: 8002
   spark_pfsense_template_id: 8003
   vlan_instructor_pfsense_template_id: 8004
-  vlan_student_pfsense_template_id: 8005
+  vlan_student_pfsense_template_id: 8008
   car_ubuntu_id: 8006
   kali: "/mnt/pve/ovfstore/TEMPLATE-kali-20241124-Experiment.ovf"
   ms3_ubuntu: "/mnt/pve/ovfstore/TEMPLATE-ms3ub1404-20250621-Experiment.ovf"
