@@ -14,7 +14,7 @@
   tasks:
     - name: Load inventory variables
       ansible.builtin.include_vars:
-        file: ../inventory/group_vars/all.yml
+        file: "{{ playbook_dir }}/../../../inventory/group_vars/all.yml"
 
     - name: Generate student groups from max_student_groups
       ansible.builtin.set_fact:
